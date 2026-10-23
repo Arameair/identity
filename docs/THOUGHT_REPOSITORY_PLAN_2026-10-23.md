@@ -1,6 +1,6 @@
 # Proposed new repository: Arameair/Thought
 
-**Design approved in conversation, repository existence and code NOT established by this document.** Name recommendation: **Thought** (noun for independent capability and system-service identity); **Thinking** describes its behavior. Keep code in its own repository. [Identity's ID cards](FEATURE_CARDS_AND_THOUGHT_MODULE_2026-10-23.md) · [Thought Controller boundary](https://github.com/Arameair/Thought-Controller/blob/experiment/multi-identity-controller-design-20261023/docs/THOUGHT_FEATURE_BOUNDARY_2026-10-23.md).
+**Status update (2026-10-23): [Arameair/Thought](https://github.com/Arameair/Thought) is confirmed PRIVATE and initialized with main/alpha; design-only docs live at [experiment/design-foundation-20261023](https://github.com/Arameair/Thought/tree/experiment/design-foundation-20261023). [Thought Issue #1](https://github.com/Arameair/Thought/issues/1) defines the first implementation. No Thought engine has been coded yet.** Name recommendation: **Thought** (noun for independent capability and system-service identity); **Thinking** describes its behavior. Keep code in its own repository. [Identity's ID cards](FEATURE_CARDS_AND_THOUGHT_MODULE_2026-10-23.md) · [Thought Controller boundary](https://github.com/Arameair/Thought-Controller/blob/experiment/multi-identity-controller-design-20261023/docs/THOUGHT_FEATURE_BOUNDARY_2026-10-23.md).
 
 ## Purpose
 
@@ -46,7 +46,7 @@ Thought does NOT manage GitHub OAuth, repo creation, owner accounts, arbitrary p
 
 ## Suggested branch discipline and team handoff
 
-1. Create private **Arameair/Thought** repository explicitly, with readable README describing boundaries. Bootstrap **main**, owner-approved **alpha**, then new **experiment/spark-trace-thought-v1-20261023** from Alpha. Do not auto-merge/promote.
+1. **Repository/bootstrap complete:** private **Arameair/Thought**, readable README on **main**, matching **alpha**, and separate docs-only design branch. For implementation create **experiment/spark-trace-thought-v1-20261023** from approved Alpha. Do not auto-merge/promote.
 2. First experiment uses deterministic mock observations and **no AI model**. Tests must prove records are owned by exactly one enabled entity and disabled entities cannot think.
 3. Provide an optional read-only adapter/interface Thought Controller can use later. Don't require Thought Controller to be running for initial unit/standalone tests.
 4. Provide exact branch/SHA, runnable test plan, counts (sparks, retained traces, thoughts, time, duplicates, dropped items), reasons for selection/expiration, process/CPU/RAM if available, safe diagnostics and rollback.
