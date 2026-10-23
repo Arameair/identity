@@ -1,4 +1,6 @@
-# Identity — first new-administrator prototype (with SIMULATED controller startup)
+# Identity — first new-administrator prototype + real read-only GitHub CLI check
+
+> **Experimental GitHub verification branch** \`experiment/identity-github-verification-20261023\`. This deliberately ports the first-administrator prototype into a new branch **from approved Alpha**, then adds an explicitly user-triggered read-only verification of an existing official GitHub CLI session. It does NOT authenticate Identity to GitHub, store tokens, or create repositories.
 
 > **This branch: `experiment/first-admin-wizard-20261023`**, started from `alpha` @ `8d08fec` for [Issue #6](https://github.com/Arameair/identity/issues/6) and the [coordinated first-user handoff](https://github.com/Arameair/identity/blob/experiment/fresh-admin-bootstrap-design-20261023/docs/CLAUDE_FIRST_USER_PROTOTYPE_HANDOFF_2026-10-23.md). **Not approved, not promoted.** `alpha`, `main` and every earlier experiment are untouched.
 >
@@ -87,3 +89,12 @@ These names deliberately differ from the local V1 experiment (`IDENTITY_DATA`, `
 ## Rollback
 
 Nothing was promoted. Stop using this branch — `alpha` (`8d08fec`) is untouched. To clear test data, Stop Identity and delete its data folder (shown on the Welcome screen and in diagnostics). To remove the experiment: `git push origin --delete experiment/first-admin-wizard-20261023`.
+
+
+## New: verify GitHub CLI (not Identity OAuth yet)
+
+On the GitHub step, click **Check GitHub CLI account (REAL)**. Identity invokes the installed official `gh` CLI with a single read-only `gh api user` request, using the account it has already authenticated. Success shows the verified GitHub username and makes clear that this is an **external machine session, not a connection to this Identity ID Card**. It never imports or stores a token.
+
+If GitHub CLI is absent, the page shows **CLI NOT INSTALLED**. If it has no working login, it shows **CLI NOT AUTHENTICATED OR UNAVAILABLE**. To set up the CLI itself, a user may install [GitHub CLI](https://cli.github.com/) and run `gh auth login --hostname github.com --web` in a terminal; this is a separate, explicit GitHub authorization, outside Identity.
+
+The check is optional, and Identity's local test profiles and cards keep working without it. The app's **mock connected** selector remains only a mock UI demonstration; it must not replace this real check. Per-installation OAuth, secure account brokerage, access scope verification, and approved private repository creation remain future separately tested features. Do not treat a verified CLI username as authorization for an entity to use GitHub.

@@ -183,6 +183,11 @@ func (s *server) routes() *http.ServeMux {
 		}
 		writeJSON(w, 200, map[string]string{"status": "stopped (simulated)"})
 	}))
+	// Explicit real check only: uses official gh CLI with read-only /user request.
+	// This does NOT link a GitHub account to the Identity profile.
+	mux.HandleFunc("POST /api/github/cli-check", write(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, a.VerifyGitHubCLI())
+	}))
 	mux.HandleFunc("POST /api/github/simulate", write(func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			State string `json:"state"`
@@ -250,6 +255,7 @@ func (s *server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"events":            p.Events.Recent(40),
 		"events_error":      p.Events.Err(),
 		"github":            githubStatus(p.GitHub),
+		"github_cli":        p.GitHubCheck,
 		"github_setting":    p.GitHub.SimulatedState,
 		"fail_next_pending": a.failNext || p.Store.FailNextPending(),
 	}
@@ -341,7 +347,11 @@ func (s *server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	g := githubStatus(p.GitHub)
-	fmt.Fprintf(&b, "- GitHub: %s%s · source access %s · GitHub requests made: 0 · tokens stored: 0\n", g.State, map[bool]string{true: " (MOCK test display)", false: ""}[g.Mock], g.SourceAccess)
+	fmt.Fprintf(&b, "- Identity GitHub account: %s%s · source access %s · tokens stored by Identity: 0\n", g.State, map[bool]string{true: " (MOCK test display)", false: ""}[g.Mock], g.SourceAccess)
+	if p.GitHubCheck != nil {
+		v := p.GitHubCheck
+		fmt.Fprintf(&b, "- External GitHub CLI session: %s · account %s · at %s · %d ms · NOT linked to Identity\n", v.State, firstSet(v.Account, "(none)"), v.CheckedAt.Format(time.RFC3339), v.ElapsedMS)
+	}
 	probs := p.Store.Problems()
 	fmt.Fprintf(&b, "- Problem files: %d\n", len(probs))
 	for _, pr := range probs {

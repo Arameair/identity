@@ -116,6 +116,7 @@ type Profile struct {
 	Store      *Store
 	Controller ControllerFile
 	GitHub     GitHubFile
+	GitHubCheck *GitHubCLIResult // runtime-only external CLI session check, never grants authorization
 	Events     *EventLog
 	LastCheck  *CheckResult
 }

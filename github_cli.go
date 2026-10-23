@@ -51,9 +51,9 @@ func stripGitHubEnvironment(env []string) []string {
 // checkGitHubCLI makes exactly one read-only API call via the official gh CLI.
 // It has an 8-second timeout, never prints CLI stderr (which may contain
 // sensitive environment details) and only exposes a validated login name.
-func checkGitHubCLI() GitHubCLIResult {
+func checkGitHubCLI() (result GitHubCLIResult) {
     started := time.Now()
-    result := GitHubCLIResult{
+    result = GitHubCLIResult{
         State: "NOT CHECKED", Source: "Official GitHub CLI (gh)",
         Detail: "Identity has no linked GitHub account. This checks only an existing GitHub CLI session on this machine.",
         Next: "The check cannot create repositories, grant permissions, or connect a profile.",
@@ -96,4 +96,18 @@ func checkGitHubCLI() GitHubCLIResult {
     result.Detail = "The GitHub API verified the displayed account through the machine's GitHub CLI session. Identity has not imported its token or bound this account to a System ID Card."
     result.Next = "A later, separately approved OAuth/account-broker step is required to link this account safely to an Identity installation."
     return result
+}
+
+func (a *App) VerifyGitHubCLI() GitHubCLIResult {
+    a.mu.Lock()
+    profile := a.p
+    a.mu.Unlock()
+    check := checkGitHubCLI() // external process; do not hold App lock
+    a.mu.Lock()
+    defer a.mu.Unlock()
+    if a.p == profile {
+        profile.GitHubCheck = &check // runtime status only; no credential persisted
+        profile.Events.Add("github", "read-only official GitHub CLI check: "+check.State+" (no token imported or account linked)", "")
+    }
+    return check
 }

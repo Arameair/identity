@@ -149,7 +149,7 @@ async function load(poll){
   const inst = S.installation;
   if (inst && step === null) step = inst.setup_completed_at ? 0 : Math.max(2, inst.setup_step || 2);
   if (!inst) step = null;
-  const sig = JSON.stringify([S.profile, S.installation, S.managed, S.controller, S.github, S.problems, step, scanHits]);
+  const sig = JSON.stringify([S.profile, S.installation, S.managed, S.controller, S.github, S.github_cli, S.problems, step, scanHits]);
   if (poll && sig === lastSig) return;
   lastSig = sig;
   render();
@@ -381,16 +381,24 @@ async function check(trigger, allowStart){
 // ---------- GitHub ----------
 function renderGitHub(el){
   const g = S.github, cls = g.mock ? "warn" : "n";
+  const cli = S.github_cli;
   el.innerHTML = `
     <div class="status ${cls}" style="margin-top:14px"><div class="row"><div class="big">${esc(g.state)}</div>${g.mock ? `<span class="badge b-sim">MOCK — test display</span>` : `<span class="badge b-n">REAL STATUS</span>`}</div>
       <p>${esc(g.summary)}</p><p class="muted" style="font-size:14px">${esc(g.next)}</p></div>
     <div class="status bad" style="margin-top:12px"><div class="big">Source access: ${esc(g.source_access)}</div><p>${esc(g.source_detail)}</p></div>
-    <p class="faint" style="font-size:13px;margin-top:10px">GitHub requests made by Identity: 0 · tokens stored: 0 · repositories created: 0</p>
+    <div class="status n" style="margin-top:12px">
+      <div class="row"><div class="big">Real GitHub check (optional)</div><span class="badge b-n">EXTERNAL CLI · NOT AN IDENTITY LOGIN</span></div>
+      <p class="muted">Checks the account already authorized in GitHub's official command-line tool on this computer. Does not read or store a token, connect your Identity card, or create a repo.</p>
+      <button id="ghCLI" type="button">Check GitHub CLI account (REAL)</button>
+      ${cli ? `<p><strong>${esc(cli.state)}</strong> ${cli.account ? `· account: <strong>${esc(cli.account)}</strong>` : ""}</p><p>${esc(cli.detail)}</p><p class="muted">${esc(cli.next)}</p><p class="faint">Checked: ${when(cli.checked_at)} · ${esc(cli.elapsed_ms)} ms · Not linked to this Identity profile</p>` : `<p class="muted">Not checked yet. No request has been sent.</p>`}
+    </div>
+    <p class="faint" style="font-size:13px;margin-top:10px">Identity GitHub account linking: NOT IMPLEMENTED · Identity tokens stored: 0 · repositories created: 0</p>
     <details style="margin-top:10px"><summary>Test the GitHub card (MOCK states)</summary>
       <p class="muted" style="font-size:14px">Shows how other states would look. Nothing contacts GitHub.</p>
       <select id="ghSel">${[["","Real status (NOT CONNECTED)"],["mock_connected","MOCK CONNECTED"],["mock_offline","MOCK OFFLINE"],["mock_access_required","MOCK ACCESS REQUIRED"]].map(([v,l]) => `<option value="${v}" ${S.github_setting===v?"selected":""}>${l}</option>`).join("")}</select>
     </details>`;
   $("#ghSel").onchange = async e => { try { await api("/api/github/simulate", {state:e.target.value}); await load(); } catch(err){ toast(err.message, true); } };
+  $("#ghCLI").onclick = async () => { try { $("#ghCLI").disabled = true; await api("/api/github/cli-check", {}); await load(); } catch(err) { toast(err.message, true); } };
 }
 
 // ---------- overview (after setup) ----------
