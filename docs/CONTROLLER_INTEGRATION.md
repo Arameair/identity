@@ -2,7 +2,7 @@
 
 [← Home](../README.md) · [Entity model](ENTITY_MODEL.md) · [Capabilities](CAPABILITIES.md)
 
-**Status:** planned interface. Thought Controller's repaired V1 is an owner-operated thought test controller, **not yet a registered multi-entity service**. [Current Thought Controller work](https://github.com/Arameair/Thought-Controller/issues/3).
+**Status: FUTURE GATE 3, NOT THE FIRST PROTOTYPE.** Gate 1 only creates/saves/restores local entities; it must NOT discover, start, register with, or simulate Thought Controller. Read [FIRST_PROTOTYPE.md](FIRST_PROTOTYPE.md). Thought Controller's repaired V1 is an owner-operated thought test controller, **not yet a registered multi-entity service**. [Current Thought Controller work](https://github.com/Arameair/Thought-Controller/issues/3).
 
 ## Who starts whom?
 
