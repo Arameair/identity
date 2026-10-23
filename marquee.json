@@ -1,0 +1,13 @@
+{
+  "name": "Identity — first new-administrator setup (SIMULATED controller startup)",
+  "description": "Welcome → administrator + installation → TASS / Example Workshop → Thought Controller check with saved startup approval (simulated launcher) → GitHub status → open the simulated Thought Controller dashboard. Test as New User makes a fresh profile. No process launching, no GitHub calls, no credentials, no AI.",
+  "requires": ["go"],
+  "setup": "go build -o identity .",
+  "run": "exec ./identity",
+  "windows": {
+    "setup": "go build -o identity.exe .",
+    "run": "identity.exe"
+  },
+  "portEnv": "PORT",
+  "path": "/"
+}
