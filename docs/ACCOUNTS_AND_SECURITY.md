@@ -41,6 +41,6 @@ The nonsecret entity blueprint can be restored from the same private repo *after
 
 ## First prototype safety boundary
 
-Gate 1 should run **without real GitHub or Discord accounts** using mock adapters and synthetic credentials. Only after UI/approval/storage tests pass should Gate 2 connect a real GitHub account and create a small empty private test repo, after explicit owner confirmation.
+**Gate 1 is a local entity-store prototype only:** no GitHub/Discord account connection, no mock GitHub adapter, no synthetic account credentials, and no account permissions UI. It merely shows future connection statuses as **NOT CONFIGURED**. After Gate 1 is tested and the owner approves, Gate 2 may implement supported protected credential storage and connect a real GitHub account to create one small private test repository after explicit owner confirmation. See [First prototype](FIRST_PROTOTYPE.md).
 
 [Next: controller connection →](CONTROLLER_INTEGRATION.md)
