@@ -20,7 +20,7 @@ This first build is **local only**: launch through Project Controller, create an
 | --- | --- |
 | **[1. Exact FIRST prototype (start here)](docs/FIRST_PROTOTYPE.md)** | What the coding team will build now and how we'll prove it works |
 | **[2. Start here: an easy walkthrough](docs/START_HERE.md)** | See what the user experiences, with examples and a suggested reading route |
-| **[4. Vision and boundaries](docs/VISION.md)** | What Identity is for, and what it deliberately does not do |
+| **[3. Vision and boundaries](docs/VISION.md)** | What Identity is for, and what it deliberately does not do |
 | **[4. Identity and entity model](docs/ENTITY_MODEL.md)** | What records exist, how identities persist, and how business and AI examples differ |
 | **[5. First-run setup wizard](docs/FIRST_RUN_WIZARD.md)** | Every screen and the choices a new or returning user makes |
 | **[6. GitHub, accounts and security](docs/ACCOUNTS_AND_SECURITY.md)** | Official sign-up, private repos, permissions, credentials, approval and recovery |
