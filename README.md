@@ -17,7 +17,7 @@ Identity is the first app a new administrator opens. On a clean **test profile**
 
 After setup, Identity opens an overview instead of the wizard. **Test as New User** (top right) opens a brand-new empty profile so you can do it all again as someone else; **Profiles ▾** switches back.
 
-**Nothing here is a real integration.** The launcher and controller handshake are **SIMULATED**, the GitHub alternative states are **MOCK**. Identity never starts a program, never contacts GitHub or any other server, stores no credentials and makes no AI calls. Its only outbound requests go to a Thought Controller address **on this computer** that you can see and change.
+**Nothing here is a real integration.** The launcher and controller handshake are **SIMULATED**, the GitHub alternative states are **MOCK**. Identity never starts a program or links a GitHub account, stores no GitHub credentials and makes no AI calls. The separate optional **GitHub CLI account check** makes a read-only external GitHub API request using that CLI's existing login. Its only outbound requests go to a Thought Controller address **on this computer** that you can see and change.
 
 ## Test it in Project Controller
 
