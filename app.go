@@ -420,7 +420,9 @@ func (a *App) CreateIdentity(name, typ, requestID string, allowDup bool) (Create
 	return res, err
 }
 
-// ---------- GitHub (status only; no GitHub calls exist in this app) ----------
+// ---------- GitHub Identity account state (unlinked; mock status selector) ----------
+// A separate explicit github_cli.go probe may query /user via the official
+// machine CLI; it never links the resulting account to this Identity card.
 
 func (a *App) SetGitHubSimulation(state string) error {
 	switch state {
@@ -470,7 +472,7 @@ func githubStatus(g GitHubFile) GitHubStatus {
 		s.Next = "A future build would explain how to request access; nothing is requested now."
 	default:
 		s.State = "NOT CONNECTED"
-		s.Summary = "No GitHub authorization is configured for this installation. Identity stores no GitHub tokens or passwords and has made no GitHub requests."
+		s.Summary = "No GitHub account is linked to this Identity installation. Identity stores no GitHub tokens or passwords. An optional read-only machine GitHub CLI check is separate from this status."
 		s.Next = "Connecting through GitHub's official sign-in isn't built yet (planned later, with your approval). You can keep going locally."
 	}
 	return s
