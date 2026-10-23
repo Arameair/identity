@@ -7,8 +7,9 @@
 // clearly labeled SIMULATED launcher, show GitHub status honestly, and open
 // the simulated Thought Controller dashboard.
 //
-// It never launches a process, never contacts GitHub or any other network
-// service, never stores credentials and never calls an AI model. Its only
+// It never launches a process, never links a GitHub account to Identity,
+// never stores credentials and never calls an AI model. A separate optional
+// owner-triggered GitHub CLI check makes one real read-only /user request. Its only
 // outbound requests go to a Thought Controller address on this computer
 // (loopback only) that the owner can see and change.
 package main

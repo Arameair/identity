@@ -1,6 +1,6 @@
 {
   "name": "Identity — first new-administrator setup (SIMULATED controller startup)",
-  "description": "Welcome → administrator + installation → TASS / Example Workshop → Thought Controller check with saved startup approval (simulated launcher) → GitHub status → open the simulated Thought Controller dashboard. Test as New User makes a fresh profile. No process launching, no GitHub calls, no credentials, no AI.",
+  "description": "Welcome → administrator + installation → TASS / Example Workshop → Thought Controller check with saved startup approval (simulated launcher) → GitHub status → open the simulated Thought Controller dashboard. Test as New User makes a fresh profile. No process launching or account linking, optional real read-only GitHub CLI session check, no credential import, no AI.",
   "requires": ["go"],
   "setup": "go build -o identity .",
   "run": "exec ./identity",
