@@ -2,6 +2,8 @@
 
 **You do not need to know programming to follow this proposal.** [← Back to the project home](../README.md)
 
+**Current first coding step: [Build the local Create / Save / Restore app](FIRST_PROTOTYPE.md).** The scenarios below show our **future complete setup journey**. Initial Gate 1 stops *after* creating and restoring the local entity; the GitHub and controller portions happen later. Do not ask the first team to implement or mock those.
+
 Imagine a fresh installation of the Identity application. It should help someone get set up even if they have never used GitHub.
 
 ## Story A: creating TASS

@@ -1,31 +1,24 @@
-# Status — what's real versus planned
+# Current status — what actually exists
 
-[← Home](../README.md) · [Roadmap](ROADMAP.md) · [Team instructions](../AGENTS.md)
+[← Home](../README.md) · [First prototype](FIRST_PROTOTYPE.md) · [Team instructions](../AGENTS.md)
 
-**As of 2026-10-23:** Identity is a **documentation-first proposal**.
+**2026-10-23: design docs updated to define a deliberately small FIRST implementation.** No Identity application code or user testing has been completed by these notes.
 
 | Area | Status |
 | --- | --- |
-| Reusable Identity application repository | **Exists** — private GitHub repo |
-| Main README, navigation, design documentation and safe examples | **Proposed on experimental design branch** |
-| Alpha | **Bootstrap baseline only** — no working application |
-| Identity creation/restoration wizard | NOT IMPLEMENTED |
-| GitHub signup guidance / OAuth authorization | NOT IMPLEMENTED |
-| Real per-entity private GitHub repository creation | NOT IMPLEMENTED |
-| Protected credential store / account broker | NOT IMPLEMENTED |
-| Thought Controller service discovery / registration | NOT IMPLEMENTED |
-| Memory / Discord / other module registry | NOT IMPLEMENTED |
-| Live Identity tests | NOT RUN |
-| Alpha promotion | NOT DONE (owner-only) |
+| Reusable Identity software GitHub repo | Private repo EXISTS |
+| Navigable design docs + first-build instructions | On `experiment/design-foundation-20261023`, unpromoted |
+| `main` / `alpha` | Bootstrap README only; neither is the working Identity app |
+| Local Create / Save / Restore application | NOT IMPLEMENTED |
+| Project Controller launch/Stop of Identity | NOT VERIFIED |
+| First two persistent identities (AI + business) | NOT CREATED |
+| Real GitHub account/repo connection | LATER, NOT IMPLEMENTED |
+| Thought Controller discovery/entity registration | LATER, NOT IMPLEMENTED |
+| Credential store / optional module registry | LATER, NOT IMPLEMENTED |
+| Owner verification A–G | NOT RUN |
 
-## Dependencies
+## Next handoff
 
-The repaired Thought Controller experiment is in [Arameair/Thought-Controller — Issue #3](https://github.com/Arameair/Thought-Controller/issues/3). The team reported fixes and fake-site/Go tests, but the owner still needs to verify the first actual Chat-Jimmy thought and accept a controller baseline. Entity registration is a **future interface**, not an existing feature.
+Ask the coding team to implement **only Gate 1** as written in [FIRST_PROTOTYPE.md](FIRST_PROTOTYPE.md) and [Issue #2](https://github.com/Arameair/identity/issues/2), in a **new experiment branch from approved alpha**. Use the design branch as *reference documentation*, not as the development base. Prove one entity survives Stop/Play, then a second entity can coexist.
 
-## The first demonstrable milestone
-
-An owner can Play an Identity test prototype from Project Controller, create a distinct local test entity, restart and restore the exact same ID, inspect safe diagnostics, and see a **mock** GitHub/private-repo setup and **mock** controller registration. It must not touch real providers or modify live identities by accident.
-
-## What the next coding team should do
-
-Read [AGENTS.md](../AGENTS.md) and [Gate 1](ROADMAP.md); implement only one isolated experimental prototype from the current owner-approved Alpha, bring back tests and an owner-visible demo, and explicitly label anything not demonstrated. **Do not implement full account connections before the owner reviews the local prototype and security plan.**
+Even if Thought Controller remains experimental, Gate 1 is independent and can start now. Real registration waits for a compatible controller API and owner approval in a separate gate.

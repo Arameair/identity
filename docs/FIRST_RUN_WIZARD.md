@@ -2,6 +2,8 @@
 
 [← Home](../README.md) · [Start here](START_HERE.md) · [Account security](ACCOUNTS_AND_SECURITY.md)
 
+**Build-stage note:** This page describes the **future complete onboarding wizard**, NOT the entire Gate 1. The **first prototype only has name + type, unique ID, local save, list/open, and local restore** as specified in [FIRST_PROTOTYPE.md](FIRST_PROTOTYPE.md). GitHub/credentials/controller screens are **NOT IMPLEMENTED**, not fake or functioning, and must not be built in Gate 1.
+
 **Goal:** A person unfamiliar with GitHub can set up an entity without needing terminal commands or manual token pasting. No screen below is implemented.
 
 ## Home view: calm, obvious choices

@@ -1,36 +1,30 @@
-# Team instructions — read before writing code
+# Team instructions — Identity FIRST working prototype
 
-[Project guide](README.md) · [Gate plan](docs/ROADMAP.md) · [Owner acceptance checks](docs/ACCEPTANCE_TESTS.md) · [Security](docs/ACCOUNTS_AND_SECURITY.md)
+[← Home](README.md) · **[Read the precise first-build specification](docs/FIRST_PROTOTYPE.md)** · [Acceptance](docs/ACCEPTANCE_TESTS.md) · [Roadmap](docs/ROADMAP.md)
 
-## Assignment
+## The assignment — ONE step only
 
-Build a reusable **Identity application**, not a persona manager or a WoW-specific chatbot. Identity creates/restores entity IDs, guides GitHub account/repository setup, manages secure account authorizations and registers entities/modules with Thought Controller. Businesses/people/AI companions must all be valid entity types; personality, thinking and memory are optional.
+Build a small local **Identity Manager** application. It must **create, save, list/open and restore** unique identities across complete app restarts. Work for different entity types (at least AI companion, Business, Person, Project, Other). Identity is **not** personality. Do not build GitHub integration, Thought Controller integration, even mocks for those connections, or other modules now.
 
-**Current requested phase: documentation and handoff.** Do not interpret this blueprint as permission to provision real GitHub repos, request actual tokens or change Thought Controller.
+**This issue is the authority for first-build scope:** [Gate 1 — local Create / Save / Restore](https://github.com/Arameair/identity/issues/2). The broader design documents are roadmap context only. If they describe GitHub sign-in or Thought Controller connection, those belong to future gates.
 
-## Branch policy
+## Branch and development policy
 
-- All implementation experiments **start from latest owner-approved `alpha`**, on a new `experiment/<feature>-<date>` branch. Do not work directly on main, alpha or stable.
-- Keep Alpha/main unchanged; no auto-merge/push to Alpha. Owner promotes manually only after a real review.
-- If an experiment depends on unpromoted Thought Controller code, name its exact SHA and request owner guidance for the integration strategy; don't pretend it is Alpha.
-- Include `marquee.json` or the manifest required by Project Controller; show correct running branch/full SHA and independent Play/Stop.
+- **Start from current owner-approved `alpha`** on a NEW `experiment/identity-local-v1-YYYYMMDD` branch. Alpha/main are still bootstrap; the design proposal lives on `experiment/design-foundation-20261023`. Read the docs from that design branch, but **do not branch from the unapproved design experiment** or claim Alpha includes those docs.
+- Never change or promote `alpha`, `stable` or `main`; owner manually approves promotion after watching a working test.
+- Build independently runnable Go web app unless compelling reason otherwise. Include `marquee.json` with Go build commands and `PORT` so owner can **Play and Stop in Project Controller**. No dependency on an already running Thought Controller or GitHub.
+- Project Controller uses detached checkouts! Respect `PC_BRANCH`, `PC_DATA`, actual git commit and assigned `PORT`, and explicit data override. Each experimental workspace must have isolated persistent test data. Do not store state inside the project checkout or default all detached builds to one shared “default” data folder.
+- Safe loopback-only local service; do not collect/store any credentials or private account data; no external calls or automatic account creation.
+- Implement durable, versioned entity records, unique IDs, atomic saves, recoverable read/write errors, input validation, same-ID restoration, repeat-click safety, multiple entities, and test data isolation.
+- UI should be calm, readable, simple, with **Create identity**, **Open identity**, local restore, **Copy ID**, **Copy Diagnostics**. Clearly label GitHub **NOT CONFIGURED**, Thought Controller **NOT CONNECTED**; no fake PASS badges.
+- Record branch/SHA/data directory, exact outcome and error. Provide tests and owner-visible instructions; only report tests actually run. STOP leaves no orphan process.
 
-## First implementation request (Gate 1 only)
+## What to deliver
 
-1. Implement a small, clean guided dashboard: Create, Restore, Open entity, inspect fields, fake account status and fake controller status.
-2. Generate ID once, persist locally and restore after restart. Distinguish **live profile** vs isolated **experiment test profile**, honor Project Controller's `PC_BRANCH` and `PC_DATA` as appropriate while ensuring code branch choice never silently changes a real entity.
-3. Write **mock GitHub adapter** and **fake controller** to prove workflow without external side effects. Do not create actual GitHub accounts/repos or use private access tokens in Gate 1.
-4. Model nonsecret data and future **capability references**; never store passwords/tokens in checked-in repo or trace. Provide an explicit human approval path for future actions.
-5. Show readable errors, status/metrics, **Copy safe diagnostics**, version, storage location, request IDs; separate configured/authorized/reachable/verified, mock/real and PASS/FAIL/UNVERIFIED.
-6. Add tests for identity restoration, duplicate prevention, offline/denied states, branch isolation, Reset/Stop/restart, corrupted store, and forbidden cross-entity access.
-7. Provide an owner-run acceptance walkthrough in Project Controller with exact branch/SHA, logs, known gaps, clean rollback and no orphan processes.
+1. Link to the new experimental branch and full SHA (not Alpha).
+2. Runnable Project Controller interface and `marquee.json`.
+3. Tests for create/list/open/restore, distinct IDs, corrupt/denied writes, concurrent/repeated creation, data-folder separation, basic API safety, independent Stop/Play.
+4. Owner report for [A–G](docs/FIRST_PROTOTYPE.md#owners-first-test-must-be-doable-without-terminal): PASS / FAIL / BLOCKED / NOT RUN with exact evidence, logs, timings, screenshot/context if available and rollback details.
+5. Explain any unsupported functionality honestly. **Do not start Gate 2 without fresh owner instruction**.
 
-## Future gates — do NOT combine
-
-- Gate 2: approved real GitHub signup guidance, minimal OAuth/GitHub App permissions, protected OS credential vault, **private repo** creation/selection and secure restore.
-- Gate 3: explicitly negotiated and authenticated **versioned** Thought Controller registration/discovery. Existing controller V1 does not have this yet.
-- Gate 4: first optional module (`memory.primary`) and owner-approved setup flow.
-
-## Proof and handoff expectations
-
-For every change, report what actually runs, why it's safe, exactly which tests ran, whether data was MOCK/test/live, and all failures/unknowns. A green badge without evidence is not acceptance. **No covert account creation, no raw tokens in GitHub, no model-driven permission self-approval, no automatic branch promotion.**
+Do not make an all-in-one companion, build a personality system, or require any external login just to create a local entity.

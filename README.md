@@ -6,11 +6,20 @@ Identity is the reusable **starting point for a new entity** in our Thought Cont
 
 The idea: **download Identity → create or restore your own identity → link a private GitHub repository → connect to Thought Controller → add independent capabilities as needed.**
 
+## First thing we're building
+
+**[▶ FIRST prototype — exact app screens, functions, tests and exclusions](docs/FIRST_PROTOTYPE.md)**
+
+This first build is **local only**: launch through Project Controller, create an identity such as TASS with **name + type**, give it a permanent ID, save it, stop the app, and restore the **same ID**. Create a business identity as a second test. Show future GitHub / Thought Controller connections as **NOT CONFIGURED / NOT CONNECTED** — don't implement or simulate them in Gate 1.
+
+**[Claude / coding-team instructions](AGENTS.md)** · **[Gate 1 assignment — Issue #2](https://github.com/Arameair/identity/issues/2)** · [Owner tests](docs/ACCEPTANCE_TESTS.md)
+
 ## Start here — click through the whole project
 
 | Read | What you'll learn |
 | --- | --- |
-| **[1. Start here: an easy walkthrough](docs/START_HERE.md)** | See what the user experiences, with examples and a suggested reading route |
+| **[1. Exact FIRST prototype (start here)](docs/FIRST_PROTOTYPE.md)** | What the coding team will build now and how we'll prove it works |
+| **[2. Start here: an easy walkthrough](docs/START_HERE.md)** | See what the user experiences, with examples and a suggested reading route |
 | **[2. Vision and boundaries](docs/VISION.md)** | What Identity is for, and what it deliberately does not do |
 | **[3. Identity and entity model](docs/ENTITY_MODEL.md)** | What records exist, how identities persist, and how business and AI examples differ |
 | **[4. First-run setup wizard](docs/FIRST_RUN_WIZARD.md)** | Every screen and the choices a new or returning user makes |
@@ -40,9 +49,11 @@ flowchart TD
 
 **Crucial distinctions:** the **Identity application repo** (this software) is *not* an entity's personal repository. The **entity** is the durable participant. A **GitHub account** may manage many private entity repositories. The repository describes its configuration and relationships, **not** its access tokens or live thought contents. Thought Controller does not automatically gain any privilege possessed by an entity.
 
-## The first working test we want
+## First working test: local identity, nothing external
 
-Create a new test entity, close the app, reopen it, verify the *same ID* is restored. Guide the owner through authorizing an existing GitHub account and creating a **private** repository (with explicit confirmation). Discover an already running Thought Controller, register the test entity once, reconnect idempotently, and show exact statuses and safe copyable diagnostics. Test failure and denial cases too. **Start using a fake GitHub/controller adapter; do not attach actual accounts until security is demonstrated.**
+Play Identity inside Project Controller → Create TASS (AI companion) → inspect its permanent ID → Stop → Play again → restore the *same* ID → create a second business identity with a *different* ID → verify both remain. Display GitHub **NOT CONFIGURED** and Thought Controller **NOT CONNECTED**. Report tests and copy safe diagnostics. **No GitHub account/repo work, no fake adapters, no Thought Controller integration and no credential handling in this first build.** Read [FIRST_PROTOTYPE.md](docs/FIRST_PROTOTYPE.md).
+
+The diagram above is the **eventual architecture**, not what Gate 1 delivers.
 
 ## Project conventions
 

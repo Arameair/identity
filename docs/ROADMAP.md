@@ -1,49 +1,33 @@
-# Development roadmap — experiment in small verified steps
+# Identity roadmap — prove one puzzle piece at a time
 
-[← Home](../README.md) · [Owner tests](ACCEPTANCE_TESTS.md) · [Coding team instructions](../AGENTS.md)
+[← Home](../README.md) · **[First prototype — exact scope](FIRST_PROTOTYPE.md)** · [Tests](ACCEPTANCE_TESTS.md)
 
-**Don't build all features at once.** Start from Alpha for each approved experimental prototype, work in a new `experiment/*` branch, and report what is actually observed. Owner approves any Alpha promotion.
+No gate counts as complete until its owner-visible acceptance check is demonstrated. Build on a separate `experiment/*` branch created from latest **owner-approved alpha**; never auto-promote.
 
-## Gate 0: documentation and boundary approval (NOW)
+## Gate 0 — design (documentation only)
 
-Deliver a clickable repository that a non-programmer can navigate: README, examples, plain explanations, security and module responsibilities, proposed controller registration, a first-run user journey and pass/fail criteria. Discuss open decisions in [Decisions](DECISIONS.md). **No credentials or actual account access.**
+Define entity vs account vs repository, identity continuity, security boundaries, first-run journey and future interfaces. This is the purpose of the design branch.
 
-## Gate 1: local Identity prototype (FIRST CODE)
+## Gate 1 — FIRST CODE: local Create / Save / Restore
 
-- A standalone application visible through Project Controller with independent Play/Stop; simple calm tiles and **Create / Restore / Inspect** screens.
-- Generate a stable ID once. Store an entity locally, close app, change to another code branch *in a separate test data sandbox*, and show how an approved release restores the same ID.
-- Show pending GitHub and controller statuses. Use mock GitHub and fake Thought Controller adapters for all external operations.
-- Safe copyable diagnostics: exact app branch/SHA, data store location, entity ID short form, action and result, no secret values.
-- Tests for duplicate IDs, corrupt storage, restart, user cancel, mock offline, no unnecessary side effects or orphan processes.
-- **Do not mark setup complete** without the required GitHub repository; permit an honest locally saved **pending setup**.
+**Build this one step now.** Independent small Identity Manager app via Project Controller. Ask for name + type, create a permanent unique ID once, save versioned data locally, list/open identities, stop and restart, restore the **same** entities and IDs. Create an AI companion and a business. Show nonworking future connection statuses honestly. Copy safe diagnostics, respect `PC_DATA` and detached checkout, isolate test instances and handle storage failure.
 
-## Gate 2: real GitHub setup (AFTER Gate 1 security)
+**No real or fake GitHub adapter. No real or fake Thought Controller adapter.** This is intentionally narrower than an earlier roadmap draft.
 
-- Guided official GitHub account signup if needed, or authorize existing account using approved flow.
-- Explicit authorization scopes, encrypted OS-backed credential storage, revoked/expired/denied states; never ask for passwords/MFA or paste access tokens in UI.
-- Explicit **Create PRIVATE repo** or **Use suitable existing PRIVATE repo**, verify privacy/ownership/write access, write a **nonsecret schema-versioned manifest** only after preview/approval.
-- Restore entity from repo on a second device; reauthorize local credentials; no accidental identity re-creation.
-- Test first with a disposable private test repo. Failure/revoke paths are as important as success.
+The detailed build instructions and owner A–G acceptance checks are in **[FIRST_PROTOTYPE.md](FIRST_PROTOTYPE.md)**. Gate 1 does NOT require GitHub; locally created entities are clearly **pending setup** for the long-term GitHub-backed environment.
 
-## Gate 3: Thought Controller handshake (AFTER Thought Controller's owner test)
+## Gate 2 — guided GitHub setup (only AFTER Gate 1 works and owner approves)
 
-- Coordinate a small compatible experimental registration interface with Thought Controller team. Test health, authentication, idempotent register and reconnect using a fake controller first.
-- Under Project Controller, discover already-running Thought Controller; do not start/stop it independently.
-- Standalone mode: show saved user approval for optional auto-start if controller is missing. Verify readiness and registration after start; never spawn duplicate processes.
-- Register an entity, stop/restart either app, reconnect same ID, and show configured/authorized/reachable/verified states.
-- A missing or incompatible interface must show **unsupported/pending**, not silently pass.
+Connect existing GitHub account with provider-approved auth, or guide someone through GitHub's **official signup flow**, never collecting password/MFA. Secure tokens through supported OS credential protection; explicit scoped consent, denial and revocation. Create/select **a separate private GitHub repository per entity**, verify the owner and visibility, and write only a nonsecret manifest. Restore the same entity on a new device only after verified authorization; don't sync tokens through the repo.
 
-## Gate 4: first optional puzzle piece (LATER)
+## Gate 3 — Thought Controller integration (only AFTER Gate 2 and owner approval)
 
-Use a mock Memory module, then an independent real Memory module: request `memory.primary`, guide setup/authorization, save durable nonsecret locator, connect, verify, revoke, replace without losing the entity. This tests the reusable registry concept **without building all possible services**.
+Agree on a minimal authenticated, versioned registration contract with Thought Controller; current V1 does **not** yet expose this. First fake-contract tests in a dedicated integration experiment, then live controller discovery, ready/unsupported status, idempotent register/reconnect, strict entity scoping and no raw credentials. Prefer reuse of already-running controller and keep process lifetime owned by Project Controller. An explicitly approved standalone startup may be explored later.
 
-## Explicitly not included in the first prototype
+## Gate 4 — optional puzzle pieces (later)
 
-- AI personality definitions or “consciousness” systems.
-- A full Discord/GitHub agent with broad writes.
-- Multi-entity thought concurrency, remote exposed control APIs, arbitrary module auto-installation, agent-initiated account creation, autonomous authorization or code modifications.
-- Auto-merging a branch, copying private chat history into GitHub or storing any real token in the repository.
+Attach `memory.primary`, communication, perception, etc., through typed capability references, safe approval/health checks and independently managed modules. Personality is optional and not required for a business/person/project identity.
 
-**Stop/go rule:** if a step is FAIL or BLOCKED, capture exact context, repair it in a new experiment and retest. **Do not promote** based only on a build or mock-only response.
+## Rule
 
-[Next: acceptance tests →](ACCEPTANCE_TESTS.md)
+**Finish the smallest real proof, inspect errors together, then choose the next piece.** No automatic accounts, thought processing, credentials, registration, GitHub remote effects or multi-entity AI behavior in Gate 1.

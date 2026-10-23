@@ -2,6 +2,12 @@
 
 [← Home](../README.md) · [Status](STATUS.md)
 
+## First-build scope — owner instruction, 2026-10-23
+
+The first implementation is **local Create / Save / List / Open / Restore** only (TASS AI and a business example), within Project Controller. It must demonstrate stable IDs across app Stop/Play, durable test storage and honest error reporting. **No real or simulated GitHub connections, no real or simulated Thought Controller registration, no account/credential/module functionality yet.** See [First prototype](FIRST_PROTOTYPE.md) and [Issue #2](https://github.com/Arameair/identity/issues/2).
+
+This changes *the order of implementation*, not the eventual goal of private GitHub repositories and secure account management.
+
 ## Agreed direction from the owner discussion
 
 | Decision | Status |

@@ -2,6 +2,8 @@
 
 [← Home](../README.md) · [Security](ACCOUNTS_AND_SECURITY.md) · [Example manifest](../examples/entity-manifest.example.json)
 
+**Gate 1 note:** The first local prototype needs only a generated ID, display name, type, creation time and schema version. GitHub repo binding and owner/admin rights are **future setup fields**, and a locally saved entity is **pending setup**. See [FIRST_PROTOTYPE.md](FIRST_PROTOTYPE.md).
+
 ## Plain definitions
 
 - **Entity:** A distinct participant, such as an AI, person, business, organization or project. It has a unique stable ID regardless of whether its software is running.
