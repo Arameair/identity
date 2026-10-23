@@ -1,39 +1,54 @@
-# Identity — reusable entity and account manager
+# Identity — the reusable entity and account manager
 
-> **Status: project blueprint, not a working account manager.** No GitHub/Discord credentials, logins, Thought Controller registration, or provisioning are implemented.
+**Project state: design proposal. Nothing below is an implemented feature.** The software repository is **private**. The owner approves each prototype and any promotion to Alpha.
 
-**Identity** is the independent setup and continuity component of the Thought Controller ecosystem. It can create or restore a uniquely identified **entity** (AI companion, person, business, team, project, etc.), guide its user through GitHub repository setup, manage access through secure local credentials, and register capabilities with a compatible Thought Controller. **Personality and thinking are optional modules, not part of the definition of identity.**
+Identity is the reusable **starting point for a new entity** in our Thought Controller ecosystem. An entity may be a companion, business, person, organization, project, or another independent participant. It does **not** have to think or possess a personality.
 
-## Start here: click through the project
+The idea: **download Identity → create or restore your own identity → link a private GitHub repository → connect to Thought Controller → add independent capabilities as needed.**
 
-The detailed, clickable proposal is on the **design experiment branch**, not yet approved/promoted to Alpha:
+## Start here — click through the whole project
 
-**[▶ Open the Identity project guide](https://github.com/Arameair/identity/blob/experiment/design-foundation-20261023/README.md)**
+| Read | What you'll learn |
+| --- | --- |
+| **[1. Start here: an easy walkthrough](docs/START_HERE.md)** | See what the user experiences, with examples and a suggested reading route |
+| **[2. Vision and boundaries](docs/VISION.md)** | What Identity is for, and what it deliberately does not do |
+| **[3. Identity and entity model](docs/ENTITY_MODEL.md)** | What records exist, how identities persist, and how business and AI examples differ |
+| **[4. First-run setup wizard](docs/FIRST_RUN_WIZARD.md)** | Every screen and the choices a new or returning user makes |
+| **[5. GitHub, accounts and security](docs/ACCOUNTS_AND_SECURITY.md)** | Official sign-up, private repos, permissions, credentials, approval and recovery |
+| **[6. Connecting Thought Controller](docs/CONTROLLER_INTEGRATION.md)** | Discovery, startup boundaries, registration and requesting a capability |
+| **[7. Puzzle pieces and environments](docs/CAPABILITIES.md)** | How memory, communication, and other independent modules are found and linked |
+| **[8. Prototype roadmap](docs/ROADMAP.md)** | Small experiments, order of work, and what not to build first |
+| **[9. Owner acceptance tests](docs/ACCEPTANCE_TESTS.md)** | Specific steps to prove the system actually works |
+| **[10. Decisions and open questions](docs/DECISIONS.md)** | What we agreed on versus what still needs testing |
+| **[11. Current status](docs/STATUS.md)** | What is actually done versus designed |
+| **[Instructions for a coding team](AGENTS.md)** | Branch policy, evidence, safety and first assignment |
+| **[Example safe entity manifest](examples/entity-manifest.example.json)** | A nonsecret example of what an entity's GitHub repository might store |
 
-That guide links to the vision, step-by-step first-run wizard, entity model, account/security plan, Thought Controller handshake, examples, decisions, test gates and implementation instructions.
+## A picture of the goal
 
-## Core principle
+~~~mermaid
+flowchart TD
+    U["A person downloads Identity"] --> I["Identity setup / restore"]
+    I --> G["Entity's private GitHub repo<br/>Nonsecret identity + module blueprint"]
+    I --> S["Local protected state / credential store<br/>NOT stored in GitHub"]
+    I --> T["Thought Controller<br/>find it, or approved start, then register entity"]
+    T --> M["Optional Memory"]
+    T --> C["Optional Communication"]
+    T --> P["Optional Perception"]
+    T --> X["Other puzzle pieces"]
+~~~
 
-One reusable **Identity application** can create or restore many separate **entity identities**. Each entity is associated with its own **private GitHub repository** as a non-secret environment blueprint, while its local identity state and credentials stay outside code checkout folders. A GitHub *account* may securely own more than one entity repository; creating an entity does not mean automating creation of a new GitHub user account.
+**Crucial distinctions:** the **Identity application repo** (this software) is *not* an entity's personal repository. The **entity** is the durable participant. A **GitHub account** may manage many private entity repositories. The repository describes its configuration and relationships, **not** its access tokens or live thought contents. Thought Controller does not automatically gain any privilege possessed by an entity.
 
-```mermaid
-flowchart LR
-    U[Owner / user] --> I[Identity app]
-    I --> R[Private GitHub repo per entity]
-    I <-->|registration + capability discovery| T[Thought Controller]
-    T <-->|optional puzzle pieces| M[Memory / Communication / Perception]
-```
+## The first working test we want
 
-**Safety:** passwords, MFA codes, access tokens, API keys, private keys, and session cookies never belong in GitHub, even private repositories. The planned account manager uses a protected local secrets store and user-approved limited access.
+Create a new test entity, close the app, reopen it, verify the *same ID* is restored. Guide the owner through authorizing an existing GitHub account and creating a **private** repository (with explicit confirmation). Discover an already running Thought Controller, register the test entity once, reconnect idempotently, and show exact statuses and safe copyable diagnostics. Test failure and denial cases too. **Start using a fake GitHub/controller adapter; do not attach actual accounts until security is demonstrated.**
 
-## Project rules
+## Project conventions
 
-- `main`: bootstrapped public-facing README (the repo itself is currently **private**).
-- `alpha`: owner-controlled baseline.
-- `experiment/*`: unapproved prototypes and design proposals.
-- `stable`: optional later snapshot of an approved Alpha.
-- **Never auto-promote** experimental work to Alpha/main or imply that a design is implemented.
-- Independent lifecycle and observable diagnostics when eventually run through [Project Controller](https://github.com/Arameair/Project-controller).
-- [Thought Controller's repair/test plan](https://github.com/Arameair/Thought-Controller/issues/3) remains the prerequisite for live integration.
+- **main** — bootstrap entry point; **alpha** — owner-controlled approved baseline; **experiment/*** — unapproved branches; **stable** — optional owner-selected snapshot. Never auto-merge or silently promote. Start development candidates from current **alpha**.
+- Use independent Play/Stop through [Project Controller](https://github.com/Arameair/Project-controller). Do not secretly launch or stop other managed applications.
+- Read [Thought Controller's current repair/acceptance issue](https://github.com/Arameair/Thought-Controller/issues/3). **Entity registration is planned, not part of the current V1 interface.**
+- Real account permissions require user-approved narrow authorizations. No OAuth client secrets, personal tokens, passwords, MFA codes, private keys or session cookies in any repository, logs, issues, screenshots or generated prompts.
 
-This is a planning repository. See the design-branch guide for proposed implementation and acceptance criteria.
+To propose an implementation, use the gated [roadmap](docs/ROADMAP.md) and [acceptance criteria](docs/ACCEPTANCE_TESTS.md). This branch is documentation-only.

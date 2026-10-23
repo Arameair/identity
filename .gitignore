@@ -1,0 +1,27 @@
+# Never commit credentials or runtime state.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.token
+secrets/
+private/
+data/
+state/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+trace.jsonl
+credential-store/
+# Local binaries, build output
+bin/
+dist/
+*.exe
+*.test
+# Platform files
+.DS_Store
+Thumbs.db

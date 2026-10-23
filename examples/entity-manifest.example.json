@@ -1,0 +1,29 @@
+{
+  "schema": "identity.entity-manifest.v0-design-example",
+  "entity_id": "f71e4c46-c5a8-4b36-8e6e-6cb514e9e114",
+  "entity_type": "ai_companion",
+  "display_name": "Example TASS",
+  "created_at": "2026-10-23T00:00:00Z",
+  "repository": {
+    "full_name": "EXAMPLE-OWNER/EXAMPLE-PRIVATE-TASS-IDENTITY",
+    "visibility": "private",
+    "purpose": "nonsecret-environment-blueprint"
+  },
+  "capabilities": [
+    {
+      "id": "thinking.controller",
+      "module": "thought-controller",
+      "required": false,
+      "status": "planned",
+      "locator_ref": "local-runtime-registration-not-in-github"
+    },
+    {
+      "id": "memory.primary",
+      "module": "memory",
+      "required": false,
+      "status": "not_configured",
+      "locator_ref": null
+    }
+  ],
+  "notes": "DESIGN EXAMPLE ONLY. Never commit tokens, account grants, local secret IDs, raw thoughts or chat history to this repo."
+}
