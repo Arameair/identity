@@ -1,0 +1,13 @@
+{
+  "name": "Identity — local Identity Manager (Gate 1)",
+  "description": "Create, save, list/open and restore local test identities (AI companion, Business, Person, Project, Other). No accounts, no network calls.",
+  "requires": ["go"],
+  "setup": "go build -o identity .",
+  "run": "exec ./identity",
+  "windows": {
+    "setup": "go build -o identity.exe .",
+    "run": "identity.exe"
+  },
+  "portEnv": "PORT",
+  "path": "/"
+}
