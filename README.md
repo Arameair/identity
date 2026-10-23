@@ -1,3 +1,52 @@
+# Identity — local Identity Manager (Gate 1 prototype)
+
+> **This branch: `experiment/identity-local-v1-20261023`** — a small working app that **creates, saves, lists/opens and restores** local test identities. Built from `alpha` for [Issue #2](https://github.com/Arameair/identity/issues/2). **No GitHub, no Thought Controller, no accounts, no AI.** Owner test report: [docs/OWNER_TEST_REPORT.md](docs/OWNER_TEST_REPORT.md).
+
+## Run it in Project Controller
+
+1. Open Project Controller → **Arameair/identity** → branch **`experiment/identity-local-v1-20261023`** → **Play** (approve the build plan: `go build -o identity .`, then `./identity`).
+2. The page shows the **branch, full commit and data folder** at the top.
+3. **Stop** ends it completely; **Play** again restores everything from the same data folder.
+
+Needs Go 1.22 or newer (`go.mod` says `go 1.22.0`, so an older Go fetches a valid toolchain).
+
+## What you can do
+
+- **Create an identity:** a display name plus a type (AI companion, Business, Person, Project, Other). A permanent random ID (UUID) is made once. Nothing else is asked.
+- **See saved identities** as cards. **Open** one for its full ID (**Copy ID**), type, creation time, schema version and save status.
+- **Future pieces** are plain labels: GitHub **NOT CONFIGURED**, Thought Controller **NOT CONNECTED**, Memory / Discord / other **NOT CONFIGURED**. The app makes no external requests.
+- **Copy Diagnostics** gives branch, commit, data folder, IDs, types, problem files and recent events. **Names are left out.** No credentials exist in this app.
+- **Failure tests** (folded at the bottom) are for acceptance F: "Make the next save fail", "Add a broken record file", "Remove broken test files". They touch only this app's test data folder.
+
+## Where the data lives
+
+| Priority | Source | Folder used |
+|---|---|---|
+| 1 | `-data DIR` flag | `DIR` |
+| 2 | `IDENTITY_DATA` | that folder |
+| 3 | Project Controller's `PC_DATA` | `$PC_DATA/identity` |
+| 4 | none (standalone run) | `~/.identity-test/<branch>`, or `commit-<sha>` for a detached checkout with no branch |
+
+- **Inside:** `identities/<id>.json` (one file per identity), `events.jsonl` (what happened) and `identity.lock` (while running).
+- **Never in the repo:** a data folder inside the code checkout is refused at startup.
+- **One app per folder:** a second Identity app pointed at the same folder refuses to start. A different folder runs independently.
+- **Branch name:** comes from `PC_BRANCH` (Project Controller's detached checkouts), else git. The commit comes from git.
+
+## How it stays reliable
+
+- **Saving:** each save writes a temp file, flushes it to disk, renames it into place, then **reads it back**. Only then does the page say "Saved". A failed save shows an error, adds no card, and leaves every earlier identity untouched.
+- **Never overwritten:** an existing identity file is never replaced, and IDs are never reused.
+- **Broken files:** unreadable, mismatched or unsupported files are listed under "Files that couldn't be loaded" and **left exactly as they are**. Good identities still load.
+- **Repeats:** a double-clicked or repeated Create returns the same identity instead of a second one. Creating the same name and type again asks first.
+- **Access:** loopback only (127.0.0.1). Other web pages can't post to it. Unknown request fields are rejected, so a caller can't choose an ID.
+- **Stopping:** Stop (SIGTERM / Ctrl+C) shuts down cleanly, removes the lock, and leaves no background process.
+
+## Tests
+
+`go test ./...` runs 18 tests, including one that **builds and runs the real program**: Play → create TASS → Stop → Play → same TASS → create a business → a second instance on its own folder → same-folder refusal → Stop each → restore again.
+
+---
+
 # Identity — reusable entity and account manager
 
 > **Status: project blueprint, not a working account manager.** No GitHub/Discord credentials, logins, Thought Controller registration, or provisioning are implemented.
