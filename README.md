@@ -2,7 +2,7 @@
 
 > **Experimental GitHub verification branch** \`experiment/identity-github-verification-20261023\`. This deliberately ports the first-administrator prototype into a new branch **from approved Alpha**, then adds an explicitly user-triggered read-only verification of an existing official GitHub CLI session. It does NOT authenticate Identity to GitHub, store tokens, or create repositories.
 
-> **This branch: `experiment/first-admin-wizard-20261023`**, started from `alpha` @ `8d08fec` for [Issue #6](https://github.com/Arameair/identity/issues/6) and the [coordinated first-user handoff](https://github.com/Arameair/identity/blob/experiment/fresh-admin-bootstrap-design-20261023/docs/CLAUDE_FIRST_USER_PROTOTYPE_HANDOFF_2026-10-23.md). **Not approved, not promoted.** `alpha`, `main` and every earlier experiment are untouched.
+> **Ported baseline:** `experiment/first-admin-wizard-20261023` @ `4686c94f` (original [Issue #6](https://github.com/Arameair/identity/issues/6)). This *new* branch starts from `alpha` @ `8d08fec` and explicitly ports that prototype as a separate commit before adding the GitHub CLI check. **Neither Alpha nor the earlier experiment was changed.**
 >
 > Partner branch: Thought Controller `experiment/first-user-dashboard-20261023` @ `a6b9dfa668bc0c8fd34af65832964abfae697125`. **Results and the owner checklist for both apps: [docs/FIRST_USER_PROTOTYPE_RESULTS_2026-10-23.md](docs/FIRST_USER_PROTOTYPE_RESULTS_2026-10-23.md).**
 
