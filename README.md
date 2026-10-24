@@ -4,6 +4,17 @@
 
 **Identity** is the independent setup and continuity component of the Thought Controller ecosystem. It can create or restore a uniquely identified **entity** (AI companion, person, business, team, project, etc.), guide its user through GitHub repository setup, manage access through secure local credentials, and register capabilities with a compatible Thought Controller. **Personality and thinking are optional modules, not part of the definition of identity.**
 
+## Current Identity ↔ Thought Processor direction (2026-10-23, design only)
+
+The owner has selected a modular architecture in which **Identity and Thought Processor are independently runnable, closely integrated applications**. Identity owns durable entity identities, trusted service pairing, feature grants and revocation; Thought Processor discovers compatible projects, presents their genuine app UIs and supports lightweight diagnostics. **Each receiving application must enforce scoped permissions**, and private AI/feature operations do not need to pass through Processor.
+
+**Read the new notes:**
+
+- **[Identity ↔ Thought Processor — architecture and agreed integration choices](docs/THOUGHT_PROCESSOR_INTEGRATION.md)**: small core + optional capabilities, hybrid discovery, pairing, approvals, hybrid health, distributed traces and real dynamic cards.
+- **[Trust, authorization and bootstrap](docs/IDENTITY_PROCESSOR_TRUST_AND_BOOTSTRAP.md)**: discovery vs pairing vs grants, Identity-first startup, short-lived offline authorizations, failure states and outstanding security decisions.
+
+These notes are on **`experiment/processor-identity-connection-notes-20261023`**, created from Alpha `8d08fec6629dc9cc35ea2266556572b86e5499d7`. **They do not implement a service, approve an API, or promote the branch.** References below to the older Thought Controller concept remain historical until a deliberate, separately reviewed migration. **Project Controller is the owner's optional development dashboard; it is not a required component for end users or other developers.**
+
 ## Start here: click through the project
 
 The detailed, clickable proposal is on the **design experiment branch**, not yet approved/promoted to Alpha:
