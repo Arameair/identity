@@ -1,76 +1,102 @@
 # Identity
 
-**A stable identity and access foundation for modular software.**
+**A persistent identity and access foundation for independent software features.**
 
-Identity is a project for giving people, AI companions, businesses, projects, and services a consistent identity—without requiring them all to use the same features.
+Welcome to **Identity** — the project for defining **who or what an entity is**, preserving that identity over time, and controlling which external accounts and optional capabilities it may use.
 
-An identity answers **who or what something is**. Separately approved capabilities determine **what it is allowed to do**. The goal is to make independently developed components easier to connect, secure, replace, and restore.
+An entity might be an AI companion, person, business, project, or system service. Identity is intended to support all of them **without requiring a personality, thinking engine, or any particular feature**.
 
-> **Project status:** Active development. This `main` branch is the project introduction, **not** a production-ready application or release. Working functionality is being evaluated on experimental branches.
+## AI collaboration and authorship
 
-## Why Identity exists
+**Identity is developed through collaboration between its human owner and AI assistants.** The owner determines the goals, priorities, requirements, and whether changes are accepted. AI assistants support architecture discussions, documentation, experimental code, testing, and review.
 
-As the wider ecosystem grows, each component should not have to invent its own account management, permissions, or identity records. Identity aims to provide one consistent foundation while allowing specialized features to evolve independently.
+AI-produced documentation or code is **not independently verified merely because it is committed**. Claims of working behavior must be supported by actual tests and observed results.
 
-The intended design includes:
+See [AI collaboration and verification](docs/AI_COLLABORATION.md).
 
-- **Persistent identity cards:** Stable identifiers and non-secret records for different kinds of entities.
-- **Account connections:** One controlled place to manage authorized external accounts, including GitHub.
-- **Optional features:** Explicit, per-identity permission to use capabilities such as Thought, Memory, or communication tools.
-- **Continuity:** Restore the same identity across restarts and software changes rather than silently creating a replacement.
-- **Clear boundaries:** Identity manages identity and authorization; each feature manages its own work and enforces the grants it receives.
+> **Current status — ACTIVE EXPERIMENTATION (2026-10-23).** This `main` branch contains **project documentation, not a production-ready application**. Runnable Go code exists on unapproved experimental branches. Local identity management and GitHub CLI verification have experimental implementations, while official in-app provider authorization, cross-service feature grants, and production-grade security remain unimplemented. See [current status and evidence](docs/STATUS.md).
 
-An AI companion may have Thought enabled. A business identity may never need it. Both should be valid identities.
+## What Identity is responsible for
+
+- **Identity cards:** Give different kinds of entities durable, unique IDs and non-secret records that survive restarts.
+- **Account management:** Provide a controlled home for authorized external connections, beginning with GitHub.
+- **Access and permissions:** Define and eventually broker limited actions for a specific identity, with consent and revocation.
+- **Optional features:** Record which capabilities are available, enabled, and authorized for each identity independently.
+- **Continuity:** Preserve identity and configuration as applications, models, branches, and machines change.
+
+**Identity is not a chatbot, thought engine, personality system, memory database, or general-purpose process controller.** Specialized components remain independent and enforce their own authorized boundaries.
 
 ## How it fits together
 
-```mermaid
-flowchart TB
-    Owner["Owner / administrator"] --> Identity["Identity"]
-    Identity --> Cards["Persistent identity cards"]
-    Identity --> Accounts["Authorized account connections"]
-    Identity --> Grants["Per-identity feature grants (planned)"]
-    Grants -.-> Thought["Thought / processing features"]
-    Grants -.-> Other["Memory / communication / other features"]
+```text
+               Owner / administrator
+                        |
+                        v
+                    Identity
+          stable IDs / accounts / grants
+                        |
+           +------------+------------+
+           |            |            |
+         TASS        Business      Service
+      companion      identity     identity
+           |            |            |
+           +-- only explicitly approved features --+
+                        |
+                 Thought / Memory /
+                 Communication / etc.
 ```
 
-Identity is **not** itself a thinking engine, chatbot, memory store, or general-purpose process controller. It is intended to work alongside independent services—including Thought and its controller interfaces—without taking over their internal responsibilities.
+This is the **target architecture**, not a claim that all integrations are already connected.
 
-The diagram shows the **target architecture**, not a claim that every connection already works.
+**Example:** TASS can exist as an identity and later receive an approved Thought Processing grant. A separate business identity remains valid without Thought Processing. Turning off Thought must not stop an unrelated feature or erase the identity.
 
-## What works today
+## What's available today
 
-A [standalone Go prototype](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) is available on an **unapproved experimental branch**. Its source includes:
+The [controller-discovery experimental branch](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) contains a standalone Go application with:
 
-- Local creation, archiving, restoration, and persistence of identity cards with stable IDs.
-- Verification of an existing GitHub CLI sign-in and read-only association with an existing private repository.
-- Read-only discovery of a locally running Thought Controller by its health response.
+- Local identity creation, persistence, reversible archiving and restoration.
+- Verification of an existing **official GitHub CLI** login and read-only association with an existing private repository.
+- Read-only discovery of a local Thought Controller service, without taking over its process.
 
-These are experimental capabilities, **not a finished security or account-brokering product**. The prototype does not create or delete GitHub repositories. It does not implement authenticated feature grants, full in-app GitHub authorization, or a secure Thought-service handshake.
+**Important limits:** These are experimental capabilities. The GitHub CLI session is not Identity-managed OAuth or a credential broker for other applications. A discovered service is **not** an authenticated service. The experiment does not create, modify or delete repositories, issue real feature grants, or implement a secure service handshake. Owner acceptance results are tracked separately.
 
-Actual user-environment acceptance and promotion are separate from a successful build or unit test.
+## Start here
 
-## Explore the project
-
-| Start here | What you'll find |
+| Document | What it explains |
 | --- | --- |
-| [Current prototype and setup](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) | Experimental Go application, capabilities, limits, and run instructions |
-| [Design foundation](https://github.com/Arameair/identity/tree/experiment/design-foundation-20261023) | Identity model, original architecture, examples, and acceptance criteria |
-| [Optional feature model](https://github.com/Arameair/identity/issues/8) | How individual identities could opt into Thought without making thinking mandatory |
-| [Account and authorization roadmap](https://github.com/Arameair/identity/issues/9) | Staged secure GitHub connection and scoped capability brokering |
-| [Owner acceptance tests](https://github.com/Arameair/identity/issues/10) | Checks required before accepting the current local prototype |
+| [Current state and branch ledger](docs/STATUS.md) | Which branches and capabilities exist, and what was actually verified? |
+| [Vision and principles](docs/VISION.md) | Why Identity exists, what it should offer, and what it should not do |
+| [Architecture and ownership](docs/ARCHITECTURE.md) | How Identity relates to Thought, Thought Processor and independent features |
+| [Accounts and security](docs/SECURITY.md) | Current GitHub CLI approach, intended provider authorization, risks and limits |
+| [Interfaces and contracts](docs/INTERFACES.md) | Proposed identity, grant, account, and service integration boundaries |
+| [Roadmap and acceptance gates](docs/ROADMAP.md) | The next independently testable milestones |
+| [Decisions and open questions](docs/DECISIONS.md) | Owner direction, proposals requiring proof, and unresolved choices |
+| [Branch and promotion workflow](docs/WORKFLOW.md) | How an experiment starts from Alpha and becomes an approved version |
+| [Experiment report template](docs/EXPERIMENT_TEMPLATE.md) | Required commits, tests, failures, evidence and rollback |
+| [AI collaboration and verification](docs/AI_COLLABORATION.md) | Human direction, AI assistance, attribution and verification standards |
 
-## Development and release policy
+For the original comprehensive design notes, see the [design foundation](https://github.com/Arameair/identity/tree/experiment/design-foundation-20261023). Those documents are proposals, **not automatically approved or implemented behavior**.
 
-- **`main`:** Project introduction and approved public-facing documentation (the repository is currently private).
-- **`alpha`:** Owner-controlled development baseline.
-- **`experiment/*`:** Designs and prototypes under evaluation; functionality here is not automatically approved.
-- **`stable`:** Reserved for an owner-approved known-good snapshot when applicable.
+## Branch policy
 
-Experiments are evaluated before promotion. There is **no automatic merge or promotion** into release branches. The project favors visible status, reproducible tests, safe rollback, and honest reporting of what was and was not verified.
+| Branch | Purpose | Approval |
+| --- | --- | --- |
+| `main` | Professional project introduction and, later, explicitly approved releases | Human owner |
+| `stable` | Known-good, owner-approved snapshot **when one exists** | Human owner; no automatic update |
+| `alpha` | Owner-controlled integration baseline | Human owner |
+| `experiment/<topic>-YYYYMMDD` | Isolated prototypes, **always based on the current Alpha** | Tested and compared before any promotion |
 
-**Security principle:** Passwords, access tokens, session data, and private keys must not be committed to repositories or copied into diagnostics. An identity record or GitHub repository reference is not, by itself, proof of authorization. Current local prototypes should not be exposed as public account-management services.
+As of this review, **there is no `stable` branch**. Alpha remains the owner-controlled baseline. Improvements to this README or these notes do not promote experimental code.
 
-## Development transparency
+Every functional experiment should preserve its starting Alpha SHA, resulting full SHA, test results, runtime evidence, limitations, rollback details and explicit owner decision. Use a GitHub issue for the goal.
 
-This project is designed and developed **in collaboration with AI assistants**. AI may contribute to research, documentation, design, and code; acceptance decisions and branch promotion remain owner-controlled. Experimental features and AI-assisted work are not represented as verified until supported by appropriate tests and review.
+## Related work
+
+- [Thought](https://github.com/Arameair/Thought) and [Thought-engine](https://github.com/Arameair/Thought-engine) — separate experimental approaches to thought processing; no canonical integration is implied.
+- [Thought-Processor](https://github.com/Arameair/Thought-Processor) — independent operator control point for the optional Thought Processing feature.
+- [Thought-Controller](https://github.com/Arameair/Thought-Controller) — related dashboard and controller experiments.
+- [Project Controller](https://github.com/Arameair/Project-controller) — independent developer tool for building, starting, stopping, and observing project versions.
+
+**Owner acceptance rule:** A successful build, green test, or HTTP 200 only proves what was directly tested. Do not claim an account is securely connected, a feature is authorized, or a separate service exchanged real data without matching evidence.
+
+**Security baseline:** Never commit credentials or secrets to any identity repository; never mistake a private GitHub repo, a local port, or a browser UI state for authorization.
