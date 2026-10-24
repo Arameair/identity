@@ -63,7 +63,6 @@
     S = s;
     $("testmode").hidden = !s.about.test_mode;
     $("foot").textContent = `Identity setup ${s.about.version} · commit ${short(s.about.commit)}${s.about.modified ? " + local changes" : ""}`;
-    $("w-repo").textContent = s.target.repo;
     const view = pick(s);
     show(view);
     renderWelcome(s); renderGitHub(s); renderFind(s); renderStart(s); renderOpen(s);
@@ -104,11 +103,14 @@
     if (f && f.status === "found") {
       $("f-lead").textContent = "This is the version Identity will ask Project Controller to start.";
       facts($("f-facts"), [
-        ["Project", code(f.repo)],
-        ["Version", code(f.branch)],
-        ["Latest change", `${short(f.commit)} · ${when(f.commit_date)}`],
-        ["What changed", f.message || "—"],
-        ["Access", `${f.private ? "Private" : "Public"} repository · checked as ${f.as_login} at ${clock(f.checked_at)}`],
+        ["Project", "Thought Processor"],
+        ["Version", s.target.name],
+        ["Last updated", when(f.commit_date)],
+        ["Your access", `✓ ${f.as_login} can see this ${f.private ? "private " : ""}project`],
+      ]);
+      facts($("f-tech"), [
+        ["Repository", code(f.repo)], ["Branch", code(f.branch)], ["Commit", code(f.commit)],
+        ["Change note", f.message || "—"], ["Checked", clock(f.checked_at)],
       ]);
     } else if (f) {
       $("f-message").textContent = f.detail || "Something went wrong.";
@@ -182,10 +184,13 @@
     $("o-title").textContent = ok ? "Thought Processor is running" : "Thought Processor isn't answering";
     if (ok) {
       facts($("o-facts"), [
-        ["Address", code(P.url)],
-        ["Version", code(s.target.branch)],
-        ["Commit", `${short(L.commit)}${L.commit_match ? " · same as GitHub" : ""}`],
-        ["Checked", clock(P.checked_at)],
+        ["Version", s.target.name],
+        ["Exact match", L.commit_match ? "✓ The running copy is the same version GitHub showed" : "Not confirmed — see technical details"],
+        ["Last checked", clock(P.checked_at)],
+      ]);
+      facts($("o-tech"), [
+        ["Address", code(P.url)], ["Branch", code(s.target.branch)], ["Running commit", code(L.commit || "unknown")],
+        ["GitHub commit", code((s.find && s.find.commit) || "unknown")],
       ]);
       $("b-open").disabled = !P.can_open;
     } else {

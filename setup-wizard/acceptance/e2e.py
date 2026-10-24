@@ -217,10 +217,17 @@ def main():
         wait_until(lambda: visible(page, "#f-found"), 20)
         timings["find_ms"] = round((time.monotonic() - t3) * 1000)
         shot(page, "05-find-found")
-        ff = text(page, "#f-facts")
+        ff = text(page, "#f-found")
         record("STEP-3", "PASS" if a.sha[:7] in ff and "experiment/processor-first-prototype-20261024" in ff else "FAIL", "Find Thought Processor",
                f"facts: {ff!r}")
 
+        mob = br.new_context(viewport={"width": 390, "height": 844}); mp = mob.new_page()
+        mp.goto(f"http://127.0.0.1:{ID_PORT}/"); time.sleep(0.2)
+        mob.add_cookies(ctx.cookies()); mp.goto(f"http://127.0.0.1:{ID_PORT}/")
+        wait_until(lambda: visible(mp, "#v-3") or visible(mp, "#v-2"), 10)
+        overflow = mp.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        shot(mp, "05b-phone-width"); mob.close()
+        record("PHONE", "PASS" if overflow <= 0 else "FAIL", "Narrow phone-width window (390 px)", f"horizontal overflow {overflow}px")
         page.click("#b-tostart")
         wait_until(lambda: visible(page, "#s-intro"), 5)
 

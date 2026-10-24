@@ -34,8 +34,8 @@
     <h1>Welcome to Identity</h1>
     <p class="lead">Let's get <b>Thought Processor</b> running on this computer. It takes about five minutes.</p>
     <ul class="checklist">
-      <li><span class="tick">✓</span> A GitHub account that has access to <b id="w-repo"></b></li>
-      <li><span class="tick">✓</span> <b>Project Controller</b> open on this computer — it's the app that safely runs projects for you</li>
+      <li><span class="tick">✓</span><span>A GitHub account that has access to the <b>Thought Processor</b> project</span></li>
+      <li><span class="tick">✓</span><span><b>Project Controller</b> open on this computer — it's the app that safely runs projects for you</span></li>
     </ul>
     <p class="muted">Identity will connect to GitHub, find the right version of Thought Processor, and ask Project Controller to start it. Project Controller will ask you to approve before anything runs.</p>
     <div class="actions"><button class="primary big" id="b-connect">Connect GitHub</button></div>
@@ -82,6 +82,7 @@
       <div class="found">
         <p class="ok-big"><span class="tick">✓</span> Found it</p>
         <dl class="facts" id="f-facts"></dl>
+        <details class="tech"><summary>Technical details</summary><dl class="facts" id="f-tech"></dl></details>
       </div>
       <div class="actions"><button class="primary big" id="b-tostart">Continue</button></div>
     </div>
@@ -135,6 +136,7 @@
     <div id="o-ok">
       <p class="ok-big"><span class="tick">✓</span> Started successfully and answering</p>
       <dl class="facts" id="o-facts"></dl>
+      <details class="tech"><summary>Technical details</summary><dl class="facts" id="o-tech"></dl></details>
       <div class="actions"><button class="primary big" id="b-open">Open Thought Processor</button></div>
       <p class="muted small">It opens in a new tab and signs you in automatically. Closing Identity won't stop it — Project Controller keeps it running.</p>
     </div>

@@ -134,7 +134,7 @@ func (a *App) State() map[string]any {
 	rev, mod := revision()
 	return map[string]any{
 		"step": step, "github": gh, "find": find, "finding": finding, "launch": lv, "processor": proc,
-		"target": map[string]string{"repo": a.repo, "branch": a.branch},
+		"target": map[string]string{"repo": a.repo, "branch": a.branch, "name": "First prototype (test version)"},
 		"about":  map[string]any{"version": appVersion, "commit": rev, "modified": mod, "test_mode": gh.TestMode, "port": a.port},
 	}
 }
