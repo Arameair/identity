@@ -8,6 +8,12 @@
 
 > The older Identity foundation documents refer to *Thought Controller* and sometimes describe Project Controller as a test environment. These are **historical drafts**, not a dependency requirement. The current owner direction is to pair the independent **Identity** application with the independent **Thought Processor**, while keeping the personal Project Controller optional. This note does not silently rename, deprecate or migrate any existing repository or program.
 
+## Important architecture refinement — 2026-10-24
+
+**The owner clarified that Identity is the heart of the whole system: every independently developed feature also has its own identity.** Beyond entity account management and grants, Identity must represent feature/service participants, capability and relationship knowledge, and the authority under which Thought Processor makes connections. "Brains" means the system's trusted identity/relationship intelligence, **not** ownership of cognitive thought inference or a requirement to proxy every worker call.
+
+See [Identity-first system model](IDENTITY_FIRST_SYSTEM_MODEL.md) for the separation of feature identity vs installation vs running instance, the open hierarchy-vs-independent-relations choice (**Option B was recommended, not yet approved**), bootstrap and questions for the next Processor discussion. This refinement does not overwrite the confirmed discovery/pairing/auth/telemetry decisions below.
+
 ## Why the two applications work together
 
 **Identity** is a reusable, independently running application with its own real user interface. It manages durable **entity identities** (such as TASS), associations to private identity-linked repositories, local protected secrets and—eventually—authentication, service trust, per-identity feature authorization, permission scope, expiry and revocation. An *entity record* is **not** another copy of the Identity application.
