@@ -245,5 +245,8 @@
     };
     tick();
   }
+  // A start link opened in a tab that already shows Identity only changes the
+  // #fragment, which doesn't reload the page. Reload so the link is used.
+  window.addEventListener("hashchange", () => { if (/k=/.test(location.hash)) location.reload(); });
   boot();
 })();
