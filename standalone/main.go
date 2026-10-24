@@ -143,6 +143,21 @@ func (a *App) handle(w http.ResponseWriter,r *http.Request){
   sendJSON(w,403,map[string]string{"error":"request must come from the Identity window"});return
  }
  switch r.URL.Path{
+ case "/api/config/client-id":
+  var body map[string]string
+  if e:=json.NewDecoder(io.LimitReader(r.Body,1024)).Decode(&body);e!=nil{sendJSON(w,400,map[string]string{"error":"invalid configuration"});return}
+  id:=strings.TrimSpace(body["client_id"])
+  if !strings.HasPrefix(id,"Iv") || len(id)<8 || len(id)>100 || strings.ContainsAny(id," \t\r\n/\\") {
+   sendJSON(w,400,map[string]string{"error":"Enter the public GitHub App Client ID, beginning with Iv."});return
+  }
+  a.gh.mu.Lock()
+  if a.gh.cfg.ClientID!=""{a.gh.mu.Unlock();sendJSON(w,409,map[string]string{"error":"App already configured; no changes made."});return}
+  b,_:=json.Marshal(map[string]string{"client_id":id})
+  err:=os.WriteFile(filepath.Join(a.directory,"github-app.json"),b,0600)
+  if err==nil{a.gh.cfg.ClientID=id;a.gh.status="signed_out"}
+  a.gh.mu.Unlock()
+  if err!=nil{sendJSON(w,500,map[string]string{"error":"Could not save app configuration"});return}
+  sendJSON(w,200,a.state())
  case "/api/github/start":
   if e:=a.gh.Start();e!=nil{sendJSON(w,502,map[string]string{"error":e.Error()});return}
   sendJSON(w,200,a.state())
