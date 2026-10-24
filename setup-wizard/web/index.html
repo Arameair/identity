@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity — set up Thought Processor</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div id="testmode" class="testmode" hidden>TEST MODE — GitHub is replaced by a stand-in. Nothing here is a real GitHub account.</div>
+
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><span>Identity</span></div>
+  <ol class="steps" id="steps" aria-label="Setup progress">
+    <li data-s="1"><span class="dot">1</span><span class="lbl">Welcome</span></li>
+    <li data-s="2"><span class="dot">2</span><span class="lbl">Connect GitHub</span></li>
+    <li data-s="3"><span class="dot">3</span><span class="lbl">Find</span></li>
+    <li data-s="4"><span class="dot">4</span><span class="lbl">Start</span></li>
+    <li data-s="5"><span class="dot">5</span><span class="lbl">Open</span></li>
+  </ol>
+</header>
+
+<main>
+  <!-- Opened without the start link -->
+  <section class="card" id="v-signedout" hidden>
+    <h1>Open Identity from its program</h1>
+    <p>For your safety, this window only works when Identity opens it. Start Identity again (double-click it, or run it the way you did before) and it will bring this window back.</p>
+  </section>
+
+  <!-- 1 Welcome -->
+  <section class="card" id="v-1" hidden>
+    <p class="eyebrow">Step 1 of 5</p>
+    <h1>Welcome to Identity</h1>
+    <p class="lead">Let's get <b>Thought Processor</b> running on this computer. It takes about five minutes.</p>
+    <ul class="checklist">
+      <li><span class="tick">✓</span> A GitHub account that has access to <b id="w-repo"></b></li>
+      <li><span class="tick">✓</span> <b>Project Controller</b> open on this computer — it's the app that safely runs projects for you</li>
+    </ul>
+    <p class="muted">Identity will connect to GitHub, find the right version of Thought Processor, and ask Project Controller to start it. Project Controller will ask you to approve before anything runs.</p>
+    <div class="actions"><button class="primary big" id="b-connect">Connect GitHub</button></div>
+    <p class="note warn" id="w-notconfigured" hidden>This copy of Identity hasn't been linked to a GitHub app yet, so it can't sign in. Whoever set it up needs to add one — it takes about two minutes (see <b>docs/SETUP_GITHUB_APP.md</b>).</p>
+  </section>
+
+  <!-- 2 Connect GitHub -->
+  <section class="card" id="v-2" hidden>
+    <p class="eyebrow">Step 2 of 5</p>
+    <h1 id="g-title">Connect GitHub</h1>
+
+    <div id="g-waiting" hidden>
+      <p class="lead">Approve Identity on GitHub's own website.</p>
+      <ol class="howto">
+        <li><a id="g-open" class="button primary" target="_blank" rel="noopener noreferrer">Open GitHub</a></li>
+        <li>Type this code when GitHub asks:
+          <div class="code-row"><output id="g-code" class="code"></output><button id="g-copy" class="btn-small">Copy</button></div></li>
+        <li>Click <b>Authorize</b> on GitHub, then come back here.</li>
+      </ol>
+      <p class="waiting"><span class="spinner" aria-hidden="true"></span> Waiting for GitHub… <span id="g-expires" class="muted"></span></p>
+      <button id="g-cancel" class="link">Cancel</button>
+    </div>
+
+    <div id="g-connected" hidden>
+      <p class="ok-big"><span class="tick">✓</span> Connected as <b id="g-login"></b></p>
+      <p class="muted">GitHub confirmed this account just now. Identity keeps the sign-in only while it's open — nothing is saved to disk.</p>
+      <div class="actions"><button class="primary big" id="b-find">Find Thought Processor</button></div>
+      <button id="g-switch" class="link">Use a different GitHub account</button>
+    </div>
+
+    <div id="g-problem" hidden>
+      <p class="note bad" id="g-message"></p>
+      <div class="actions"><button class="primary" id="g-retry">Try again</button></div>
+    </div>
+  </section>
+
+  <!-- 3 Find -->
+  <section class="card" id="v-3" hidden>
+    <p class="eyebrow">Step 3 of 5</p>
+    <h1>Find Thought Processor</h1>
+    <p class="lead" id="f-lead">Identity will look on GitHub for the version of Thought Processor you're testing.</p>
+    <div id="f-searching" class="waiting" hidden><span class="spinner" aria-hidden="true"></span> Looking on GitHub…</div>
+    <div id="f-found" hidden>
+      <div class="found">
+        <p class="ok-big"><span class="tick">✓</span> Found it</p>
+        <dl class="facts" id="f-facts"></dl>
+      </div>
+      <div class="actions"><button class="primary big" id="b-tostart">Continue</button></div>
+    </div>
+    <div id="f-problem" hidden>
+      <p class="note bad" id="f-message"></p>
+      <div class="actions"><button class="primary" id="f-again">Check again</button><button id="f-switch">Use a different GitHub account</button></div>
+    </div>
+    <div class="actions" id="f-go"><button class="primary big" id="b-search">Find Thought Processor</button></div>
+  </section>
+
+  <!-- 4 Start -->
+  <section class="card" id="v-4" hidden>
+    <p class="eyebrow">Step 4 of 5</p>
+    <h1>Start Thought Processor</h1>
+    <div id="s-intro">
+      <p class="lead">Project Controller will download this exact version, then ask <b>you</b> to approve it before anything runs.</p>
+      <div class="actions"><button class="primary big" id="b-start">Start Thought Processor</button></div>
+    </div>
+    <ol class="progress" id="s-progress" hidden>
+      <li data-p="ask"><span class="st"></span><span class="tx">Ask Project Controller</span></li>
+      <li data-p="download"><span class="st"></span><span class="tx">Download this version</span></li>
+      <li data-p="approve"><span class="st"></span><span class="tx">Your approval in Project Controller</span></li>
+      <li data-p="build"><span class="st"></span><span class="tx">Build</span></li>
+      <li data-p="run"><span class="st"></span><span class="tx">Start up</span></li>
+    </ol>
+    <div id="s-approve" class="callout" hidden>
+      <p><b>Your turn — over in Project Controller.</b></p>
+      <ol>
+        <li>Open Project Controller. A yellow notice says <i>Identity asks to start Thought Processor</i>.</li>
+        <li>Click <b>Review &amp; allow…</b></li>
+        <li>Check it says <b id="s-repo"></b> at commit <b id="s-commit"></b>, then click <b>Approve this SHA and run</b>.</li>
+      </ol>
+      <div class="actions"><a class="button primary" id="s-openpc" target="_blank" rel="noopener noreferrer">Open Project Controller</a></div>
+      <p class="muted small">This page updates by itself once you approve.</p>
+    </div>
+    <p class="note warn" id="s-mismatch" hidden></p>
+    <div id="s-problem" hidden>
+      <p class="note bad" id="s-message"></p>
+      <div class="actions"><button class="primary" id="s-retry">Try again</button></div>
+    </div>
+    <details class="details" id="s-details" hidden>
+      <summary>Show what's happening</summary>
+      <pre id="s-log" class="log"></pre>
+    </details>
+  </section>
+
+  <!-- 5 Open -->
+  <section class="card" id="v-5" hidden>
+    <p class="eyebrow">Step 5 of 5</p>
+    <h1 id="o-title">Thought Processor is running</h1>
+    <div id="o-ok">
+      <p class="ok-big"><span class="tick">✓</span> Started successfully and answering</p>
+      <dl class="facts" id="o-facts"></dl>
+      <div class="actions"><button class="primary big" id="b-open">Open Thought Processor</button></div>
+      <p class="muted small">It opens in a new tab and signs you in automatically. Closing Identity won't stop it — Project Controller keeps it running.</p>
+    </div>
+    <div id="o-problem" hidden>
+      <p class="note bad" id="o-message"></p>
+      <div class="actions"><button class="primary" id="o-retry">Try again</button></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot" id="foot"></footer>
+</body>
+</html>
