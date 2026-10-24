@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Identity — First Run</title><link rel="stylesheet" href="/app.css"><script defer src="/app.js"></script></head>
+<body><main>
+<header><p class="brand">IDENTITY <span>BY ARAMEAIR</span></p></header>
+<section class="card" id="signedout"><h1>Open Identity from its application</h1><p>Identity opens a private local link. Run the application again to open its setup window.</p></section>
+<div id="app" hidden>
+<section class="card">
+<p class="eyebrow">Step 1 · Connect your account</p><h1>Welcome to Identity</h1>
+<p>Connect your GitHub account to see which features you can request.</p>
+<p class="sub">This prototype identifies its publisher as <strong>Arameair</strong> using a label embedded in the build. Published release verification is not implemented.</p>
+<p id="fixture" class="warning" hidden>TEST MODE — GitHub is replaced by a test fixture. This is not an actual GitHub sign-in.</p>
+<div id="configuration" class="warning" hidden>
+<p><strong>Publisher setup (this experimental copy only).</strong> Enter the public Client ID of the GitHub App you registered. Don't enter a token or client secret.</p>
+<div class="row"><input id="client-id" placeholder="GitHub App Client ID (Iv...)" aria-label="GitHub App Client ID" autocomplete="off"><button id="save-client">Save Client ID</button></div></div>
+<div id="signin"><button id="connect">Connect GitHub</button></div>
+<div id="waiting" hidden><p>Approve Identity on GitHub's official sign-in page.</p>
+<div class="code" id="device-code"></div><p><a class="button" id="github-link" target="_blank" rel="noopener noreferrer">Open GitHub</a>
+<button class="secondary" id="cancel">Cancel</button></p>
+<p class="sub">Enter the code above on GitHub, authorize, then return here.</p></div>
+<div id="connected" class="success" hidden>GitHub verified your account: <strong id="username"></strong>
+<button class="secondary" id="disconnect">Disconnect</button></div></section>
+<section class="card" id="features" hidden>
+<p class="eyebrow">Step 2 · Browse available features</p><h2>Features from Arameair</h2>
+<p>Signing in does not give you permission to use these features.</p><div id="feature-list"></div></section>
+<section class="card" id="requests" hidden>
+<p class="eyebrow">Step 3 · Save access request</p><h2>Your requests</h2>
+<div class="warning"><strong>No publisher request service is connected.</strong> Saving a request creates a record only on this computer. It does <em>not</em> notify Arameair, install software, or grant access. You may export the draft for review.</div>
+<div id="request-list"></div></section>
+<div class="error" id="message" role="status"></div>
+<footer>Experiment · No Project Controller required · No features can be installed yet</footer>
+</div></main></body></html>
