@@ -1,33 +1,38 @@
-# Vision — durable identity without forced capabilities
+# Vision — durable authority for modular software
 
-[← Project home](../README.md) · [Status](STATUS.md) · [Architecture](ARCHITECTURE.md)
+[← Project home](../README.md) · [Architecture](ARCHITECTURE.md) · [Status](STATUS.md)
 
-## Purpose
+> **Identity owns the organization and authority of the system. Each feature owns its actual work.**
 
-Identity aims to give every authorized entity a stable reference, a reliable configuration home, and clearly controlled access to shared services.
-
-Entities can include a person, business, AI companion, project, organization, or system service. Being an identity **does not imply having a personality, an AI model, or the ability to think**. Those are optional capabilities, enabled separately when needed and allowed.
+Identity's purpose is to give every authorized entity and feature a durable place in a larger, independently extensible software ecosystem. A person, companion, business, project, system service or feature may each have its own stable identity without inheriting a personality, thought engine, memory system or account permissions.
 
 ## The problem
 
-Independent software components should not each invent a different notion of who owns their data, which GitHub account is usable, or which permissions an entity has. Disconnected implementations create duplicate records and inconsistent access decisions.
+A modular application ecosystem quickly becomes unreliable if individual features each invent different user IDs, copy master credentials, write logs anywhere on the computer or assume a service is authorized just because it answers on a port. Identity addresses the **common organization and authorization** problem while preserving each feature's specialization.
 
-Identity is the shared **identity and authorization authority**, not the controller for every feature's internal work. Specialized applications remain independently installable and operable.
+## The desired experience
 
-## Experience we want
+- **A new computer:** Create or restore Identity first, establish administrator trust and organized storage, then add features when needed. The system is healthy with no optional features installed.
+- **A companion:** TASS can exist without thought or Memory. The optional Thought Engine may form observations into thoughts; enabled Memory can later offer past context. Neither becomes part of Identity.
+- **A business or project:** Has a separate durable identity, its own feature choices, safe configuration and appropriately isolated data.
+- **A developer:** Can run different experimental versions independently, discover their real state through Thought Processor and compare evidence without automatically promoting a branch.
+- **An administrator:** Can see where data belongs, who has which approved access and why a feature connection succeeded, failed or was revoked.
 
-- **Companion:** Create or restore TASS once. Enable Thought for TASS if approved, without enabling it for unrelated entities.
-- **Business:** Create a distinct business identity with its own repository and approved features. It does not think or access TASS data by default.
-- **Developer:** See actual connection status and permissions in one place, test new service versions independently, and preserve identity across branch changes.
-- **New installation:** Restore known local identities first, then guide the administrator through any necessary official account authorization. Do not require GitHub merely to create a local identity.
+## Design commitments
 
-## Product principles
+1. **Central authority, decentralized work.** Identity governs IDs, accounts, grants and storage ownership. Features keep control over their runtime, content and processing.
+2. **Identity survives change.** A name, branch, worker, endpoint, repository or machine migration does not silently replace an entity.
+3. **No forced intelligence.** Thinking, Memory, screen interpretation and conversations are independently enabled capabilities.
+4. **Discovery isn't trust.** Authenticate actors and receiving-service grants before any privileged data access.
+5. **Visible, organized ownership.** Storage locations, retention, safe backups and feature isolation are part of the system design.
+6. **Honest operational evidence.** No fake green indicators, simulated integrations presented as live or undocumented external side effects.
+7. **Owner-controlled evolution.** New approaches are evaluated in isolated experiments with clear rollback and human promotion.
+8. **Open independent review.** Invite reasoned disagreement and testable counterexamples; a review or AI-generated claim is not a decision.
 
-1. **Identity persists.** A temporary process, git checkout, model provider or interface must not define the immutable identity.
-2. **Features are independent.** Install, grant, revoke and operate each specialized capability separately.
-3. **Approval has scope.** Owning an entity does not authorize every service call; permission must be verified at the receiving service.
-4. **Data has an owner.** Identity manages ID records, account references, grants and audit decisions; Thought owns thoughts, and each source owns its operational data.
-5. **Reliability is observable.** State must distinguish configured, connected, authorized, ready and verified.
-6. **No secret in Git.** Entity repositories are non-secret blueprints, not account vaults.
+## What Identity is not
 
-This describes the **intended product**, not a declaration that all interfaces are operational. See [Status](STATUS.md) for evidence.
+Identity is not a chatbot, Thought Engine, Memory database, autonomous code editor, process launcher, GitHub token warehouse or mandatory high-volume log bus. It remains usable if any optional component is stopped.
+
+## Current limits
+
+The current `main` branch is documentation only. Local IDs, GitHub CLI verification and limited service discovery are present on experimental branches, but production service identity, security, grant enforcement and first-run recovery have not been proven. See [Status](STATUS.md), [Roadmap](ROADMAP.md) and [Review](REVIEW.md).
