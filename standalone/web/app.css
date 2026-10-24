@@ -1,0 +1,15 @@
+:root{font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#202936;background:#f2f4f7}
+*{box-sizing:border-box}body{margin:0}main{max-width:760px;margin:42px auto;padding:0 18px}
+.brand{font-weight:800;letter-spacing:.12em;color:#225c8b}.brand span{font-size:.74em;letter-spacing:.08em;color:#667a8f}
+.card{padding:24px 28px;background:white;border:1px solid #dee4e9;border-radius:16px;margin:14px 0;box-shadow:0 1px 3px #0000000b}
+h1{font-size:1.75rem;margin:3px 0 14px}h2{margin:6px 0}h3{margin:0}.eyebrow{text-transform:uppercase;font-size:.79rem;font-weight:700;color:#2f688f;letter-spacing:.08em}
+.sub,footer{color:#607081}.warning{background:#fff2d6;padding:13px;border-radius:9px;margin:16px 0}.success{background:#e6f4e9;padding:13px;border-radius:9px;margin:16px 0}.error{color:#aa2929;min-height:28px;margin:15px 4px}
+button,.button{border:0;border-radius:8px;padding:11px 17px;background:#245d88;color:white;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+button.secondary,.button.secondary{background:#e6ecf3;color:#22455e;margin-left:10px}button:disabled{opacity:.55;cursor:default}
+input{font:inherit;padding:11px 12px;border-radius:8px;border:1px solid #a5b2bf;min-width:245px;flex:1}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:9px}.code{font-size:1.6rem;letter-spacing:.08em;font-weight:800;padding:10px 0}
+.feature{border-top:1px solid #e0e6eb;padding:18px 0;display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}.feature p{margin:2px 0;color:#607081}
+.draft{padding:12px 0;border-top:1px solid #e0e6eb}.draft a{display:inline-block;margin-top:5px;color:#225d88}
+[hidden]{display:none!important}
+@media(max-width:520px){main{margin:20px auto}.card{padding:20px}button{width:auto}}
+@media(prefers-color-scheme:dark){:root{background:#12191f;color:#ebf0f4}.card{background:#202c35;border-color:#34434f}.sub,footer,.feature p{color:#abbac5}.warning{background:#433622}.success{background:#193b2c}button.secondary{background:#364854;color:#e9f1fa}input{background:#17242c;color:white;border-color:#576572}.feature,.draft{border-color:#34434f}}
