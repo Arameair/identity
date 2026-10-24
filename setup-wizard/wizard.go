@@ -211,6 +211,11 @@ func (a *App) Routes() *http.ServeMux {
 	m.HandleFunc("GET /app.js", a.wrap("page", static("app.js", "text/javascript; charset=utf-8")))
 	m.HandleFunc("GET /app.css", a.wrap("page", static("app.css", "text/css; charset=utf-8")))
 
+	// Public, minimal: same shape as other Identity builds, so Thought Processor
+	// can recognise this address (as an unverified claim).
+	m.HandleFunc("GET /api/health", a.wrap("page", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]string{"app": "identity", "version": appVersion})
+	}))
 	m.HandleFunc("POST /api/session", a.wrap("signin", func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ K string }
 		json.NewDecoder(io.LimitReader(r.Body, 512)).Decode(&in)
