@@ -159,6 +159,22 @@ func (ghCLI) Repository(ctx context.Context, repo string) (RepoInfo, error) {
 	}
 	return info, nil
 }
+
+// acquireLock ensures two copies cannot write the same identity directory.
+// A crash may leave a lock; never silently delete it because a live owner
+// might still be using the store. Diagnose before manually clearing it.
+func acquireLock(dir string) (func(), error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, err
+	}
+	lockPath := filepath.Join(dir, "identity.lock")
+	f, err := os.OpenFile(lockPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("identity data folder is locked or unwritable (%s); stop the other instance before retrying: %w", lockPath, err)
+	}
+	_, _ = fmt.Fprintf(f, "pid=%d started=%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339))
+	return func() { _ = f.Close(); _ = os.Remove(lockPath) }, nil
+}
 func gitValue(args ...string) string {
 	out, err := exec.Command("git", args...).Output()
 	if err != nil {
@@ -573,6 +589,11 @@ func main() {
 	if within(abs, gitValue("rev-parse", "--show-toplevel")) {
 		log.Fatal("data folder must be outside git checkout")
 	}
+	unlock, err := acquireLock(abs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer unlock()
 	app, err := openApp(dir, branch, sha, port, nil)
 	if err != nil {
 		log.Fatal(err)

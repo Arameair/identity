@@ -150,3 +150,20 @@ func TestGitHubEnvironmentStrip(t *testing.T) {
 		t.Fatal("token leaked")
 	}
 }
+
+func TestDataFolderLock(t *testing.T) {
+	d := t.TempDir()
+	release, err := acquireLock(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acquireLock(d); err == nil {
+		t.Fatal("second instance obtained the same lock")
+	}
+	release()
+	again, err := acquireLock(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again()
+}

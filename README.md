@@ -18,7 +18,7 @@ In Identity click **Connect signed-in GitHub account**. Identity verifies the ac
 
 ## Run with Project Controller
 
-Play the new experiment branch. Its `marquee.json` builds it using Go and starts the binary on the assigned `PORT`; data lives in `PC_DATA/identity-real`, not the earlier Identity V1 test data folders. It binds to `127.0.0.1` only and shuts down on Stop.
+Play the new experiment branch. Its `marquee.json` builds it using Go and starts the binary on the assigned `PORT`; data lives in `PC_DATA/identity-real`, not the earlier Identity V1 test data folders. It binds to `127.0.0.1` only and shuts down on Stop. A same-data-folder process lock prevents another instance from writing the store concurrently; if a crash leaves a stale lock, first confirm no instance is running before removing it.
 
 ## Standalone
 
@@ -43,4 +43,4 @@ Integrated one-click browser OAuth, GitHub App installation, creating private re
 
 ## Safety and testing
 
-`go test ./...` checks archive/restore and persistence, duplicate handling, account mismatch, denied anonymous actions, private repo checks, and the absence of repository deletion operations. Linux Go tests pass; Windows cross-compilation passes. The developer has **not** tested this on the owner's Windows machine or in the actual Project Controller UI. Alpha/main/stable must remain untouched unless the owner approves promotion.
+`go test ./...` checks the single-writer folder lock, archive/restore and persistence, duplicate handling, account mismatch, denied anonymous actions, private repo checks, and the absence of repository deletion operations. Linux Go tests pass; Windows cross-compilation passes. The developer has **not** tested this on the owner's Windows machine or in the actual Project Controller UI. Alpha/main/stable must remain untouched unless the owner approves promotion.
