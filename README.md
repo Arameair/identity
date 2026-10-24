@@ -61,6 +61,9 @@ These are **experimental implementations**, not a released secure identity autho
 | --- | --- |
 | **[Identity-first system model](docs/IDENTITY_FIRST_MODEL.md)** | Current vision, identity-vs-feature-vs-runtime definitions, choices still open |
 | [Architecture](docs/ARCHITECTURE.md) | Responsibility boundaries, discovery and proposed data/control flow |
+| [First run](docs/FIRST_RUN.md) | Clean installation and admin bootstrap proposals |
+| [Storage and ownership](docs/STORAGE.md) | Central organization, independently owned feature data |
+| [Independent reviews](docs/REVIEW.md) | Contrasting design opinions and unresolved tradeoffs |
 | [Security](docs/SECURITY.md) | Accounts, secrets, authentication and present limitations |
 | [Interface proposals](docs/INTERFACES.md) | Draft identity, grant and service contracts—not live APIs |
 | [Status and evidence](docs/STATUS.md) | Known branches, test reports, verified vs unverified behavior |
