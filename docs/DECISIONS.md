@@ -1,41 +1,41 @@
-# Decisions and unresolved questions
+# Design decisions and unresolved questions
 
-Record **owner direction** separately from **architectural proposals** and **tested implementation**. This document summarizes known direction as of 2026-10-23; it does not make an unapproved integration mandatory.
+**Reviewed:** 2026-10-24. Keep **owner-selected direction**, **independent review**, and **tested behavior** separate. This register is not proof that any new cross-service integrations work.
 
-## Current owner direction
+## Confirmed owner direction
 
-| Area | Direction | Practical consequence |
-| --- | --- | --- |
-| Identity scope | One reusable identity authority for companions, people, businesses, services and projects | Entity type does not determine mandatory personality or thinking |
-| Independence | Specialized features should remain separable | Identity controls access, not every feature's data or runtime |
-| Features | Installed, enabled and authorized are different states | TASS can have Thought while Business does not |
-| Security | Centralize external account management and scoped grants | No raw general GitHub tokens distributed to every feature |
-| GitHub | Private per-entity repository as the future non-secret blueprint, with owner approval | A local identity may exist while GitHub is pending; no automatic repo deletion |
-| Development | Branch from Alpha for new experiments; owner promotes manually | Alpha, Stable and Main are not changed by experiment implementation |
-| Communication | Clear evidence and diagnostic statuses | Do not confuse a responding web server with an authorized integration |
-| Disclosure | Acknowledge AI collaboration | Provide accurate attribution and independent verification |
-
-## Proposals that still require design and tests
-
-1. Register a minimal-permission GitHub App for a secure in-app authorization experience.
-2. Define Identity-to-feature service identity, scoped grants, revocation and audit receipts.
-3. Authenticate source/service discovery instead of trusting health-response markers.
-4. Provide a clean-install administrator and installation record with safe migrations.
-5. Support a reusable feature manifest without baking Thought into every identity.
-6. Determine the secure local credential store and platform-specific behavior across Windows, WSL and VMs.
-
-## Open decisions
-
-| ID | Question | Why it matters | Status |
+| ID | Decision | Meaning | Evidence/status |
 | --- | --- | --- | --- |
-| I-01 | What is the protected credential/key storage design on each OS? | GitHub App integration must protect credentials | OPEN |
-| I-02 | Which authenticated service/grant protocol is authoritative? | Receiving services must reject spoofed permissions | OPEN |
-| I-03 | What is revocation/outage behavior for local and offline features? | Permission safety and continuity | OPEN |
-| I-04 | How are live identity data migrated from experiment folders? | Avoid duplication or accidental loss | OPEN |
-| I-05 | When and by whom may a private repo be created? | Permission, side effects and rollback | OPEN |
-| I-06 | How will Identity find and authorize an approved controller process? | Discovery is not lifecycle ownership or trust | OPEN |
-| I-07 | What qualifies a build for Alpha, Stable and Main? | Reproducible owner acceptance | OPEN |
+| D-01 | **Identity owns the organization and authority of the system. Each feature owns its actual work.** | Identity provides durable identities, ownership, accounts, storage governance and grants; no universal data plane | Owner selected in discussion, design only |
+| D-02 | **Central organization, separate feature-owned storage.** | Identity knows where authorized data belongs; TASS, Thought Engine, Memory, etc. keep and process their own data | Owner confirmed 2026-10-24; not implemented |
+| D-03 | **Independent feature registration.** | Independently running features request registration with Identity; Thought Processor discovers the approved catalog | Owner confirmed direction; authenticated protocol not implemented |
+| D-04 | **No forced Thought or Memory.** | A person, business, service or companion can have an identity without cognitive features; a memory may trigger a thought but a thought is not memory | Owner confirmed |
+| D-05 | **Manual promotion.** | New functional experiments start from Alpha; owner reviews and explicitly promotes; experiments cannot silently update Alpha/Stable/Main | Established workflow |
+| D-06 | **Truthful diagnostic states.** | Installed, discovered, authenticated, authorized, enabled, ready, processed and persisted are distinct | Established principle |
+| D-07 | **Open independent review.** | Invite Grok and other reviewers to challenge decisions; feedback stays attributed and unapproved until owner decides | Requested 2026-10-24; [Issue #14](https://github.com/Arameair/identity/issues/14) |
 
-## Record a future decision
+## Pending architecture choices
 
-Add the date, issue/PR, options considered, owner-selected outcome, observed test evidence, and any reversal/rollback implications. Preserve superseded decisions with explicit links rather than silently rewriting history.
+| ID | Question | Current direction | Status |
+| --- | --- | --- | --- |
+| I-01 | Should Identity launch as a background service? | Compare opt-in lightweight service, manual UI/service and hybrid; no automatic installation | **OPEN** |
+| I-02 | How does first-run establish administrator authority and protect keys across OSes? | Verify local admin/auth and OS credential facilities before claiming secure operation | **OPEN** |
+| I-03 | How do unknown features prove enrollment/service identity? | Authenticated claim + administrator approval, not just port discovery | **OPEN** |
+| I-04 | What is the feature-to-feature authorization and revocation contract? | Receiver enforces scoped grants, expiry/revocation and bounded offline policy | **OPEN** |
+| I-05 | How are storage roots, encryption, backups and cross-OS migrations governed? | Identity-owned location references, isolated feature storage, no code checkout content | **OPEN** |
+| I-06 | When and by whom may a GitHub repository be created? | Explicit scope approval, no automatic writes or deletions | **OPEN** |
+| I-07 | How do owner-approved services restart and reconnect without Processor? | Independent lifecycle and accurate status; installer/launcher details undecided | **OPEN** |
+| I-08 | How to migrate non-production experiments into durable identities? | Preserve existing IDs and backups with explicit owner actions | **OPEN** |
+| I-09 | What constitutes a reproducible Alpha/Stable/Main acceptance? | Real tests and owner evidence, not model claims | **OPEN** |
+
+## Unresolved reviewer input
+
+The [end-user notes](END_USER_DESIGN_NOTES.md) recommend *one folder, one process* and **no background service** for the first usable product. This is useful for a minimalist prototype but is **not accepted as a universal ecosystem constraint**. Separately owned storage **is** owner-confirmed. The background service versus manual startup choice remains open and is specifically [under independent review](https://github.com/Arameair/identity/issues/14).
+
+The outside-user notes also propose a Thought Engine readiness section on the default Identity dashboard. Whether to show this only as an **optional feature card**, when installed, should remain separate from the core Identity health status.
+
+## Evidence and decision policy
+
+When resolving an open item, record the date, options, proponent/reviewer, human decision, a reasoned trade-off, test results and any rollback plan. Preserve superseded advice rather than deleting it. New notes do not create an implied merge, release or permission grant.
+
+Related: [Architecture](ARCHITECTURE.md), [First run](FIRST_RUN.md), [Storage](STORAGE.md), [Review](REVIEW.md), [Status](STATUS.md).
