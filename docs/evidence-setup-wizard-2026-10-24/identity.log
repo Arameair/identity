@@ -1,0 +1,5 @@
+Identity setup 0.1.0-wizard-experiment (commit 2d6122050489)
+  TEST MODE: GitHub is replaced by http://127.0.0.1:7701 and http://127.0.0.1:7701
+  window : http://127.0.0.1:7790/ (opening in your browser)
+  stop   : close this window or press Ctrl+C
+Identity stopped. Thought Processor and Project Controller keep running.

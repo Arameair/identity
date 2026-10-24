@@ -1,0 +1,14 @@
+fake-github "POST /login/device/code HTTP/1.1" 200 -
+fake-github "GET /login/device HTTP/1.1" 200 -
+fake-github "POST /login/device/decide HTTP/1.1" 200 -
+fake-github "POST /login/oauth/access_token HTTP/1.1" 200 -
+fake-github "POST /login/device/code HTTP/1.1" 200 -
+fake-github "GET /login/device HTTP/1.1" 200 -
+fake-github "POST /login/device/decide HTTP/1.1" 200 -
+fake-github "POST /login/oauth/access_token HTTP/1.1" 200 -
+fake-github "GET /user HTTP/1.1" 200 -
+fake-github "POST /fixture/no-access?on=1 HTTP/1.1" 200 -
+fake-github "GET /repos/Arameair/Thought-Processor HTTP/1.1" 404 -
+fake-github "POST /fixture/no-access?on=0 HTTP/1.1" 200 -
+fake-github "GET /repos/Arameair/Thought-Processor HTTP/1.1" 200 -
+fake-github "GET /repos/Arameair/Thought-Processor/branches/experiment%2Fprocessor-first-prototype-20261024 HTTP/1.1" 200 -

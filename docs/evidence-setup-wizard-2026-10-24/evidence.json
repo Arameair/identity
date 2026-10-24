@@ -1,0 +1,189 @@
+{
+  "meta": {
+    "started": "2026-10-24T09:50:21Z",
+    "branch_sha_served_by_fixture": "7c1a69e70df4e03f940b6bff907f0628735d1a81",
+    "finished": "2026-10-24T09:50:47Z",
+    "timings": {
+      "identity_start_ms": 34,
+      "welcome_visible_ms": 291,
+      "github_connect_ms_incl_cancel": 12008,
+      "find_ms": 160,
+      "controller_start_ms": 31,
+      "request_to_waiting_for_approval_ms": 2852,
+      "approve_to_running_verified_ms": 2377,
+      "total_click_to_open_ms": 20157
+    },
+    "orphans": {
+      "identity": [],
+      "project-contr": [],
+      "thought-proces": []
+    },
+    "screenshots": [
+      "00-opened-without-link",
+      "01-welcome",
+      "02-github-code",
+      "02b-github-cancelled",
+      "03-github-connected",
+      "04-find-no-access",
+      "05-find-found",
+      "05b-phone-width",
+      "06-start-controller-missing",
+      "07-start-waiting-for-you",
+      "08-controller-notice",
+      "09-controller-review-dialog",
+      "10-open-ready",
+      "11-thought-processor-open",
+      "12-stopped-try-again"
+    ]
+  },
+  "results": [
+    {
+      "id": "REOPEN",
+      "verdict": "PASS",
+      "what": "Run Identity a second time",
+      "observed": "exit 0: 'Identity is already running at http://127.0.0.1:7790/ \u2014 opening its window.'; Identity processes now [4992]",
+      "limitation": "",
+      "at": "2026-10-24T09:50:21Z"
+    },
+    {
+      "id": "SIGNED-OUT",
+      "verdict": "PASS",
+      "what": "Open Identity's address without its start link",
+      "observed": "shows 'Open Identity from its program'; no state served",
+      "limitation": "",
+      "at": "2026-10-24T09:50:22Z"
+    },
+    {
+      "id": "STEP-1",
+      "verdict": "PASS",
+      "what": "Welcome screen",
+      "observed": "title='Welcome to Identity'; one primary button='Connect GitHub'; TEST MODE banner shown; link code removed from address bar=True",
+      "limitation": "",
+      "at": "2026-10-24T09:50:22Z"
+    },
+    {
+      "id": "STEP-2-CANCEL",
+      "verdict": "PASS",
+      "what": "Person clicks Cancel on the GitHub page",
+      "observed": "Identity says 'You chose Cancel on GitHub, so nothing was connected.'; offers Try again",
+      "limitation": "",
+      "at": "2026-10-24T09:50:28Z"
+    },
+    {
+      "id": "STEP-2",
+      "verdict": "PASS",
+      "what": "Connect GitHub (device flow) and show the username",
+      "observed": "shows 'Connected as fixture-user' read back from /user with the new token",
+      "limitation": "GitHub stand-in: proves Identity's handling, not a real GitHub sign-in",
+      "at": "2026-10-24T09:50:34Z"
+    },
+    {
+      "id": "STEP-3-NOACCESS",
+      "verdict": "PASS",
+      "what": "Account cannot see the repository",
+      "observed": "Identity says \"GitHub says the account fixture-user can't see Arameair/Thought-Processor. Ask the owner to give this account access, then try again.\"",
+      "limitation": "",
+      "at": "2026-10-24T09:50:34Z"
+    },
+    {
+      "id": "STEP-3",
+      "verdict": "PASS",
+      "what": "Find Thought Processor",
+      "observed": "facts: '\\n      \\n        \u2713 Found it\\n        ProjectThought ProcessorVersionFirst prototype (test version)Last updatedOct 24, 2026, 4:36 AMYour access\u2713 fixture-user can see this private project\\n        Technical detailsRepositoryArameair/Thought-ProcessorBranchexperiment/processor-first-prototype-20261024Commit7c1a69e70df4e03f940b6bff907f0628735d1a81Change notereal branch head (served by fixture)Checked4:50:34 AM\\n      \\n      Continue\\n    '",
+      "limitation": "",
+      "at": "2026-10-24T09:50:34Z"
+    },
+    {
+      "id": "PHONE",
+      "verdict": "PASS",
+      "what": "Narrow phone-width window (390 px)",
+      "observed": "horizontal overflow 0px",
+      "limitation": "",
+      "at": "2026-10-24T09:50:35Z"
+    },
+    {
+      "id": "STEP-4-NOCONTROLLER",
+      "verdict": "PASS",
+      "what": "Start while Project Controller is closed",
+      "observed": "Identity says \"Project Controller isn't running at http://127.0.0.1:7777. Open Project Controller, then click Try again.\"; Try again offered",
+      "limitation": "",
+      "at": "2026-10-24T09:50:35Z"
+    },
+    {
+      "id": "STEP-4-WAIT",
+      "verdict": "PASS",
+      "what": "Identity asks Controller; nothing runs before approval",
+      "observed": "Controller panes for the repo: [('experiment/processor-first-prototype-20261024', 'approval')]; review SHA 7c1a69e (GitHub said 7c1a69e); Thought Processor processes before approval: []",
+      "limitation": "",
+      "at": "2026-10-24T09:50:38Z"
+    },
+    {
+      "id": "APPROVE-IN-CONTROLLER",
+      "verdict": "PASS",
+      "what": "Owner reviews and approves inside Project Controller",
+      "observed": "notice: '\\n    Identity (name reported by that app) asks to start\\n      Arameair/Thought-Processor \u00b7 experiment/processor-first-prototype-20261024. It is downloaded but n'; dialog shows full SHA=True",
+      "limitation": "",
+      "at": "2026-10-24T09:50:38Z"
+    },
+    {
+      "id": "STEP-4",
+      "verdict": "PASS",
+      "what": "Controller builds and runs the approved commit",
+      "observed": "pane status running commit 7c1a69e port 7778 pid 5151",
+      "limitation": "",
+      "at": "2026-10-24T09:50:41Z"
+    },
+    {
+      "id": "STEP-5",
+      "verdict": "PASS",
+      "what": "Open Thought Processor, signed in",
+      "observed": "opened http://127.0.0.1:7778/; Processor reports build 7c1a69e70df4; Identity facts 'VersionFirst prototype (test version)Exact match\u2713 The running copy is the same version GitHub showedLast checked4:50:40 AM'",
+      "limitation": "",
+      "at": "2026-10-24T09:50:42Z"
+    },
+    {
+      "id": "NO-CODE-IN-LOG",
+      "verdict": "PASS",
+      "what": "Sign-in code hidden in the progress log Identity shows",
+      "observed": "log shows code=<hidden>",
+      "limitation": "",
+      "at": "2026-10-24T09:50:42Z"
+    },
+    {
+      "id": "RETRY",
+      "verdict": "PASS",
+      "what": "Thought Processor stopped; person clicks Try again",
+      "observed": "message 'Thought Processor was stopped in Project Controller. Click Try again to start it again.'; back to running in 2034 ms; panes 1 (no duplicate); same approved SHA reran without a new approval",
+      "limitation": "",
+      "at": "2026-10-24T09:50:45Z"
+    },
+    {
+      "id": "CLOSE-IDENTITY",
+      "verdict": "PASS",
+      "what": "Close Identity",
+      "observed": "Identity exit 0 in 1 ms; Controller running=True; Thought Processor running=True ([5204])",
+      "limitation": "",
+      "at": "2026-10-24T09:50:45Z"
+    }
+  ],
+  "log": [
+    "2026-10-24T09:50:21Z [REOPEN] PASS \u2014 exit 0: 'Identity is already running at http://127.0.0.1:7790/ \u2014 opening its window.'; Identity processes now [4992]",
+    "2026-10-24T09:50:22Z [SIGNED-OUT] PASS \u2014 shows 'Open Identity from its program'; no state served",
+    "2026-10-24T09:50:22Z [STEP-1] PASS \u2014 title='Welcome to Identity'; one primary button='Connect GitHub'; TEST MODE banner shown; link code removed from address bar=True",
+    "2026-10-24T09:50:28Z [STEP-2-CANCEL] PASS \u2014 Identity says 'You chose Cancel on GitHub, so nothing was connected.'; offers Try again",
+    "2026-10-24T09:50:34Z [STEP-2] PASS \u2014 shows 'Connected as fixture-user' read back from /user with the new token",
+    "2026-10-24T09:50:34Z [STEP-3-NOACCESS] PASS \u2014 Identity says \"GitHub says the account fixture-user can't see Arameair/Thought-Processor. Ask the owner to give this account access, then try again.\"",
+    "2026-10-24T09:50:34Z [STEP-3] PASS \u2014 facts: '\\n      \\n        \u2713 Found it\\n        ProjectThought ProcessorVersionFirst prototype (test version)Last updatedOct 24, 2026, 4:36 AMYour access\u2713 fixture-user can see this private project\\n        Technical detailsRepositoryArameair/Thought-ProcessorBranchexperiment/processor-first-prototype-20261024Commit7c1a69e70df4e03f940b6bff907f0628735d1a81Change notereal branch head (served by fixture)Checked4:50:34 AM\\n      \\n      Continue\\n    '",
+    "2026-10-24T09:50:35Z [PHONE] PASS \u2014 horizontal overflow 0px",
+    "2026-10-24T09:50:35Z [STEP-4-NOCONTROLLER] PASS \u2014 Identity says \"Project Controller isn't running at http://127.0.0.1:7777. Open Project Controller, then click Try again.\"; Try again offered",
+    "2026-10-24T09:50:35Z Project Controller started by the test (playing the person) pid 5058",
+    "2026-10-24T09:50:38Z [STEP-4-WAIT] PASS \u2014 Controller panes for the repo: [('experiment/processor-first-prototype-20261024', 'approval')]; review SHA 7c1a69e (GitHub said 7c1a69e); Thought Processor processes before approval: []",
+    "2026-10-24T09:50:38Z [APPROVE-IN-CONTROLLER] PASS \u2014 notice: '\\n    Identity (name reported by that app) asks to start\\n      Arameair/Thought-Processor \u00b7 experiment/processor-first-prototype-20261024. It is downloaded but n'; dialog shows full SHA=True",
+    "2026-10-24T09:50:41Z [STEP-4] PASS \u2014 pane status running commit 7c1a69e port 7778 pid 5151",
+    "2026-10-24T09:50:42Z [STEP-5] PASS \u2014 opened http://127.0.0.1:7778/; Processor reports build 7c1a69e70df4; Identity facts 'VersionFirst prototype (test version)Exact match\u2713 The running copy is the same version GitHub showedLast checked4:50:40 AM'",
+    "2026-10-24T09:50:42Z [NO-CODE-IN-LOG] PASS \u2014 log shows code=<hidden>",
+    "2026-10-24T09:50:45Z [RETRY] PASS \u2014 message 'Thought Processor was stopped in Project Controller. Click Try again to start it again.'; back to running in 2034 ms; panes 1 (no duplicate); same approved SHA reran without a new approval",
+    "2026-10-24T09:50:45Z [CLOSE-IDENTITY] PASS \u2014 Identity exit 0 in 1 ms; Controller running=True; Thought Processor running=True ([5204])",
+    "2026-10-24T09:50:47Z orphan audit: {'identity': [], 'project-contr': [], 'thought-proces': []}"
+  ]
+}
