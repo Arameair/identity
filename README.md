@@ -1,102 +1,96 @@
 # Identity
 
-**The identity, organization and authorization foundation for independent software features.**
+**A durable identity, trust and relationship foundation for independent software features.**
 
-Identity gives people, companions, projects, businesses and services a persistent place in a modular software ecosystem—without requiring any of them to have a chatbot, an AI model, a thought engine or a memory system.
+Identity is the proposed system-level authority that knows **which participants exist, what they can do, how they relate to one another, and what they are permitted to access**. Participants can be companions, people, businesses, projects **and independently developed features themselves**.
 
-> **Identity owns the organization and authority of the system. Each feature owns its actual work.**
+> **Project status — 24 October 2026:** **Design and active experiments; not a production-ready identity/security service.** The `main` branch is documentation. Separate experimental branches contain Go-based local identity prototypes and read-only local service discovery. An authenticated cross-service pairing/grant system has **not** been verified. [Evidence and limitations](docs/STATUS.md).
 
-**Project stage:** Active design and experimental implementation. This `main` branch contains **documentation only**. There is no owner-approved production release or verified multi-service security implementation. [See evidence and limitations](docs/STATUS.md).
+## Purpose
 
-## The idea
+We want an extensible system in which TASS, Memory, Thought Engine, ScreenBridge, AI workers and future capabilities each have an identity and operate independently. Identity supplies the enduring facts and permission decisions that allow these components to collaborate **without bundling them into one application**.
 
-An installation needs to know **who or what exists**, **who owns it**, **which features are registered**, **where each feature may keep data**, and **what connections are authorized**. Identity is the common authority for those decisions, not the system through which every log, thought or message must flow.
+Identity is the **heart of the system** in the sense of *system identity, trust, relationship and policy knowledge*. It is **not** a substitute for the cognitive Thought Engine, the Memory service or the Thought Processor's operational dashboard.
+
+## System architecture
 
 ```text
-                    Owner / administrator
-                            |
-                            v
-                      +-----------+
-                      | Identity  |
-                      +-----------+
-             IDs / registry / accounts / grants
-                      /       |       \
-                     /        |        \
-                    v         v         v
-                  TASS    Thought Engine   Other features
-                   |           |               |
-             owned data    owned data       owned data
-                   +-----------+---------------+
-                         direct authorized
-                         service connections
-
-  Thought Processor: separate feature discovery and inspection surface.
-  Memory: optional independent feature, not required for thoughts.
+                   IDENTITY
+      participants · trusted relationships
+         scoped grants · permissions
+                    |
+        +-----------+-----------+
+        |                       |
+ THOUGHT PROCESSOR         INDEPENDENT FEATURES
+ discover · connect         Thought Engine · Memory
+ status · diagnostics        Vision · Hearing · Workers
+        |                       |
+        +---- verified links ---+
+                     |
+     Direct, authorized feature operations
+       (no mandatory inference proxy)
 ```
 
-**Independence is a requirement:** A feature can be developed, installed, tested, updated, disabled or restarted without requiring every other feature to follow. Identity must work even when the optional feature count is **zero**.
+**Important distinctions:** A feature's persistent identity, its advertised capability, the software installation, and the currently running process are *different things*. Discovery is not service authentication, pairing is not a feature grant, and enabling a feature is not proof it is running.
 
-## What Identity does and does not do
+[Read the Identity-first architecture](docs/IDENTITY_FIRST_MODEL.md) · [Technical architecture](docs/ARCHITECTURE.md)
 
-| Identity is responsible for | Individual features remain responsible for |
+## Responsibilities and boundaries
+
+| Identity **owns or should own** | Identity **does not own** |
 | --- | --- |
-| Durable installation, administrator, entity and service IDs | Their own executable lifecycle and internal behavior |
-| Registry of available features and authenticated instances | Their own databases, event streams and logs |
-| Account references, scoped permissions, grant/revocation policy | Enforcing grants at their own API boundaries |
-| Organizing storage ownership, paths and approved access | Creating, interpreting, retaining and deleting their own content |
-| Recording accurate identity, connection and authorization status | Running models, producing thoughts and retrieving memories |
+| Durable entity and feature identities | Thoughts, prompts, model responses or raw screen captures |
+| Trusted service pairing and revocation | The lifecycle of all independently running features |
+| Account associations and protected authorization | Forwarding every AI inference request |
+| Scope- and entity-specific capability grants | Declaring a mere detected port to be trusted |
+| Identity relationships and potentially stable purpose metadata | Replacing the owner's preferred development tools |
 
-Identity is **not** a thought engine, memory database, general-purpose process launcher, or mandatory proxy for every service request.
+The trust system is **planned**, not yet operational. Even after Identity issues permission, each receiving feature must validate the authorization it accepts.
 
-## First run on a new computer
+## Current implementation evidence
 
-The intended experience is deliberately small:
+The unapproved [controller-discovery experiment](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) builds on earlier standalone Go prototypes with local persistent identity cards, reversible archive/restore, existing GitHub CLI session verification and read-only local service discovery.
 
-1. **Create or restore** an installation and administrator using durable, separate identifiers.
-2. **Initialize protected local authority records** and visible, organized storage ownership.
-3. **Open Identity alone**, with a truthful dashboard: local status, connected accounts and registered features.
-4. **Add independent features when wanted.** Compatible features can request registration with Identity; discovery is never automatic permission.
-5. **Connect GitHub or other providers optionally**, through separately approved authorization—not as a condition of creating a local identity.
-
-Read the [first-run proposal](docs/FIRST_RUN.md), [storage model](docs/STORAGE.md), and [architecture](docs/ARCHITECTURE.md). Whether Identity should launch as an opt-in lightweight background service remains [open for independent review](https://github.com/Arameair/identity/issues/14).
-
-## What exists today
-
-A standalone **Go Identity manager exists on experimental branches**, with local ID cards, durable storage, reversible archive/restore, read-only verification using an existing GitHub CLI session, and limited local service discovery. Those implementations are **not merged into `main`**, and their documented tests are not proof of a production-grade identity or grant provider.
-
-| Lane | Purpose | Current interpretation |
-| --- | --- | --- |
-| [Alpha](https://github.com/Arameair/identity/tree/alpha) | Owner-controlled starting point for new experiments | Documentation-only baseline; no production service |
-| [Experiments](https://github.com/Arameair/identity/branches) | Isolated prototypes and design comparisons | Not approved merely because they compile |
-| Stable | Known-good owner-accepted snapshot | No verified Stable branch as of 2026-10-24 |
-| **Main** | Welcoming documentation and later approved releases | Documentation only |
-
-For reproducible candidate builds, limitations and the exact ledger, see [Status](docs/STATUS.md). **New functional experiments begin from Alpha; promotion is always the owner's decision.**
+These are **experimental implementations**, not a released secure identity authority. A GitHub CLI sign-in is not Identity-managed OAuth; local port discovery is not pairing; and experimental ability to create an identity card does not prove cross-application grant enforcement. Consult the [status ledger](docs/STATUS.md) for evidence and acceptance gaps.
 
 ## Documentation
 
-[**Start with the documentation index →**](docs/README.md)
-
-| Topic | Guide |
+| Start here | Purpose |
 | --- | --- |
-| Direction and system boundaries | [Vision](docs/VISION.md) · [Architecture](docs/ARCHITECTURE.md) |
-| Getting started and storing data | [First run](docs/FIRST_RUN.md) · [Storage](docs/STORAGE.md) |
-| Trust and service contracts | [Security](docs/SECURITY.md) · [Interfaces](docs/INTERFACES.md) |
-| Project progress | [Status](docs/STATUS.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) |
-| Development and review | [Workflow](docs/WORKFLOW.md) · [AI collaboration](docs/AI_COLLABORATION.md) · [Independent review](docs/REVIEW.md) |
+| **[Identity-first system model](docs/IDENTITY_FIRST_MODEL.md)** | Current vision, identity-vs-feature-vs-runtime definitions, choices still open |
+| [Architecture](docs/ARCHITECTURE.md) | Responsibility boundaries, discovery and proposed data/control flow |
+| [Security](docs/SECURITY.md) | Accounts, secrets, authentication and present limitations |
+| [Interface proposals](docs/INTERFACES.md) | Draft identity, grant and service contracts—not live APIs |
+| [Status and evidence](docs/STATUS.md) | Known branches, test reports, verified vs unverified behavior |
+| [Roadmap](docs/ROADMAP.md) | Small, independently testable build gates |
+| [Decisions and open questions](docs/DECISIONS.md) | Owner direction versus unsettled design choices |
+| [Development workflow](docs/WORKFLOW.md) | Alpha, Stable, Main, experiments and explicit promotions |
+| [AI collaboration](docs/AI_COLLABORATION.md) | Authorship, disclosure and verification |
 
-## Open to critique, including from Grok
+The [original extended design foundation](https://github.com/Arameair/identity/tree/experiment/design-foundation-20261023) and [recent Identity/Processor integration notes](https://github.com/Arameair/identity/tree/experiment/processor-identity-connection-notes-20261023) remain available as historical proposals. They were **not merged into executable Alpha** by this documentation cleanup.
 
-Independent perspectives are welcome. The [end-user design notes](docs/END_USER_DESIGN_NOTES.md) remain available in their original form, and [review issue #14](https://github.com/Arameair/identity/issues/14) explicitly requests counterarguments about new-machine setup, storage isolation, service registration and background operation.
+## Design questions and independent review
 
-**Reviews are input, not automatic decisions.** The human owner chooses direction; real tests determine whether an implementation works. A GitHub issue does not itself contact an external model. See [Review guide](docs/REVIEW.md).
+Our working **Identity–Experience hypothesis** asks whether stable identity purpose together with selective retrieved memory improves the consistency and usefulness of a companion over time. It is **unproven** and independent of Identity's practical value for access control.
 
-## AI collaboration and verification
+- [Hypothesis, experiment matrix and Grok critique](https://github.com/Arameair/Thought-Processor/blob/main/docs/IDENTITY_EXPERIENCE_RESEARCH.md)
+- [Open architecture review — Grok and other perspectives welcome](https://github.com/Arameair/Thought-Processor/issues/7)
 
-This is a **human-directed project developed with AI assistance**, including architectural review, documentation, experiments and testing. AI-created claims are not independently verified merely because they appear in a commit. Contributors should keep attribution, implemented behavior, test evidence and owner approval separate. See [AI collaboration and verification](docs/AI_COLLABORATION.md).
+Unsettled: hierarchical vs relationship-based feature ownership, changing goals/self-model, first-admin recovery, secure grant format, per-install vs per-feature identities, and whether every feature requires a private GitHub repo.
 
-No repository, even a private one, should contain passwords, provider tokens, session cookies or other secrets. No port-open indicator, green status label or local ID card alone proves a privileged connection.
+## Development and releases
+
+| Branch | Meaning |
+| --- | --- |
+| `main` | This documentation / eventual explicitly approved public release |
+| `alpha` | Owner-controlled development baseline |
+| `stable` | Reserved for an owner-accepted verified snapshot; **no stable branch was present at the latest status review** |
+| `experiment/*` | Isolated work, **always branched from Alpha**; evidence first, promotion by explicit owner action only |
+
+This cleanup changes **documentation on main only**, not Alpha or running software. The owner's [Project Controller](https://github.com/Arameair/Project-controller) can help develop and test versions but is **not required** to install or use Identity.
 
 ---
 
-**Design principle:** Centralize *identity and authority*. Decentralize *execution and data ownership*.
+**AI collaboration disclosure:** This is human-directed work developed with AI assistance, including ChatGPT and owner-supplied critical feedback attributed to Grok. All AI opinions are review inputs, not guarantees of correctness. [Read the disclosure](docs/AI_COLLABORATION.md).
+
+**Security:** Never commit passwords, tokens, private keys or secret session materials to any repo, including private identity repos. A successful HTTP response is not proof of authorization.
