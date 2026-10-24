@@ -1,30 +1,30 @@
-# Roadmap — verify each integration before expanding
+# Roadmap — first establish the foundation, then integrate features
 
-Roadmap gates are acceptance criteria, **not release promises**. Use [Status](STATUS.md) for what has actually been verified.
+**Reviewed:** 2026-10-24. Milestones are proposed **owner acceptance gates**, not delivery commitments or claims that the capabilities work today.
 
-| Gate | Goal | Evidence before acceptance | Current state |
+| Gate | Demonstration | Required evidence | Current position |
 | --- | --- | --- | --- |
-| 0 | Professional documentation and traceable branches | README, vision, architecture, status, decisions, workflow, AI disclosure | Documentation foundation in progress |
-| 1 | Real local identity records | Owner creates TASS and Business, restarts, restores same IDs, handles disk failure | Implemented in experimental code; owner acceptance not documented as complete |
-| 2 | Safe local GitHub verification | Live CLI account verified in executing OS; private repo linked read-only; no repo mutation | Experiment available; owner live check still required |
-| 3 | Secure in-app GitHub account connection | Official browser authorization, least privilege, protected credential storage, revocation and accurate states | Planned |
-| 4 | Authorized private repository lifecycle | Owner explicitly approves creation or attach; non-secret manifest; duplicate prevention, rollback, no unsafe deletion | Planned |
-| 5 | Identity-aware feature grants | Thought enabled for TASS, denied for Business; audited grant, enforcement and revocation survive restart | Planned |
-| 6 | Verified independent service handshake | Authenticated service discovery, compatible versions, accurate live status; no arbitrary process takeover | Read-only local discovery exists experimentally; authenticated handshake planned |
-| 7 | Clean-install and release acceptance | Separate administrator/installation, safe restore/migration, permission review, owner tests, rollback and manual promotion | Planned |
+| 0 — Documented direction | Clear governing principle, responsibilities, first-run UX, storage and honest current state | Linked decisions, review and source provenance | Documentation on Main |
+| 1 — Durable local authority | Create, save, archive and restore local IDs; distinguish installation/admin/service/entity IDs | Fresh profile + restart + unchanged IDs + recovery failure tests | Basic local ID capability exists experimentally; complete secure bootstrap not implemented |
+| 2 — Clean storage boundaries | Data roots centrally organized and separately owned | Actual path/permission checks, experiment isolation, backup/restore and disk-failure behavior | **Design only** |
+| 3 — Safe optional account association | Verify existing GitHub CLI access without storing its token; read-only repo reference | Real CLI/provider state; no repo mutation; revoke/no-login paths | Prototype exists; official in-app account broker absent |
+| 4 — Secure service registration | Feature starts independently, authenticates enrollment, registers stable service and current instance ID | Two-service test, denial/replay, restart and stale instance results | **Design only**; current port discovery is unauthenticated |
+| 5 — Scoped feature authorization | Allow one narrow operation to one service, deny others and revoke safely | Real receiving-service enforcement, expired/revoked and Identity-offline checks | **Design only** |
+| 6 — Cross-feature inspection | Thought Processor lists registered apps, shows true status/flow and open original UI where supported | Real service IDs, version/process facts, correlated logs; no hard-coded app count | Planned in separate repo |
+| 7 — Installation and recovery acceptance | New-user installation, safe backups, selected startup lifecycle and approved releases | Real clean machine/OS, test evidence, rollback and explicit owner decision | Planned |
 
-## Thin next demonstration
+**Step order is an architectural recommendation, not authorization to rewrite or deploy other repositories.** Small local GitHub verification can remain a useful parallel experiment, but it must not be mislabeled as complete Identity-based OAuth. Do not add Thought Engine or Memory requirements to bootstrap gates.
 
-Start with the [current identity manager](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023). Prove the local identity lifecycle and real GitHub CLI verification in the owner's actual Project Controller/OS. Keep controller discovery labeled read-only and unauthenticated. Only after that should a separate experiment attempt official provider authorization or independently enforced feature grants.
+## Next experiment to evaluate
 
-Every gate needs the full commit SHA, test environment, failure cases and manual owner decision. If a real dependency is absent, record **BLOCKED / NOT RUN**, not PASS.
+Start from current owner-approved `alpha`. Build an independently runnable, **local** Identity foundation that proves durable installation/admin/service/entity records and reports trustworthy states. Provide storage allocation references for one test feature without moving another feature's raw logs. Test restart, corrupt record, two concurrent instances and non-admin permission. Keep optional GitHub/discovery tests separate until correct scopes are implemented.
 
-## Guardrails
+Once that is accepted, test authenticated service enrollment followed by Thought Processor discovery as the next independent integration. Full secret storage and cross-service grants must be security-reviewed before any product-grade claims.
 
-- A user may create a local ID without GitHub being connected.
-- Do not silently install or restart independent services or merge branches.
-- Preserve other features when Thought is disabled.
-- Never claim a model or Thought Engine operates just because an ID card exists.
-- Do not turn a prototype into an all-in-one administrator, engine and controller merely to accelerate a demo.
+## Testing protocol
 
-Related: [Identity owner issue #10](https://github.com/Arameair/identity/issues/10), [GitHub account roadmap #9](https://github.com/Arameair/identity/issues/9), [Thought feature design #8](https://github.com/Arameair/identity/issues/8).
+Record starting Alpha SHA, experimental SHA, environment/OS, exact endpoints, local path or profile, process state, real or fixture dependencies, measured timings, failed/denied cases, identity persistence, source-owned storage, logs and rollback. Keep **PASSED WITH FIXTURES**, **LOCAL PROCESS VERIFIED**, **END-TO-END VERIFIED**, and **OWNER ACCEPTED** distinct.
+
+**The owner alone promotes.** Do not auto-merge Alpha or Stable, or treat a documentation change to Main as an accepted executable.
+
+Related: [First run](FIRST_RUN.md), [Storage](STORAGE.md), [Decisions](DECISIONS.md), [Status](STATUS.md), [Experiment report](EXPERIMENT_TEMPLATE.md).
