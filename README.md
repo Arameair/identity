@@ -44,3 +44,20 @@ Integrated one-click browser OAuth, GitHub App installation, creating private re
 ## Safety and testing
 
 `go test ./...` checks the single-writer folder lock, archive/restore and persistence, duplicate handling, account mismatch, denied anonymous actions, private repo checks, and the absence of repository deletion operations. Linux Go tests pass; Windows cross-compilation passes. The developer has **not** tested this on the owner's Windows machine or in the actual Project Controller UI. Alpha/main/stable must remain untouched unless the owner approves promotion.
+
+
+## Thought Controller — discover instead of launching
+
+**This experiment deliberately does not start, install, stop or manage Thought Controller processes.** Use the Thought Controller tile in Project Controller to control its lifecycle.
+
+1. Open **Identity → Thought Controller**. Identity checks the configured loopback port (default **7797**) and repeats the read-only check every 5 seconds.
+2. If unavailable, the page says **NOT RUNNING — Start Thought Controller in Project Controller**.
+3. If running on a different port, click **Find on this computer**. This checks **127.0.0.1 ports 7778–7899**, recognizing only services that answer with the Thought Controller identification at `/api/health` or (older build) `/api/heartbeat`. If the assigned port is outside that range, copy it from Project Controller and enter it manually.
+4. Click **Use this port**. The selection is saved in `<Identity data directory>/controller-discovery.json` and survives restart.
+5. Once recognized, Identity shows **DETECTED** and **Open Thought Controller ↗**. Clicking Open loads the other application's existing web UI; no subprocess or fake registration is created.
+
+A TCP port being open by itself is **not** proof of Thought Controller. A different application or unresponsive controller shows **OTHER SERVICE OR NOT READY** and does not produce an Open link. The discovery is **not authenticated**; it only establishes that a local service identified itself as Thought Controller. Thought feature grants and secure data sharing are a separate later integration. If the detected Thought Controller reports simulated thought behavior, Identity labels it as simulated without itself simulating the process.
+
+Existing local System ID Cards, archives and GitHub associations are preserved **when the new branch uses the same Identity data directory**. Project Controller may assign a different `PC_DATA` per run/branch; if so, explicitly set `IDENTITY_DATA` to the previous Identity data directory. Never assume an empty new folder means the old identity cards were deleted.
+
+**Tests:** `go test -race ./...`, `go vet ./...`, Windows cross-compilation and a browser-script syntax check were run against the same local implementation before posting this experiment. Owner Windows/Project Controller integration is **NOT YET RUN**. None of these tests exercise live Identity authorization against the separate Thought service.
