@@ -44,3 +44,15 @@ Integrated one-click browser OAuth, GitHub App installation, creating private re
 ## Safety and testing
 
 `go test ./...` checks the single-writer folder lock, archive/restore and persistence, duplicate handling, account mismatch, denied anonymous actions, private repo checks, and the absence of repository deletion operations. Linux Go tests pass; Windows cross-compilation passes. The developer has **not** tested this on the owner's Windows machine or in the actual Project Controller UI. Alpha/main/stable must remain untouched unless the owner approves promotion.
+
+## Approved local Thought Controller startup (experimental)
+
+Identity can launch **one approved executable** and stop only a process it owns. This is real process startup; it does not build, download, update or sign Thought Controller's code.
+
+1. Use **the same Identity data folder** as your previous Identity manager if you want to preserve your account and cards. Project Controller may allocate different PC_DATA per branch; use `-data <existing Identity directory>` or `IDENTITY_DATA` explicitly.
+2. Build a trusted Thought Controller version for the same OS. Example: check out the standalone [v1 repair](https://github.com/Arameair/Thought-Controller/tree/experiment/v1-repair-20261023) and run `go build -o thought-controller.exe .` on Windows (or `go build -o thought-controller .` on Linux). This is a separate **unapproved experimental** Thought engine; it is not the new Thought module.
+3. In Identity, open **Thought Controller**, enter the **full absolute path** to its executable, choose a port (default 7797), check **Start automatically when Identity opens**, click **Approve this executable** and then **Start if stopped**.
+4. Identity pins the executable SHA-256, records approval in `<Identity data>/controller-approval.json`, and runs the controller with its **own data folder** `<Identity data>/thought-controller-managed/`. Controller startup logs are at `<Identity data>/thought-controller-launch.log`. No GitHub repository is changed.
+5. On Identity Stop, the controller it launched stops. On next Play using the same data folder, Identity automatically starts that exact approved executable if the port is free. If the executable was rebuilt or replaced, startup is blocked until you approve the new file.
+
+**Important:** The `first-user-dashboard` Thought Controller build remains a SIMULATED thought host even when the **process startup is real**. The v1-repair controller has an experimental thought engine (live worker separate), but neither has live secure Thought-feature permission grants from Identity. The independent Thought repo integration comes later. Identity never takes over another already running instance, never triggers Project Controller's Play button, and never deletes GitHub repos.

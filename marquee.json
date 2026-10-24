@@ -1,6 +1,6 @@
 {
   "name": "Identity — actual local cards and GitHub account connection",
-  "description": "Local identity cards, real existing GitHub CLI account verification and binding, read-only repository checks, safe removal/restore. No mocks and no GitHub deletion.",
+  "description": "Local identity cards, GitHub CLI verification, safe remove/restore, and approval-pinned Thought Controller executable startup. No GitHub deletion or simulated launcher.",
   "requires": ["go"],
   "setup": "go build -o identity .",
   "run": "exec ./identity",

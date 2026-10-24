@@ -75,6 +75,7 @@ type App struct {
 	dataDir, branch, commit, port string
 	state                         State
 	github                        githubOps
+	controller *ControllerManager
 }
 type githubOps interface {
 	User(context.Context) (string, error)
@@ -233,7 +234,10 @@ func openApp(dir, branch, commit, port string, g githubOps) (*App, error) {
 			a.state.Cards = []Card{}
 		}
 	}
-	return a, nil
+	mgr,err:=openControllerManager(abs)
+ if err!=nil{return nil,err}
+ a.controller=mgr
+ return a, nil
 }
 func (a *App) saveLocked() error {
 	b, err := json.MarshalIndent(a.state, "", "  ")
@@ -450,7 +454,7 @@ func (a *App) disconnect() error {
 	return a.mutate(func(s *State) error { s.GitHub = nil; return nil })
 }
 func (a *App) status() map[string]any {
-	return map[string]any{"state": a.snapshot(), "github": a.githubStatus(), "branch": a.branch, "commit": a.commit, "data_dir": a.dataDir, "port": a.port, "mode": "REAL LOCAL RECORDS + REAL GITHUB CLI VERIFICATION", "repository_deletion_supported": false}
+	return map[string]any{"state": a.snapshot(), "github": a.githubStatus(), "branch": a.branch, "commit": a.commit, "data_dir": a.dataDir, "port": a.port, "mode": "REAL LOCAL RECORDS + REAL GITHUB CLI VERIFICATION", "repository_deletion_supported": false, "controller":a.controller.Status()}
 }
 func reply(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -557,6 +561,21 @@ func (a *App) handler() http.Handler {
 		}
 		reply(w, 200, map[string]string{"status": "ACCOUNT UNLINKED LOCALLY — CLI SESSION UNCHANGED"})
 	}, true))
+	mux.HandleFunc("POST /api/controller/approve",localOnly(func(w http.ResponseWriter,r *http.Request){
+   var p struct{Path string `json:"path"`;Port int `json:"port"`;AutoStart bool `json:"auto_start"`}
+   if !read(w,r,&p){return}
+   status,err:=a.controller.Approve(p.Path,p.Port,p.AutoStart)
+   if err!=nil {bad(w,err);return};reply(w,200,status)
+ },true))
+ mux.HandleFunc("POST /api/controller/start",localOnly(func(w http.ResponseWriter,r *http.Request){
+   status,err:=a.controller.Start();if err!=nil{bad(w,err);return};reply(w,200,status)
+ },true))
+ mux.HandleFunc("POST /api/controller/stop",localOnly(func(w http.ResponseWriter,r *http.Request){
+   status,err:=a.controller.Stop();if err!=nil{bad(w,err);return};reply(w,200,status)
+ },true))
+ mux.HandleFunc("POST /api/controller/revoke",localOnly(func(w http.ResponseWriter,r *http.Request){
+   status,err:=a.controller.Revoke();if err!=nil{bad(w,err);return};reply(w,200,status)
+ },true))
 	mux.HandleFunc("POST /api/github/check", localOnly(func(w http.ResponseWriter, r *http.Request) { reply(w, 200, a.githubStatus()) }, true))
 	return mux
 }
@@ -604,6 +623,7 @@ func main() {
 	}
 	log.Printf("Identity local app on http://127.0.0.1:%s/; GitHub credentials remain owned by gh; no repository deletion feature; OS %s", port, runtime.GOOS)
 	srv := &http.Server{Handler: app.handler(), ReadHeaderTimeout: 6 * time.Second}
+	go app.controller.AutoStart()
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Print(err)
@@ -615,4 +635,5 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
+	app.controller.Close() // stop only the Identity-owned controller
 }
