@@ -1,52 +1,111 @@
-# Architecture — identity authority and independent features
+# Architecture — Identity as the authority, features as independent owners
 
-**Target design.** Cross-service authorization and grant protocols are not implemented by the current Identity experiment.
+**Owner-selected principle (2026-10-24):**
+
+> **Identity owns the organization and authority of the system. Each feature owns its actual work.**
+
+**Status:** Architecture and integration direction, **not implemented multi-service authorization**. The current experimental Go manager creates local records and detects some services without authenticating them. [Current status](STATUS.md).
+
+## Three different layers
 
 ```text
-Owner / administrator
-        |
-        v
-    Identity
-    - immutable entity IDs and identity cards
-    - account references and approved access
-    - feature catalog and scoped grants (planned)
-    - revocation/audit (planned)
-        |
-        +---- authorized capability reference ----> Thought service / engine
-        |                                           (owns thought records)
-        +---- authorized capability reference ----> Communication / Memory / other features
-        |                                           (own their data and lifecycle)
-        +---- account broker operations (planned) -> GitHub and other providers
-
-Project Controller: separately owns local build, start, stop and diagnostic observation.
-Thought Processor: separately owns operation and monitoring of the Thought Processing feature.
++-------------------------------------------------------------+
+| Identity: identity and authority                             |
+| Durable IDs | ownership | account references | storage      |
+| locations/policy | registered services | scoped grants       |
++----------------------+--------------------------------------+
+                       |
+       discover, enroll, approve and verify (control plane)
+                       |
++----------------------v--------------------------------------+
+| Thought Processor: optional cross-feature control surface   |
+| service cards | connection map | real logs/flow/metrics     |
+| original feature UI | truthful status and diagnostics       |
++-------------+---------------------+-------------------------+
+              :                     :
+       observations/status   diagnostics/status (not all data)
+              :                     :
+  +-----------v--------+   +--------v------------+
+  | TASS / ScreenBridge|-->| Thought Engine      |
+  | feature-owned logs |   | feature-owned waves |
+  +--------------------+   +----------+----------+
+                                     |
+                                     v
+                                AI worker
+   Optional Memory is an independent source of authorized recall.
 ```
 
-## Ownership boundaries
+Arrows represent *possible authorized connections*, **not already implemented APIs** and not mandatory relays. Features can send source data to each other directly once the receiving feature enforces appropriate authorization. Processor is not required for their ongoing work.
+
+## Responsibility matrix
 
 | Component | Owns | Does not own |
 | --- | --- | --- |
-| **Identity** | Persistent IDs; local entity registry; account connections; policy and approved feature grants | Thought generation, model response content, arbitrary process lifecycle |
-| **Thought / Thought Engine** | Ingestion, Sparks, Traces, Thoughts, local thought persistence and validation | GitHub authentication or global entitlements |
-| **Thought Processor** | Operator control surface for Thought Processing, real feed and worker status | Independent source logs or another identity authority |
-| **Source features** | Logs, observations, media, domain-specific processing and their own lifecycle | Implicit access to every other feature |
-| **Project Controller** | Development workspace, independent build/start/stop, logs and metrics | Issuing identity or feature authorization |
-| **GitHub** | Hosted repositories and native authorization | Live local identity state or credentials stored in README files |
+| **Identity** | Stable installation, administrator, entity and service IDs; ownership; account authorization references; registration/grant policies; storage-location governance and audit decisions | Every service's content, AI reasoning, model calls, process execution or raw log transit |
+| **Thought Processor** | Catalog-based discovery of compatible running services; authorized connection assistance; inspection, truthful status cards, developer diagnostics | Canonical identity authority, credential vault, automatic deployment, thought content or every log |
+| **Thought Engine** | Optional observation processing, candidate thoughts, directed waves, temporary working context, source evidence, its own records/worker calls | Issuing identity-wide permission or treating thoughts as memory |
+| **Memory** | Optional, separately enabled persistence and recall of historical experience | Becoming mandatory for any thought or identity |
+| **Source features** | Their own data collection, logs, domain functionality, lifecycle and permission enforcement | Automatic access to any other entity or feature |
+| **Project Controller** | Separate developer-only branch builds, Play/Stop, inspection and test context | User Identity authority or production dependency |
+| **External providers** | Their own accounts and native access control | Identity's local records or implicit grant to every feature |
 
-## Identity vs account vs capability
+## IDs, ownership and running instances
 
-An **entity** is a person, companion, organization, business or service with a stable ID. An **account connection** is the authorized link to an external provider. A **feature grant** permits specific behavior on behalf of a specific identity. These are different records, and none automatically implies another.
+Do not collapse distinct concepts:
+- **Installation ID:** durable local deployment/profile.
+- **Administrator ID:** authenticated administrative principal as defined by a future OS-aware security design.
+- **Entity ID:** durable person/companion/business/project identity.
+- **Service ID:** durable identity of an installed registered feature, including the Identity service itself.
+- **Instance/run ID:** one execution of a service; can change on every start or run in parallel.
+- **Account connection:** provider-specific authorization distinct from an entity record.
+- **Capability grant:** scoped authorization for a caller to perform a named operation on resources for a specific entity/service, with expiry and revocation rules.
 
-An entity may reference a private GitHub repository containing **nonsecret** configuration. Neither access to the repository nor a declared entity ID proves permission to use another service.
+A source repository, announced port, version string or self-reported UUID alone does not establish service authenticity.
 
-## Local data and experiments
+## Registration and interoperability
 
-The current Go prototype persists a local System ID, cards, archived cards, an external GitHub login reference and controller port settings. The secure credential remains with the official GitHub CLI rather than being copied into Identity. No live cross-process feature-grant service exists.
+1. Feature starts **independently**. It may request registration with Identity using its durable service identity, authenticated enrollment/installation association and bounded capability description.
+2. Identity checks ownership/trust and records the service, version, protocol, authorized endpoints and runtime instance information.
+3. Thought Processor discovers approved catalog entries and can display a live card for each actual app, with fallback for unavailable embedded UI.
+4. An identity-scoped, resource-scoped permission is explicitly approved; the **receiving service** must enforce it. Discovery alone cannot bypass a grant.
+5. After approval, services may exchange data directly; the Processor may inspect source-owned logs/metrics on demand with appropriate scope.
+6. Restart, revocation, incompatible versions, Identity unavailability or source downtime must have distinct truthful states.
 
-Separate disposable checkouts must not silently share identity state. Project Controller passes `PC_DATA`, `PC_BRANCH` and `PORT`; experiments use isolated data and preserve original records. A production profile must be selected and backed up intentionally.
+**Lifecycle choice OPEN:** Whether Identity itself runs as an opt-in lightweight background service for always-available registration, manual-on-demand, or hybrid. Do not install an unattended service without an explicit, tested consent path.
 
-## Discovery does not establish trust
+## Storage is centrally organized and independently owned
 
-A port answering `/api/health`, or claiming to be Thought Controller, is **discovery**, not authentication. Before privileged integration, the service must have a verified installation/service identity, compatible protocol and authenticated per-action permission checks. A service must reject unauthorized requests even when its caller bypasses Identity's UI.
+Identity stores the canonical ownership/location records and enforces policy. Each feature stores its **own** events, logs, database, thought traces or memories within approved isolated areas.
 
-See [Interfaces](INTERFACES.md), [Security](SECURITY.md), and [Status](STATUS.md).
+```text
+Selected storage root / registered storage locations
+  identity/       canonical authority and audit
+  features/tass/  TASS-owned data
+  features/thought-engine/  Thought-owned data
+  features/memory/         Memory-owned data, when installed
+```
+
+This is a **logical example**, not a mandatory physical directory or a claim that the existing prototype provisions it. Do not route high-volume logs through Identity's registry and do not commit them to source-code repositories. Multiple roots/volumes and OS/VM boundaries must be supported by policy and tests. Read [storage detail](STORAGE.md).
+
+## Clean machine and failure behavior
+
+- Identity must be usable with **zero optional features** and without GitHub sign-in. [First-run proposal](FIRST_RUN.md).
+- An optional feature can be stopped without deleting its durable service registration or corrupting another feature.
+- Closing Processor does not stop source services or revoke their previously valid grants.
+- If Identity is unavailable, no **new** privilege should be granted. Previously authorized independent work may continue only under a tested, bounded offline policy.
+- If a service proposes a direction for additional observation, it cannot create a new grant or start an uncontrolled program.
+- Experimental `PC_DATA` and branch checkouts must stay distinct from durable production data.
+- Backups, migrations, restore, recovery and credential storage must be tested before the system is described as a secure multi-service provider.
+
+## Security reality
+
+The present prototype uses an already authenticated GitHub CLI session for read-only verification; this **does not** make Identity an OAuth broker. Local port checks are discovery, **not** authenticated service registration. Loopback and HTTP Origin checks do not create a trusted channel by themselves. See [Security](SECURITY.md), [Interfaces](INTERFACES.md) and [Status](STATUS.md).
+
+## Sources of direction and unresolved questions
+
+- [Decisions](DECISIONS.md) distinguishes accepted architecture from proposed lifecycle details.
+- [Independent review](REVIEW.md) preserves contrasting views, including [end-user notes](END_USER_DESIGN_NOTES.md).
+- [Thought Processor connection direction](https://github.com/Arameair/Thought-Processor/blob/experiment/identity-authority-registration-20261024/docs/discussions/2026-10-24-identity-authority-registration.md).
+- [Thought-directed waves hypothesis](https://github.com/Arameair/Thought-engine/blob/experiment/thought-engine-v1-20261023/docs/THOUGHT_DIRECTED_WAVES_THEORY_2026-10-24.md).
+
+**Do not treat links to experimental work as evidence of promotion or an implemented feature.**
