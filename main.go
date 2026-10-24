@@ -75,6 +75,7 @@ type App struct {
 	dataDir, branch, commit, port string
 	state                         State
 	github                        githubOps
+	controller                    *ControllerDiscovery
 }
 type githubOps interface {
 	User(context.Context) (string, error)
@@ -233,6 +234,9 @@ func openApp(dir, branch, commit, port string, g githubOps) (*App, error) {
 			a.state.Cards = []Card{}
 		}
 	}
+	discovery, err := openControllerDiscovery(abs)
+	if err != nil { return nil, err }
+	a.controller = discovery
 	return a, nil
 }
 func (a *App) saveLocked() error {
@@ -557,6 +561,18 @@ func (a *App) handler() http.Handler {
 		}
 		reply(w, 200, map[string]string{"status": "ACCOUNT UNLINKED LOCALLY — CLI SESSION UNCHANGED"})
 	}, true))
+	mux.HandleFunc("GET /api/controller/status",localOnly(func(w http.ResponseWriter,r *http.Request){
+		reply(w,200,a.controller.Check())
+	},false))
+	mux.HandleFunc("POST /api/controller/find",localOnly(func(w http.ResponseWriter,r *http.Request){
+		reply(w,200,map[string]any{"controllers":a.controller.Scan(),"scanned_ports":"7778–7899","scope":"127.0.0.1 only"})
+	},true))
+	mux.HandleFunc("POST /api/controller/port",localOnly(func(w http.ResponseWriter,r *http.Request){
+		var p struct{Port int `json:"port"`}
+		if !read(w,r,&p){return}
+		if err:=a.controller.SetPort(p.Port);err!=nil{bad(w,err);return}
+		reply(w,200,a.controller.Check())
+	},true))
 	mux.HandleFunc("POST /api/github/check", localOnly(func(w http.ResponseWriter, r *http.Request) { reply(w, 200, a.githubStatus()) }, true))
 	return mux
 }
