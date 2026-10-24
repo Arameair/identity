@@ -26,6 +26,16 @@ The current experimental UI binds to loopback and checks request origins. **Loop
 
 Before cross-service grants are live, design and test actor authentication, installation/service identity verification, scoped grants, revocation, replay defenses, version compatibility and outage behavior. Feature services need enforcement at their own ingress.
 
+## Feature enrollment and storage policy (target)
+
+The long-term design calls for **authenticated self-registration** of independently running features to Identity. Newly seen instances must not become trusted because they share a machine, can contact loopback, or claim a known service ID. Stable service identity and per-start runtime identity need replay protection and administrator-approved enrollment.
+
+Identity owns **storage locations, ownership and access policy**, while individual features own their isolated data. A directory path, file owner label, or registry claim is not a substitute for OS-enforced permissions. Existing GitHub CLI state is outside Identity's credential store; an unprotected CLI credential file, if used by that platform, does not become safe by merely linking a username.
+
+Whether Identity should operate in the background remains an **open owner decision**. If selected, it should be opt-in, authenticated, auditable, removable and non-invasive. Service startup must not itself authorize a new feature or secret.
+
+See [Storage](STORAGE.md), [First run](FIRST_RUN.md), [Decisions](DECISIONS.md), and [Independent review](REVIEW.md).
+
 ## Data safety
 
 - Preserve the original identity ID across restart, restore and code changes.
