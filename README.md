@@ -4,6 +4,10 @@
 
 **Identity** is the independent setup and continuity component of the Thought Controller ecosystem. It can create or restore a uniquely identified **entity** (AI companion, person, business, team, project, etc.), guide its user through GitHub repository setup, manage access through secure local credentials, and register capabilities with a compatible Thought Controller. **Personality and thinking are optional modules, not part of the definition of identity.**
 
+## Current design discussion — live project cards (not implemented)
+
+[**Dynamic feature cards / Identity app integration notes**](docs/DYNAMIC_FEATURE_CARDS.md) document the owner's new direction: the Identity card in Thought Processor represents **this actual running GitHub project** and previews its real UI where supported. It is not a static entity avatar. Other independently running features should become discoverable cards as they are built and tested. This is a **documentation-only experimental branch**, not a promotion or verified integration.
+
 ## Start here: click through the project
 
 The detailed, clickable proposal is on the **design experiment branch**, not yet approved/promoted to Alpha:
