@@ -16,6 +16,12 @@ The current main branch is **documentation**, not a production service. Runnable
 
 This division gives Identity system-level authority without making it a runtime bottleneck or a cognitive Thought Engine.
 
+### Organization versus storage (additional owner-selected boundary)
+
+**Identity organizes the system and records authorized data locations; individual features own their actual databases, logs, thoughts, memories and work.** A feature can register its independent service identity with Identity; Thought Processor then discovers the approved service catalog and verifies which **running instance** is reachable. Do not funnel feature data through Identity merely because it provides the directory of identities or approved storage locations.
+
+This update aligns with the [current Identity architecture](ARCHITECTURE.md) and [owner decision ledger](DECISIONS.md). Whether Identity runs continuously as an opt-in background service, manually on demand, or in a hybrid mode remains open.
+
 ## Four distinct notions of identity
 
 | Concept | Example | Purpose |
