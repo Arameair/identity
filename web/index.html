@@ -1,6 +1,15 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Identity</title><style>
 :root{font-family:system-ui,Segoe UI,Arial,sans-serif;color-scheme:dark;background:#111318;color:#edf1f4}body{margin:0}header{background:#191e26;border-bottom:1px solid #303844;padding:18px max(22px,5vw);display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:24px;margin:0}h2{font-size:18px;margin:0 0 12px}h3{font-size:16px;margin:0 0 9px}.muted,small{color:#abb6c6}.page{max-width:1110px;margin:auto;padding:24px 18px 50px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{border:1px solid #34404e;background:#1a2029;border-radius:14px;padding:19px;margin-bottom:18px}.row{display:flex;gap:11px;align-items:center;flex-wrap:wrap}.spread{justify-content:space-between}button,input,select{font:inherit;border-radius:8px;border:1px solid #536071;padding:9px 12px;background:#252c37;color:#eef2f7}button{cursor:pointer}button:hover{border-color:#b3c8ed}button.primary{background:#446bb4;border-color:#5e83cc}button.danger{border-color:#a76f7e;color:#ffcad1}button:disabled{opacity:.45;cursor:wait}input{min-width:0;flex:1}input:focus,select:focus{outline:2px solid #7da8fa}.status{padding:10px 13px;border-radius:8px;background:#28323e;margin:9px 0}.good{color:#9fe7bd}.warn{color:#f2cf82}.bad{color:#f29fa4}.tag{display:inline-block;font-size:12px;border:1px solid #5c7187;border-radius:999px;padding:4px 9px;white-space:nowrap}.entity{border:1px solid #34404e;border-radius:12px;padding:15px;margin:10px 0;background:#202733}.mono{font:12px Consolas,monospace;overflow-wrap:anywhere;color:#adbed5}.actions{margin-top:12px}.sep{border:0;border-top:1px solid #35404f;margin:18px 0}#alert{display:none;padding:14px;border:1px solid #a96060;background:#432d35;border-radius:10px;margin-bottom:16px}.footer{margin-top:18px;color:#99aabd;font-size:12px}code{background:#303947;border-radius:5px;padding:3px 6px;overflow-wrap:anywhere}a{color:#a8ccff}details{margin-top:8px}summary{cursor:pointer}.chip{color:#a5bbd6;font-size:12px}@media(max-width:700px){.grid{grid-template-columns:1fr}header{align-items:start;flex-direction:column}.page{padding:14px}}
-</style></head><body><header><div><h1>Identity</h1><div class="muted">Your identities, GitHub account and ID cards</div></div><span class="tag">REAL LOCAL RECORDS · NO MOCKS</span></header><main class="page"><div id="alert" role="alert"></div><div class="grid"><section class="card"><h2>My system ID card</h2><div id="system"></div></section><section class="card"><h2>GitHub account</h2><div id="github"></div></section></div><section class="card"><div class="row spread"><h2>My identities</h2><span id="counter" class="tag"></span></div><p class="muted">Create an identity. Removing it hides it from active identities but preserves its record and never touches GitHub.</p><form id="create" class="row"><input name="name" aria-label="Identity name" placeholder="Name (for example, TASS)" maxlength="80" required><select name="type" aria-label="Identity type"><option value="ai_companion">AI companion</option><option value="business">Business</option><option value="person">Person</option><option value="project">Project</option><option value="other">Other</option></select><button class="primary">Add identity</button></form><div id="identities"></div></section><section class="card"><h2>Removed identities</h2><p class="muted">These can be restored. Associated GitHub repositories remain untouched.</p><div id="removed"></div></section><div class="footer" id="footer"></div></main>
+</style></head><body><header><div><h1>Identity</h1><div class="muted">Your identities, GitHub account and ID cards</div></div><span class="tag">REAL LOCAL RECORDS · NO MOCKS</span></header><main class="page"><div id="alert" role="alert"></div><div class="grid"><section class="card"><h2>My system ID card</h2><div id="system"></div></section><section class="card"><h2>GitHub account</h2><div id="github"></div></section></div>
+<section class="card"><h2>Thought Controller</h2>
+<p class="muted">Identity checks whether Thought Controller is running. If it is stopped, start it from its Project Controller tile. Identity does not launch or stop other applications.</p>
+<div id="controller-state" class="status">Checking local controller port…</div>
+<div class="row">
+<label for="controller-port">Port</label><input id="controller-port" type="number" min="1024" max="65535" value="7797" style="flex:0 0 120px">
+<button data-act="tc-set">Use port</button><button data-act="tc-check">Check again</button><button data-act="tc-find">Find on this computer</button>
+</div><div id="controller-found"></div>
+<p class="muted"><small>Only local Thought Controller health is checked. This is not yet an authenticated Thought feature connection.</small></p>
+</section><section class="card"><div class="row spread"><h2>My identities</h2><span id="counter" class="tag"></span></div><p class="muted">Create an identity. Removing it hides it from active identities but preserves its record and never touches GitHub.</p><form id="create" class="row"><input name="name" aria-label="Identity name" placeholder="Name (for example, TASS)" maxlength="80" required><select name="type" aria-label="Identity type"><option value="ai_companion">AI companion</option><option value="business">Business</option><option value="person">Person</option><option value="project">Project</option><option value="other">Other</option></select><button class="primary">Add identity</button></form><div id="identities"></div></section><section class="card"><h2>Removed identities</h2><p class="muted">These can be restored. Associated GitHub repositories remain untouched.</p><div id="removed"></div></section><div class="footer" id="footer"></div></main>
 <script>
 const by=id=>document.getElementById(id);let state=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -14,10 +23,38 @@ by('counter').textContent=active.length+' active';by('identities').innerHTML=act
 by('removed').innerHTML=removed.length?removed.map(c=>card(c,true)).join(''):'<p class="muted">No removed identities.</p>';
 by('footer').textContent=`Branch ${s.branch} · Commit ${s.commit} · Data ${s.data_dir} · Port ${s.port} · No GitHub repository deletion function exists.`;
 }
-async function refresh(){try{render(await api('/api/status'))}catch(e){alertErr(e.message)}}
+
+async function refreshController(){
+ try{
+  const c=await api('/api/controller/status');
+  const box=by('controller-state'),inp=by('controller-port');
+  if(document.activeElement!==inp)inp.value=c.port;
+  box.className='status '+(c.recognized?'good':c.state==='NOT RUNNING'?'warn':'bad');
+  let html='<b>'+esc(c.state)+'</b> · Port '+esc(c.port)+'<p class="muted">'+esc(c.detail)+'</p>';
+  if(c.recognized){
+   html+='<p><a target="_blank" rel="noopener noreferrer" href="'+esc(c.url)+'">Open Thought Controller ↗</a></p>';
+   if(c.simulated)html+='<p class="warn">This controller reports simulated behavior.</p>';
+   if(c.worker)html+='<p class="muted">Worker: '+esc(c.worker)+'</p>';
+  } else html+='<p class="muted">Start Thought Controller in Project Controller, then check again.</p>';
+  box.innerHTML=html;
+ }catch(e){by('controller-state').textContent='Controller check failed: '+e.message}
+}
+
+async function refresh(){try{render(await api('/api/status'));await refreshController()}catch(e){alertErr(e.message)}}
 by('create').onsubmit=async e=>{e.preventDefault();let f=e.currentTarget;let b=f.querySelector('button');b.disabled=true;try{await api('/api/identities',{name:f.elements.name.value,type:f.elements.type.value});f.reset();await refresh()}catch(x){alertErr(x.message)}finally{b.disabled=false}};
 document.addEventListener('click',async e=>{let b=e.target.closest('[data-act]');if(!b)return;let op=b.dataset.act,id=b.dataset.id;b.disabled=true;try{
- if(op==='connect'){await api('/api/github/connect',{})}
+ if(op==='tc-check'){await refreshController();return}
+ else if(op==='tc-set'){await api('/api/controller/port',{port:Number(by('controller-port').value)});await refreshController();return}
+ else if(op==='tc-find'){
+  const found=by('controller-found');
+  found.textContent='Scanning local controller ports…';
+  const result=await api('/api/controller/find',{});
+  if(!result.controllers.length)found.innerHTML='<p class="muted">No controller detected on ports 7778–7899. Enter the port displayed in Project Controller above.</p>';
+  else found.innerHTML=result.controllers.map(c=>'<div class="row entity"><span>Thought Controller · Port '+esc(c.port)+'</span><button data-act="tc-use" data-port="'+esc(c.port)+'">Use this port</button></div>').join('');
+  return
+ }
+ else if(op==='tc-use'){await api('/api/controller/port',{port:Number(b.dataset.port)});await refreshController();return}
+ else if(op==='connect'){await api('/api/github/connect',{})}
  else if(op==='check'){await api('/api/github/check',{})}
  else if(op==='disconnect'){if(!confirm('Unlink this GitHub account from Identity? Your GitHub CLI login and all repositories stay unchanged.'))return;await api('/api/github/disconnect',{})}
  else if(op==='remove'){let c=state.state.cards.find(x=>x.id===id);if(!confirm(`Remove ${c?.name} from active identities? This only archives its ID card. ${c?.repo?'GitHub repository '+c.repo+' WILL NOT BE DELETED.':'No GitHub repository will be touched.'}`))return;await api('/api/identities/'+encodeURIComponent(id)+'/remove',{})}
@@ -25,5 +62,5 @@ document.addEventListener('click',async e=>{let b=e.target.closest('[data-act]')
  else if(op==='repo'){let c=state.state.cards.find(x=>x.id===id);let repo=prompt('Enter an existing PRIVATE GitHub repository as owner/name. Identity only reads GitHub to verify it, and saves the association locally. It will never delete the repo.',c.repo||'');if(repo===null)return;await api('/api/identities/'+encodeURIComponent(id)+'/repo',{repo:repo.trim()})}
  await refresh();
  }catch(x){alertErr(x.message)}finally{b.disabled=false}});
-refresh();
+refresh();setInterval(refreshController,5000);
 </script></body></html>
