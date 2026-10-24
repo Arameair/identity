@@ -12,6 +12,10 @@ We want an extensible system in which TASS, Memory, Thought Engine, ScreenBridge
 
 Identity is the **heart of the system** in the sense of *system identity, trust, relationship and policy knowledge*. It is **not** a substitute for the cognitive Thought Engine, the Memory service or the Thought Processor's operational dashboard.
 
+> **Identity owns the organization and authority of the system. Each feature owns its actual work.**
+
+Identity also organizes feature-owned **storage locations and data boundaries**, while leaving the actual records, logs and computation inside the independent features.
+
 ## System architecture
 
 ```text
@@ -60,6 +64,9 @@ These are **experimental implementations**, not a released secure identity autho
 | Start here | Purpose |
 | --- | --- |
 | **[Identity-first system model](docs/IDENTITY_FIRST_MODEL.md)** | Current vision, identity-vs-feature-vs-runtime definitions, choices still open |
+| [Documentation index](docs/README.md) | Complete navigation across design, implementation status, review and testing |
+| [First run on a new machine](docs/FIRST_RUN.md) | Proposed administrator, installation, recovery and optional feature journey |
+| [Feature-owned storage](docs/STORAGE.md) | Identity-organized locations without centralizing every feature's data |
 | [Architecture](docs/ARCHITECTURE.md) | Responsibility boundaries, discovery and proposed data/control flow |
 | [First run](docs/FIRST_RUN.md) | Clean installation and admin bootstrap proposals |
 | [Storage and ownership](docs/STORAGE.md) | Central organization, independently owned feature data |
@@ -80,6 +87,7 @@ Our working **Identity–Experience hypothesis** asks whether stable identity pu
 
 - [Hypothesis, experiment matrix and Grok critique](https://github.com/Arameair/Thought-Processor/blob/main/docs/IDENTITY_EXPERIENCE_RESEARCH.md)
 - [Open architecture review — Grok and other perspectives welcome](https://github.com/Arameair/Thought-Processor/issues/7)
+- [Identity first-run and storage critique](https://github.com/Arameair/identity/issues/14) · [Independent review guide](docs/REVIEW.md) · [Original end-user notes](docs/END_USER_DESIGN_NOTES.md)
 
 Unsettled: hierarchical vs relationship-based feature ownership, changing goals/self-model, first-admin recovery, secure grant format, per-install vs per-feature identities, and whether every feature requires a private GitHub repo.
 
