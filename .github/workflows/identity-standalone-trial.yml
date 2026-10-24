@@ -1,0 +1,40 @@
+name: Identity standalone trial
+
+on:
+  push:
+    branches:
+      - experiment/identity-standalone-access-trial-20261024
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Go test and cross-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Unit tests
+        working-directory: standalone
+        run: go test -v ./...
+      - name: Vet
+        working-directory: standalone
+        run: go vet ./...
+      - name: Build Linux AMD64
+        working-directory: standalone
+        run: GOOS=linux GOARCH=amd64 go build -o identity-linux-amd64 .
+      - name: Build Windows AMD64
+        working-directory: standalone
+        run: GOOS=windows GOARCH=amd64 go build -o identity-windows-amd64.exe .
+      - name: Publish executable artifacts for owner test
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-standalone-trial
+          path: |
+            standalone/identity-linux-amd64
+            standalone/identity-windows-amd64.exe
+          if-no-files-found: error
