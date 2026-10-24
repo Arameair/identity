@@ -25,6 +25,18 @@ The receiving service must be able to determine which immutable identity has a g
 
 Expected states should distinguish **NOT INSTALLED**, **INSTALLED / DISABLED**, **ENABLED / WAITING**, **AUTHORIZED / READY**, **REVOKED**, **INCOMPATIBLE**, and **UNAVAILABLE**.
 
+## Feature self-registration (owner-selected direction; NOT IMPLEMENTED)
+
+Independent services should be able to start first and **request enrollment or renewed registration** with Identity. Proposed records distinguish durable `service_id`, execution-scoped `instance_id`, installation/owner association, protocol/capability version, bounded runtime endpoint and current provenance. The actual wire format and trust mechanism are not decided.
+
+A future registration interface must **authenticate the caller or require first-time enrollment approval**. A self-reported name/ID, local port or filesystem path is not proof. Identity may record an unverified discovery result, but it must not issue feature-to-feature permissions solely from that result.
+
+Thought Processor is the independent **discovery, connection and diagnostics surface**. It queries authorized Identity service records and shows actual application instances. It does not issue its own canonical IDs or become a mandatory router of source data. After scoped authorization, source and destination features communicate **directly**, and the receiving service enforces access.
+
+**Operational states:** `unknown` / `discovered-unverified` / `registered` / `running` / `authenticated` / `authorized` / `ready` must not be collapsed into a single "connected" state. Grant revocation, renewal and Identity-unavailable behavior need explicit, measured semantics.
+
+See [Architecture](ARCHITECTURE.md), [Storage](STORAGE.md), and [First run](FIRST_RUN.md).
+
 ## Service discovery (current partial implementation)
 
 The controller-discovery experiment scans only a bounded range of local ports (7778–7899) or checks a manually configured port, and recognizes a reported Thought Controller marker in a health response. That means **identified by response, not authenticated**. The UI must not claim it can start, register with or authorize the service from this signal.
