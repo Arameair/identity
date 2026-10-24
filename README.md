@@ -47,6 +47,8 @@ Identity is the **heart of the system** in the sense of *system identity, trust,
 
 The trust system is **planned**, not yet operational. Even after Identity issues permission, each receiving feature must validate the authorization it accepts.
 
+**Storage and registration:** Identity is intended to organize ownership, feature registration and approved storage locations; **each independently running feature keeps its own logs, data and processing state**. Features request trusted registration with Identity; Thought Processor discovers approved catalog entries and reconciles them with the instances actually running. The exact protocol remains unimplemented.
+
 ## Current implementation evidence
 
 The unapproved [controller-discovery experiment](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) builds on earlier standalone Go prototypes with local persistent identity cards, reversible archive/restore, existing GitHub CLI session verification and read-only local service discovery.
