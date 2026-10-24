@@ -4,6 +4,14 @@
 
 **Identity** is the independent setup and continuity component of the Thought Controller ecosystem. It can create or restore a uniquely identified **entity** (AI companion, person, business, team, project, etc.), guide its user through GitHub repository setup, manage access through secure local credentials, and register capabilities with a compatible Thought Controller. **Personality and thinking are optional modules, not part of the definition of identity.**
 
+## New owner direction — Identity is the heart of the system (2026-10-24)
+
+**Identity is more than a companion/account manager: each independently developed feature should also have its own identity.** Identity provides the authoritative understanding of which participants exist, their capabilities, their relationships, and their trust and permissions. This makes Identity the **system-level “brains” behind Thought Processor's connection and control experience**—while cognitive thought processing remains the job of Thought Engine.
+
+**[Read the Identity-first system model, terminology, unchosen relationship options and next discussion questions](docs/IDENTITY_FIRST_SYSTEM_MODEL.md).**
+
+The owner has **not** selected whether feature identities are owned hierarchically by companions or remain independent with permissioned relationships. Those alternatives are explicitly open. The original notes below remain useful as narrower earlier decisions, and nothing is implemented by this clarification.
+
 ## Current Identity ↔ Thought Processor direction (2026-10-23, design only)
 
 The owner has selected a modular architecture in which **Identity and Thought Processor are independently runnable, closely integrated applications**. Identity owns durable entity identities, trusted service pairing, feature grants and revocation; Thought Processor discovers compatible projects, presents their genuine app UIs and supports lightweight diagnostics. **Each receiving application must enforce scoped permissions**, and private AI/feature operations do not need to pass through Processor.
