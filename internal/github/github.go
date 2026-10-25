@@ -297,7 +297,9 @@ func (c *Client) Start() error {
 	}
 	redact.Register("github_device_code", dc.DeviceCode)
 	redact.Register("github_user_code", dc.UserCode)
-	interval := time.Duration(max(dc.Interval, 5)) * time.Second
+	// GitHub answers slow_down if two checks arrive less than `interval`
+	// apart as it measures them; keep a margin so network jitter can't trip it.
+	interval := time.Duration(max(dc.Interval, 5))*time.Second + pollMargin
 	pctx, pcancel := context.WithTimeout(context.Background(), time.Duration(dc.ExpiresIn)*time.Second)
 	c.mu.Lock()
 	if c.cancel != nil {
@@ -313,8 +315,22 @@ func (c *Client) Start() error {
 	return nil
 }
 
+const pollMargin = 2 * time.Second
+
 // pollInterval lets tests shorten waiting.
-var pollInterval = func(d time.Duration) time.Duration { return d }
+var (
+	pollMu     sync.RWMutex
+	pollHookFn = func(d time.Duration) time.Duration { return d }
+)
+
+func pollInterval(d time.Duration) time.Duration {
+	pollMu.RLock()
+	f := pollHookFn
+	pollMu.RUnlock()
+	return f(d)
+}
+
+func setPollHook(f func(time.Duration) time.Duration) { pollMu.Lock(); pollHookFn = f; pollMu.Unlock() }
 
 func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Duration) {
 	t := time.NewTimer(pollInterval(interval))
@@ -336,6 +352,7 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 		var tr struct {
 			AccessToken string `json:"access_token"`
 			ExpiresIn   int    `json:"expires_in"`
+			Interval    int    `json:"interval"` // on slow_down: the new minimum GitHub requires
 			Error       string `json:"error"`
 		}
 		c.mu.Lock()
@@ -386,7 +403,7 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			go c.onEvent("info", "github.signin_poll_answer", answer, "GitHub's answer to \"is this code approved?\" is now: "+answer)
 		}
 		if tr.Error == "slow_down" {
-			c.pollNote = "GitHub asked Identity to check less often; still waiting."
+			c.pollNote = fmt.Sprintf("GitHub asked Identity to check less often (now every %ds); still waiting.", max(tr.Interval, int(interval/time.Second)+5))
 		}
 		c.mu.Unlock()
 		switch {
@@ -395,7 +412,13 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			return
 		case tr.Error == "authorization_pending":
 		case tr.Error == "slow_down":
-			interval += 5 * time.Second
+			// Use GitHub's own new minimum when it sends one, else add 5 s
+			// as its documentation says; always keep the margin.
+			if tr.Interval > 0 {
+				interval = time.Duration(tr.Interval)*time.Second + pollMargin
+			} else {
+				interval += 5 * time.Second
+			}
 		case tr.Error == "access_denied":
 			c.fail(Denied, "Sign-in was cancelled on GitHub, so nothing was connected.")
 			return
@@ -622,5 +645,10 @@ func (v View) RepoVisible(repo string) (RepoCheck, bool) {
 
 // SetPollScaleForTests shortens device-flow polling. TEST USE ONLY.
 func SetPollScaleForTests(d time.Duration) {
-	pollInterval = func(time.Duration) time.Duration { return d }
+	setPollHook(func(time.Duration) time.Duration { return d })
+}
+
+// SetPollObserverForTests records the real waits Identity would use. TEST USE ONLY.
+func SetPollObserverForTests(seen func(time.Duration), d time.Duration) {
+	setPollHook(func(x time.Duration) time.Duration { seen(x); return d })
 }

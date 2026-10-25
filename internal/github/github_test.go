@@ -80,7 +80,7 @@ func waitStatus(t *testing.T, c *Client, want string) View {
 }
 
 func TestFixtureApproveFlow(t *testing.T) {
-	pollInterval = func(time.Duration) time.Duration { return 20 * time.Millisecond }
+	SetPollScaleForTests(20 * time.Millisecond)
 	f := newFixture(t, "approve")
 	var events []string
 	var evMu sync.Mutex
@@ -126,7 +126,7 @@ func TestFixtureApproveFlow(t *testing.T) {
 }
 
 func TestFixtureDeniedIsHonest(t *testing.T) {
-	pollInterval = func(time.Duration) time.Duration { return 20 * time.Millisecond }
+	SetPollScaleForTests(20 * time.Millisecond)
 	f := newFixture(t, "deny")
 	c := New(Config{ClientID: "IvFIXTURE0001", WebBase: f.srv.URL, APIBase: f.srv.URL}, nil, nil)
 	c.Start()
@@ -199,4 +199,55 @@ func TestPollFailuresAreVisibleNotSilent(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("poll failure never surfaced: %+v", c.View())
+}
+
+// Regression for the owner's real run (2026-10-25 09:13): GitHub answered
+// slow_down and every later check was also slow_down, so approval was never
+// seen. Identity must adopt GitHub's returned interval plus a margin.
+func TestSlowDownUsesGitHubsIntervalWithMargin(t *testing.T) {
+	var mu sync.Mutex
+	var waits []time.Duration
+	SetPollObserverForTests(func(d time.Duration) { mu.Lock(); waits = append(waits, d); mu.Unlock() }, 10*time.Millisecond)
+	defer SetPollScaleForTests(20 * time.Millisecond)
+	var n atomic.Int32
+	mux := http.NewServeMux()
+	var srv *httptest.Server
+	mux.HandleFunc("POST /login/device/code", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"device_code": "dc-slow", "user_code": "SLOW-0001", "verification_uri": srv.URL + "/login/device", "expires_in": 60, "interval": 5})
+	})
+	mux.HandleFunc("POST /login/oauth/access_token", func(w http.ResponseWriter, r *http.Request) {
+		switch n.Add(1) {
+		case 1:
+			json.NewEncoder(w).Encode(map[string]any{"error": "slow_down", "interval": 12})
+		case 2:
+			json.NewEncoder(w).Encode(map[string]any{"error": "authorization_pending"})
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"access_token": "ghu_SLOWfixtureTOKEN000000000001"})
+		}
+	})
+	mux.HandleFunc("GET /user", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"login": "fixture-owner", "id": 4242})
+	})
+	mux.HandleFunc("GET /user/installations", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"installations": []any{}})
+	})
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+	c := New(Config{ClientID: "IvFIXTURE0001", WebBase: srv.URL, APIBase: srv.URL}, nil, nil)
+	c.Start()
+	waitStatus(t, c, Verified)
+	mu.Lock()
+	defer mu.Unlock()
+	// (other tests' pollers may also record waits; every wait must keep the
+	// margin, and GitHub's slow_down interval 12s must become 14s)
+	saw14 := false
+	for _, w := range waits {
+		if w < 7*time.Second {
+			t.Fatalf("wait %v below GitHub's 5s minimum + 2s margin: %v", w, waits)
+		}
+		saw14 = saw14 || w == 14*time.Second
+	}
+	if !saw14 {
+		t.Fatalf("GitHub's slow_down interval not adopted: %v", waits)
+	}
 }
