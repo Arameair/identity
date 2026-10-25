@@ -5,5 +5,5 @@ q("unlock").onsubmit=async e=>{e.preventDefault();try{csrf=(await api("/api/sess
 q("copy").onclick=async()=>{try{let d=await api("/api/diagnostics");await navigator.clipboard.writeText(d);msg("Sanitized diagnostics copied")}catch(e){msg("Copy failed: "+e.message)}};
 q("settings").onclick=()=>q("extra").hidden=!q("extra").hidden;q("probe").onclick=()=>action("/api/probe",{});q("stop").onclick=()=>action("/api/stop",{});
 q("processorForm").onsubmit=e=>{e.preventDefault();action("/api/processor",{Address:q("target").value.trim()})};q("cardForm").onsubmit=e=>{e.preventDefault();action("/api/cards",{Action:"create",Name:q("name").value.trim(),Kind:q("kind").value})};
-q("connect").onclick=()=>action("/api/github/start",{});q("disconnect").onclick=()=>action("/api/github/disconnect",{});q("draft").onclick=()=>action("/api/request",{feature:"thought-processor"});
+q("clientForm").onsubmit=e=>{e.preventDefault();action("/api/config/client-id",{client_id:q("clientID").value.trim()})};q("connect").onclick=()=>action("/api/github/start",{});q("disconnect").onclick=()=>action("/api/github/disconnect",{});q("draft").onclick=()=>action("/api/request",{feature:"thought-processor"});
 refresh();setInterval(()=>{if(authed)refresh()},3500);
