@@ -1,63 +1,62 @@
-# First run — a trustworthy local foundation
+# First run — Thought Processor is the front door
 
-**Status: target secure first-run authority and recovery model, not yet implemented.** Updated 2026-10-25. A separate [October 25 experimental Go candidate](TRY_THE_PROTOTYPE.md) has a guided local welcome/GitHub/features/Processor UI, but it is **not** proof of secure administrator bootstrap, registered service identity or feature grants. See [current evidence](STATUS.md) and [architecture](ARCHITECTURE.md).
+**Status:** intended user experience and security acceptance criteria; **not fully implemented**. Reviewed 2026-10-25. Existing experimental Identity candidates still open their *own* setup/monitor browser UI. That behavior is a prototype/debug path, **not the target experience**. See [current status](STATUS.md) and [test instructions](TRY_THE_PROTOTYPE.md).
 
-## Principle
+## One human-facing application
 
-> **Identity owns the organization and authority of the system. Each feature owns its actual work.**
+> **People and administrators open and interact with Thought Processor. Identity provides identity, relationships, registration, and authorization behind it. Independent features own their own execution and data.**
 
-Identity should be usable **alone** on a clean machine. Installing Thought Processor, Thought Engine, Memory, Chat-Jimmy, TASS, GitHub or Project Controller must not be a prerequisite for healthy first-run setup.
+**Identity-first describes the authority model, not the user-facing launch order.** A user should not need to visit an Identity dashboard to configure accounts, inspect identities, approve features, view service health, or diagnose normal problems. These tasks should be available in **Thought Processor**, which invokes Identity's authenticated interfaces when it needs authoritative operations.
 
-## Proposed first-run journey
+Identity must remain a usable, independently running **service** even when Thought Processor is offline. It is not a mandatory screen, and its startup should not silently launch or terminate Processor. Developer-only direct Identity diagnostics or emergency recovery tools can exist, but they must not become the primary administrative product.
 
-| Stage | What the administrator sees | What must be true before showing success |
+## Proposed first-use journey in Thought Processor
+
+| Step in **Thought Processor** | What the person sees and does | What services must verify before marking success |
 | --- | --- | --- |
-| 1. Welcome | **Create a new installation** or **restore an existing installation** | A local writable, selected Identity data root can be established without overwriting existing records |
-| 2. Administration | Create/confirm the **administrator** and local security boundary | Stable administrator record associated with this installation; appropriate operating-system authentication and key protection design tested |
-| 3. Local foundation | **Installation ID**, **Identity service ID**, storage overview | Three different identifiers where appropriate; durable atomic storage initialized; fail closed on corrupt or inaccessible authority records |
-| 4. Storage | Inspect **Identity registry** and future **feature data roots** | Paths are visible; feature roots isolated; no data inserted into git checkouts or untrusted shared folders |
-| 5. Registration readiness | **Ready for feature registration** (if authenticated registration is truly implemented) | A service can verify its own identity and safely enroll/reconnect; discovery alone is insufficient |
-| 6. Dashboard | **Identity ready locally — 0 optional features** | Local records survive restart and UI reports the real state; absent optional services are not errors |
-| 7. Optional next steps | Add feature, connect account, review backups, open Thought Processor if available | Every optional action clearly explains approval, actual side effects and unavailable functionality |
+| 1. Welcome | **Create a new installation** or **restore existing** | Processor can reach the required Identity service or clearly explains it is unavailable; it does **not** claim trust from a port check |
+| 2. Establish ownership | Sign in/confirm the appropriate administrator through a deliberate approval flow | Identity establishes durable installation and administrator records through a secure bootstrap protocol; Processor must not become a second canonical authority |
+| 3. Identity status | Processor displays Identity's verified identity, connection state and scoped diagnostics | Service identity is authenticated, not just self-reported; IDs and records survive restart |
+| 4. Optional GitHub account | Choose whether to connect GitHub and approve provider authorization in the browser | Identity or a defined account component validates the provider result and returns a safe status; Processor never handles a shared master token |
+| 5. Discover features | View available vs installed vs connected vs authorized services | Registration, visibility, installation, runtime and grant state are kept distinct |
+| 6. Request or approve access | Review the requested operation and scope; accept/deny only where supported | Identity validates authority and records the decision; **each receiving feature enforces it** |
+| 7. Monitoring and recovery | One Processor dashboard shows meaningful status, logs and safe diagnostics | No false green states; Identity/feature outages and pending access are accurate and actionable |
 
-**Do not show this as working functionality before it is verified.** For present experiments, show honest incomplete states rather than a simulated "all ready" dashboard.
+These steps are **acceptance targets**, not a claim that the current Processor and Identity prototypes support them end-to-end. The intended empty state is: **Processor available, Identity unavailable or ready as verified, zero optional features**—not an error that forces Thought Engine/Memory installation.
 
-## Identity records are distinct
+## Distinct identity records
 
-- **Installation ID:** the deployment of the ecosystem on this machine/profile. A restore should avoid accidentally creating an unrelated duplicate; cross-device transfer and identity migration require a designed policy.
-- **Administrator ID:** the person/actor exercising administrative authority. Identity records do not by themselves authenticate a user.
-- **Identity service ID:** the durable identity of this running software service. Every launch creates a separate **runtime/instance ID**; multiple concurrently running copies must be distinguishable.
-- **Feature/service ID:** durable identity for a separately installed component; preserved across restarts and version changes, with permission checks for ownership/reassignment.
-- **Entity ID:** a companion, business, person, project or other entity using authorized features. An entity is not automatically a service process.
+- **Installation ID:** durable local deployment/profile, safe to restore without accidental duplication.
+- **Administrator ID:** authority-bearing actor; an ID record alone is not authentication.
+- **Identity service ID:** durable identity of the authority service, distinct from its **runtime/run ID**.
+- **Feature/service ID:** durable registered identity of an independently running component, separate from current endpoint and process.
+- **Entity ID:** a companion, person, business or project that uses authorized features; not necessarily a running service.
 
-## What happens on subsequent launches?
+Processor **displays** these authorized records; Identity remains their authority. Processor may cache display state with freshness labels but must not invent credentials, IDs or grants when disconnected.
 
-1. Find the selected existing, durable storage root and verify its integrity.
-2. Restore the same installation and administrator records without silently re-enrolling another identity.
-3. Load the feature registry and recorded permissions; **do not** treat a saved permission label as a verified live grant.
-4. Reconcile feature instances with real authenticated status; show stopped/offline without removing the durable registration.
-5. Never start independent services, make model calls, or write to GitHub merely because Identity was opened.
+## Restart, absence and recovery
 
-## Background service — OPEN decision
+1. A user normally opens **Thought Processor**. It should make an authenticated attempt to connect to the existing Identity service and show **verified / unavailable / unverified / needs setup** precisely.
+2. Identity independently reopens its authorized data profile and validates integrity. Neither component silently rewrites another feature's storage.
+3. Processor queries appropriate status, presents persistent identities, feature availability, and any approved permission changes; cached display state must not be confused with current authorization.
+4. If Identity is unavailable, Processor displays the problem and offers documented recovery paths. It does **not** grant new permissions, call a claimed endpoint trusted, or require deleting identity records.
+5. If Processor is stopped, Identity and independent features continue only within their own previously valid, bounded policies. No new grants are created merely because a service restarted.
+6. If a developer opens Identity directly, that is an explicit troubleshooting/testing route and must be labelled as such.
 
-Owner-selected direction: other features should self-register with Identity so the catalog can update without rewriting Processor.
+## Lifecycle decision remains open
 
-**Not yet decided:** whether Identity should have an opt-in lightweight OS background service, a manually launched service, or a hybrid with local activation. A prototype should not silently install a startup task. If background startup is chosen later, explain it, permit disabling it and preserve the ability to run Identity manually for development.
+The owner selected **Thought Processor as the human interface**, **not** how Identity is kept available. An opt-in lightweight background service, manual launch, and a hybrid local activation flow still need comparison and acceptance testing. A first-run implementation must not silently install a privileged startup task or turn Processor into an unauthorized process supervisor.
 
-Discovery and registration may need to queue/retry when Identity is not running; design idempotence rather than allowing features to self-authorize while offline.
+Service discovery is not trust. Before Processor administers Identity, the two programs need an authenticated, replay-resistant, least-privilege protocol with recovery and offline behavior.
 
-## Failure and restore UX
+## Current mismatch to resolve
 
-- **New empty install:** legitimate healthy state, not missing Thought Engine.
-- **Permission or disk failure:** show the exact failure, make no partial "created" claim.
-- **Existing non-empty directory:** offer inspect/restore instead of silently overwriting it.
-- **Lost/corrupt identity state:** recover from an authorized backup, preserve identifiers and revoke/reissue compromised credentials as necessary. No unsupported automatic overwrite.
-- **Identity offline:** independent features continue only work they can perform safely under valid existing grants, with no new privileged enrollment.
-- **Missing account login:** show optional **Not connected**; local identity remains usable.
-- **Backup, restore, deletion:** provide explicit, separately confirmed procedures; deletion must not be sold as routine cleanup when it could destroy the authorization root.
+The [October 25 Identity candidate](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) currently starts a standalone Identity browser wizard, shows GitHub and feature actions there, and detects Thought Processor through its public health response. It is a **useful isolated subsystem test**, but the **human interaction direction is inverted** compared with this target architecture. Do not promote that Identity-first UX as the finished system.
 
-## Minimum owner acceptance test
+The next integration acceptance gate should explicitly demonstrate a **Thought Processor UI** initiating user-visible setup/status while an independent Identity service answers authenticated, read-only requests first, followed by controlled access decisions only when security design and negative tests exist. Use minimal, demonstrable operations; do not declare secure grants complete before receiving services enforce them.
 
-Test on an isolated fresh OS user/profile: first create, restart, inspect exact IDs/paths, backup/restore, read-only health, second feature enrollment attempt, revoked/denied enrollment, Identity-offline behavior and recovery. Record actual builds, full SHA, OS, test fixtures vs real authentication, storage boundaries, failures and rollback.
+## Minimum acceptance evidence
 
-Related: [Storage](STORAGE.md), [Security](SECURITY.md), [Roadmap](ROADMAP.md), [Reviewer questions](REVIEW.md).
+On a clean OS profile record: exact source branches/SHAs; independent process IDs and ports; opening Thought Processor as the first human-facing application; Identity unavailable/detected/authenticated distinctions; first-run/admin state provenance; reconnect and restart; rejected/expired/unauthorized calls; no credential leakage in Processor or Identity diagnostics; and an explicit owner decision.
+
+See [Architecture](ARCHITECTURE.md), [Security](SECURITY.md), [Roadmap](ROADMAP.md), [Status](STATUS.md).
