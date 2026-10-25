@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div id="gate" class="gate" hidden>
+  <h1>Identity</h1>
+  <p id="gate-msg">This window isn't signed in. Open Identity with the private link printed in its console window (it changes every time Identity starts).</p>
+</div>
+
+<div id="shell" hidden>
+<header class="bar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <div class="name">Identity</div>
+      <div class="sub" id="brand-sub">Prototype B</div>
+    </div>
+  </div>
+  <div class="chips">
+    <div class="chip" id="chip-identity"><span class="k">Identity</span><span class="v">…</span></div>
+    <div class="chip" id="chip-github"><span class="k">GitHub</span><span class="v">…</span></div>
+    <div class="chip" id="chip-processor"><span class="k">Thought Processor</span><span class="v">…</span></div>
+  </div>
+  <div class="actions">
+    <a id="open-tp" class="btn ghost" target="_blank" rel="noopener noreferrer" hidden>Open Thought Processor ↗</a>
+    <button id="manage-btn" class="btn ghost" type="button">Manage</button>
+    <button id="copy-btn" class="btn primary" type="button">Copy Diagnostics</button>
+  </div>
+</header>
+
+<main>
+  <!-- First-use setup. Hidden once setup is finished. -->
+  <section id="setup" class="setup" hidden>
+    <ol class="steps" id="steps">
+      <li data-step="0">Welcome</li>
+      <li data-step="1">GitHub account</li>
+      <li data-step="2">Features</li>
+      <li data-step="3">Thought Processor</li>
+      <li data-step="4">Done</li>
+    </ol>
+    <div class="step-body">
+      <div class="step" data-step="0">
+        <h1>Welcome to Identity</h1>
+        <p class="lead">Identity keeps track of <em>who</em> is using your features and what they are allowed to do. This first setup takes a couple of minutes.</p>
+        <div class="two">
+          <div class="note ok-note">
+            <h3>What this setup does</h3>
+            <ul>
+              <li>Connects your GitHub account through the publisher's GitHub App (you approve on github.com).</li>
+              <li>Shows the account and publisher information GitHub actually returns.</li>
+              <li>Lists the features and, honestly, what state each one is in.</li>
+              <li>Finds a Thought Processor running on this computer (read-only).</li>
+            </ul>
+          </div>
+          <div class="note warn-note">
+            <h3>What it does not do yet</h3>
+            <ul>
+              <li>Send access requests to the publisher — drafts stay on this computer, <strong>not submitted</strong>.</li>
+              <li>Grant, install or start features.</li>
+              <li>Sign you in to Thought Processor — it has its own code.</li>
+            </ul>
+          </div>
+        </div>
+        <dl class="facts" id="welcome-facts"></dl>
+        <div class="nav"><span></span><button class="btn primary" data-go="1" type="button">Begin</button></div>
+      </div>
+      <div class="step" data-step="1">
+        <h1>Connect your GitHub account</h1>
+        <p class="lead">GitHub confirms who you are. Identity keeps the sign-in in memory only — closing Identity forgets it.</p>
+        <div class="slot" data-panel="github"></div>
+        <div class="nav"><button class="btn ghost" data-go="0" type="button">Back</button><button class="btn primary" data-go="2" type="button" id="gh-next">Continue</button></div>
+      </div>
+      <div class="step" data-step="2">
+        <h1>Features</h1>
+        <p class="lead">Each state below comes from real evidence. Where there is no evidence, it says so.</p>
+        <div class="slot" data-panel="features"></div>
+        <div class="nav"><button class="btn ghost" data-go="1" type="button">Back</button><button class="btn primary" data-go="3" type="button">Continue</button></div>
+      </div>
+      <div class="step" data-step="3">
+        <h1>Find Thought Processor</h1>
+        <p class="lead">Start Thought Processor yourself (it is a separate program), then tell Identity where it runs. Identity only reads its public health page.</p>
+        <div class="slot" data-panel="processor"></div>
+        <div class="nav"><button class="btn ghost" data-go="2" type="button">Back</button><button class="btn primary" data-go="4" type="button">Continue</button></div>
+      </div>
+      <div class="step" data-step="4">
+        <h1>Setup summary</h1>
+        <p class="lead">Identity will now switch to a small monitoring view: status on top, live activity below, and Copy Diagnostics always one click away. Everything here stays reachable under <strong>Manage</strong>.</p>
+        <dl class="facts" id="summary-facts"></dl>
+        <div class="nav"><button class="btn ghost" data-go="3" type="button">Back</button><button class="btn primary" id="finish-btn" type="button">Finish setup</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Normal monitoring view: the activity log is the main content. -->
+  <section id="monitor" class="monitor">
+    <div class="log-tools">
+      <h2>Live activity</h2>
+      <div class="seg" role="group" aria-label="Filter">
+        <button type="button" class="on" data-filter="all">All</button>
+        <button type="button" data-filter="problems">Problems</button>
+      </div>
+      <label class="follow"><input type="checkbox" id="follow" checked> Follow newest</label>
+      <span class="muted" id="log-meta"></span>
+    </div>
+    <div id="log" class="log" role="log" aria-live="polite"></div>
+  </section>
+</main>
+</div>
+
+<!-- Panels: one copy each, moved between setup steps and the Manage dialog. -->
+<div id="panels" hidden>
+  <div class="panel" id="panel-github">
+    <div id="gh-config" hidden>
+      <div class="note warn-note">
+        <strong>This copy of Identity doesn't know the publisher's GitHub App yet.</strong>
+        <p>Paste the app's public <em>Client ID</em> (it starts with <code>Iv</code>; it is not a password). Or put <code>github-app.json</code> next to the program — see TRIAL_START_HERE.md.</p>
+      </div>
+      <div class="row"><input id="client-id" placeholder="Iv23li…" autocomplete="off" spellcheck="false"><button class="btn" id="client-id-save" type="button">Save Client ID</button></div>
+    </div>
+    <div id="gh-body"></div>
+  </div>
+  <div class="panel" id="panel-features">
+    <div id="feat-body"></div>
+    <details class="legend"><summary>What the states mean</summary><dl id="legend"></dl></details>
+  </div>
+  <div class="panel" id="panel-processor">
+    <div class="row"><input id="tp-addr" placeholder="127.0.0.1:7860" autocomplete="off" spellcheck="false"><button class="btn" id="tp-save" type="button">Use this address</button><button class="btn ghost" id="tp-check" type="button">Check now</button></div>
+    <div id="tp-body"></div>
+  </div>
+  <div class="panel" id="panel-about">
+    <dl class="facts" id="about-facts"></dl>
+    <h3>Not implemented yet</h3>
+    <ul id="notimpl" class="muted"></ul>
+    <div class="row">
+      <button class="btn ghost" id="reopen-setup" type="button">Run setup again</button>
+      <button class="btn danger" id="stop-btn" type="button">Stop Identity</button>
+    </div>
+    <p class="muted small">Stop Identity ends only this program. Thought Processor and anything else keep running.</p>
+  </div>
+</div>
+
+<dialog id="manage">
+  <div class="dlg-head">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="github" class="on">Account</button>
+      <button type="button" role="tab" data-tab="features">Features &amp; access</button>
+      <button type="button" role="tab" data-tab="processor">Thought Processor</button>
+      <button type="button" role="tab" data-tab="about">Identity</button>
+    </div>
+    <button type="button" class="btn ghost" id="manage-close" aria-label="Close">Close</button>
+  </div>
+  <div class="slot dlg-body" id="manage-slot"></div>
+</dialog>
+
+<dialog id="diag-fallback">
+  <div class="dlg-head"><strong>Copy Diagnostics</strong><button type="button" class="btn ghost" id="diag-close">Close</button></div>
+  <p id="diag-msg" class="warn-text"></p>
+  <textarea id="diag-text" readonly spellcheck="false"></textarea>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
