@@ -28,6 +28,8 @@ type Operations struct { mu sync.Mutex; dir string; registry Registry; seen Seen
 var patterns=[]*regexp.Regexp{
  regexp.MustCompile("(?i)(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]{5,}"),
  regexp.MustCompile("(?i)Bearer[[:space:]]+[^[:space:],;]+"),
+ regexp.MustCompile("(?i)(Authorization|Cookie|Set-Cookie)[[:space:]]*:[^\\r\\n]+"),
+ regexp.MustCompile("(?i)\\\"(authorization|cookie|set-cookie|device_code|user_code|access_token|refresh_token|client_secret|operator_code)\\\"[[:space:]]*:[[:space:]]*\\\"[^\\\"]*\\\""),
  regexp.MustCompile("(?i)(Authorization|Cookie|Set-Cookie|device_code|user_code|access_token|client_secret|operator.code)[[:space:]]*[:=][[:space:]]*[^[:space:],;]+"),
  regexp.MustCompile("(?i)[?#&](code|key|token|device_code|user_code)=[^[:space:]&#]+"),
  regexp.MustCompile("[A-Z0-9]{4}-[A-Z0-9]{4}"),
