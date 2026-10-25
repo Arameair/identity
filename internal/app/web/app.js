@@ -97,10 +97,10 @@
     setChip("#chip-identity", "ok", "RUNNING · port " + a.port, "PID " + a.pid + " · " + a.profile_path + " · " + a.system_id);
 
     if (gh.status === "verified" && gh.account) setChip("#chip-github", gh.mode === "real" ? "ok" : "warn", (gh.mode === "real" ? "VERIFIED · " : "FIXTURE · ") + gh.account.login, "Confirmed by GitHub API at " + fmtTime(gh.account.verified_at));
-    else if (gh.status === "waiting") setChip("#chip-github", "info", "WAITING FOR APPROVAL");
+    else if (gh.status === "waiting") setChip("#chip-github", "info", "CHECKING GITHUB");
     else if (gh.status === "not_configured") setChip("#chip-github", "warn", "NO GITHUB APP IN THIS BUILD");
     else if (gh.status === "error") setChip("#chip-github", "bad", "SIGN-IN FAILED", gh.message);
-    else if (gh.status === "denied") setChip("#chip-github", "warn", "SIGN-IN CANCELLED");
+    else if (gh.status === "denied") setChip("#chip-github", "warn", "AUTHORIZATION DENIED");
     else if (gh.status === "expired") setChip("#chip-github", "warn", "SIGN-IN EXPIRED");
     else setChip("#chip-github", "", s.last_account ? "NOT SIGNED IN · last " + s.last_account.login : "NOT SIGNED IN");
 
@@ -145,12 +145,14 @@
         <p class="muted small">(This is a test build. In an official build this step is just a Connect GitHub button.)</p>
         <p class="muted small">Or skip for now: Identity works without GitHub, but feature availability stays UNKNOWN.</p>`;
     } else if (gh.status === "waiting") {
-      h += `<p><strong>GitHub opened in a new tab and your code was copied.</strong> There: paste the code (Ctrl+V), press <em>Continue</em>, then <em>Authorize</em>. Identity notices by itself.</p>
+      h += `<p><strong>Complete authorization on GitHub:</strong> choose your account if prompted, paste the CURRENT code, then select <em>Continue</em> and <em>Authorize</em>. Return to this Identity tab. Identity will check the result.</p>
+        <div class="note info-note"><strong>About GitHub authorization warnings</strong><p>GitHub may say an app can "act on your behalf", "is not owned or operated by GitHub", or has fewer than 10 users. These are GitHub notices, not proof of safety. Confirm the app and requested permissions before approving. This candidate only uses sign-in to read account identity and repository visibility; it does not write to GitHub.</p></div>
         <div class="code-box"><span class="code" id="ucode">${esc(gh.user_code)}</span>
         <button class="btn" type="button" id="copy-code">Copy code</button>
         <a class="btn primary" id="gh-open" href="${esc(gh.verify_url)}" target="_blank" rel="noopener noreferrer">Open ${esc(new URL(gh.verify_url).host)} again ↗</a></div>
         <p class="small"><strong>${gh.last_checked_at ? "Last checked with GitHub " + esc(ago(gh.last_checked_at)) : "Checking with GitHub every few seconds"}</strong>${gh.poll_note ? " — " + esc(gh.poll_note) : ""}</p>
-        <p class="muted small">GitHub said "all set" but this didn't change within ~10 seconds? Then GitHub approved a different (older) code. Open GitHub again and enter the code shown here.</p>
+        <p class="muted small">GitHub said "all set" but Identity is still checking? Allow time for GitHub polling. If you cancelled or restarted sign-in, authorize only the current code shown above. Do not assume an earlier code still works.</p>
+        ${gh.waiting_since && Date.now() - Date.parse(gh.waiting_since) >= 20000 ? `<div class="note warn-note"><strong>Still waiting?</strong><p>Check the GitHub tab for a restriction banner, denial, or incomplete authorization. Identity cannot see that page and cannot determine why a pending code was not approved. If GitHub flags the account, resolve that with GitHub rather than repeatedly requesting codes.</p></div>` : ""}
         <p class="muted small">No new tab? Your browser blocked it — use the button above. The code expires ${gh.expires_at ? "at " + esc(fmtTime(gh.expires_at)) : "soon"} and is never written to Identity's log or diagnostics.</p>
         <div class="row"><button class="btn ghost" type="button" data-act="/api/github/cancel">Cancel sign-in</button></div>`;
     } else if (gh.status === "verified" && gh.account) {
@@ -165,13 +167,15 @@
         for (const i of pub.installations) h += `<dt></dt><dd><code>${esc(i.app_slug)}</code> on <strong>${esc(i.account)}</strong> · installation ${esc(i.id)} · ${esc(i.repository_selection)} repositories</dd>`;
         for (const r of pub.repos) h += `<dt>${esc(r.repo)}</dt><dd>${tagFor(r.result)} <span class="muted small">checked ${esc(ago(r.checked_at))}</span></dd>`;
         h += `</dl><p class="muted small">Seeing a repository is <strong>not</strong> permission to use the feature. No publisher approval exists yet.</p>`;
+        if (pub.installations_result === "READ" && pub.installations.length === 0) h += `<p class="muted small"><strong>Next step:</strong> No app installation is visible. Device sign-in can still succeed; ask the publisher whether an installation is needed for the specific feature. Do not assume installation means feature permission.</p>`;
+        if (pub.repos.some((r) => r.result === "NOT VISIBLE")) h += `<p class="muted small"><strong>Next step for an unavailable repository:</strong> Open that repository on GitHub using this same account. It may be missing, private, or inaccessible. Ask the publisher for access if needed; Identity will not install the feature automatically.</p>`;
       }
       h += `<div class="row"><button class="btn ghost" type="button" data-act="/api/github/recheck">Check again</button><button class="btn ghost" type="button" data-act="/api/github/disconnect">Disconnect</button></div>`;
     } else {
       if (gh.message) h += `<div class="note ${gh.status === "error" ? "bad-note" : "warn-note"}">${esc(gh.message)}</div>`;
       if (state.last_account) h += `<p class="muted">Last verified account on this profile: <strong>${esc(state.last_account.login)}</strong> (${esc(state.last_account.mode)}, ${esc(fmtTime(state.last_account.verified_at))}). That is history — you are not signed in now.</p>`;
       h += `<div class="row"><button class="btn primary" type="button" id="gh-connect">Connect GitHub</button></div>
-        <p class="muted small">Opens GitHub in a new tab. If you're already signed in to GitHub there, you just paste a code and press Authorize. Identity never sees your password.</p>
+        <p class="muted small">Opens GitHub in a new tab. Select your account if prompted, paste the code shown in Identity, approve the requested permissions, then return to this tab. Identity never sees your password.</p>
         <p class="muted small">${appLine}</p>`;
     }
     if (el.dataset.html !== h) { el.innerHTML = h; el.dataset.html = h; }
@@ -203,6 +207,7 @@
     for (const f of state.features) {
       const av = f.avail_kind === "available" ? "ok" : f.avail_kind === "unavailable" ? "warn" : "";
       const rq = f.request_kind === "draft" ? "info" : "";
+      const next = f.avail_kind === "unavailable" ? `<p class="muted small"><strong>Next:</strong> Check the listed repository on GitHub while signed in with this account, or ask the publisher about access. GitHub visibility alone does not grant use.</p>` : "";
       let extra = "";
       if (f.id === "thought-processor") {
         const p = state.processor;
@@ -218,9 +223,9 @@
         <dl class="states"><dt>Availability</dt><dd><span class="tag ${av}">${esc(f.availability)}</span></dd>
         <dt>Request</dt><dd><span class="tag ${rq}">${esc(f.request)}</span>${f.draft ? ` <span class="muted small">saved ${esc(fmtTime(f.draft.created_at))}</span>` : ""}</dd>
         <dt>Grant</dt><dd><span class="tag">${esc(f.grant)}</span></dd>${extra}</dl>
-        <div class="row">${btn}</div></div>`;
+        <div class="row">${btn}</div>${next}</div>`;
     }
-    h += `</div>`;
+    h += `</div><p class="muted small"><strong>Continue does not submit a request.</strong> Access-request drafts stay on this computer, are not delivered to the publisher, and never grant a feature.</p>`;
     const el = $("#feat-body");
     if (el.dataset.html !== h) { el.innerHTML = h; el.dataset.html = h; }
     const lg = state.state_legend;
@@ -234,6 +239,9 @@
     if (document.activeElement !== inp && !inp.dataset.touched) inp.value = p.address || "127.0.0.1:7860";
     const cls = p.state.startsWith("DETECTED") ? "info-note" : p.state === "WRONG SERVICE" ? "bad-note" : p.state === "NOT CONFIGURED" || p.state === "NOT CHECKED YET" ? "note" : "warn-note";
     let h = `<div class="note ${cls}"><strong>${esc(p.state)}</strong>${p.freshness === "STALE" ? " — <strong>STALE</strong> (no recent check)" : ""}<p>${esc(p.note || "")}</p></div>`;
+    if (p.state.startsWith("DETECTED")) h += `<p class="muted small"><strong>Next:</strong> Open Thought Processor using its separate operator code. DETECTED means its health endpoint responded, not that Identity verified its identity or granted access.</p>`;
+    else if (p.state === "WRONG SERVICE") h += `<p class="muted small"><strong>Next:</strong> This address responded as another service. Enter Thought Processor\u0027s local address and press Check now.</p>`;
+    else h += `<p class="muted small"><strong>Next:</strong> Start Thought Processor separately, enter its local address above, then press Check now. Identity does not install or start it.</p>`;
     if (p.checked_at) {
       h += `<dl class="account"><dt>Address</dt><dd>${esc(p.address)}</dd><dt>Last checked</dt><dd>${esc(fmtTime(p.checked_at))} (${esc(p.elapsed_ms)} ms)</dd>`;
       if (p.claimed_app) h += `<dt>It says it is</dt><dd>${esc(p.claimed_app)} ${esc(p.claimed_version)} · ${esc(p.claimed_protocol)} <span class="tag warn">SELF-REPORTED</span></dd>`;
