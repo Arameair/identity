@@ -1,0 +1,40 @@
+# This workflow validates the isolated GPT-6 candidate without publishing it.
+name: identity-gpt6-candidate-checks
+on:
+  push:
+    branches:
+      - experiment/identity-gpt6-alpha-candidate-20261025
+  pull_request:
+    branches:
+      - alpha-candidate-20261025
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go vet and tests
+        run: |
+          go vet ./...
+          go test ./...
+          go test -race ./...
+      - name: Browser JavaScript syntax
+        run: node --check internal/app/web/app.js
+      - name: Cross-build Linux and Windows
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-X main.buildBranch=${{ github.ref_name }}" -o dist/identity .
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-X main.buildBranch=${{ github.ref_name }}" -o dist/identity.exe .
+          (cd dist && sha256sum identity identity.exe > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: identity-gpt6-test-binaries
+          path: dist/
+          retention-days: 7
