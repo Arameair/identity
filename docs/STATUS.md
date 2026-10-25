@@ -1,56 +1,68 @@
-# Status and branch ledger
+# Current status and branch ledger
 
-**Reviewed:** 2026-10-24. **No owner-approved production release or verified secure multi-service registration/grant implementation.**
+**Reviewed:** October 25, 2026. This page distinguishes **source present**, **test evidence**, **real-world acceptance**, and **proposed architecture**. It is not a release announcement.
 
-The `main` branch has been reorganized as the documentation and collaboration entry point. **No Go application was merged into Main by that change.** New architecture documents describe intended direction, not functioning services.
+## Executive status
 
-## Release lanes
+**Experimental runnable app: yes, on candidate branches. Released secure Identity authority: no.** The default `main` branch contains documentation only. Recent Go candidates implement a first-run UI, GitHub device-flow integration, local state/diagnostics, and a **read-only** Thought Processor status probe. Authenticated service pairing, publisher feature-request submission, real feature grants and grant enforcement remain unimplemented or unverified.
 
-| Lane | Current status |
-| --- | --- |
-| [`main`](../README.md) | Public-facing project documentation, architecture, first-run proposal, storage and independent review |
-| [`alpha`](https://github.com/Arameair/identity/tree/alpha) | Owner-controlled documentation-only baseline as last verified @ `8d08fec6629dc9cc35ea2266556572b86e5499d7`; no promotion in these docs edits |
-| `stable` | No Stable branch verified as of this review |
-| [`experiment/*`](https://github.com/Arameair/identity/branches) | Separate designs and Go prototypes. No experiment is released or promoted by updating Main |
+The immediate goal is to let another person build and run Identity with a separate Thought Processor instance on a clean computer, then report a traceable PASS/FAIL result without relying on the author's Project Controller.
 
-## Current experimental implementations
+[Try the candidate](TRY_THE_PROTOTYPE.md) · [Project case study](PROJECT_JOURNEY.md) · [Acceptance checklist](https://github.com/Arameair/identity/blob/experiment/identity-consolidated-home-trial-20261025/docs/HOME_TRIAL_ACCEPTANCE_2026-10-25.md)
 
-| Work | Present/observed | Still missing |
+## Branch and release lanes
+
+| Branch/lane | What exists | Acceptance |
 | --- | --- | --- |
-| [Local V1](https://github.com/Arameair/identity/tree/experiment/identity-local-v1-20261023) | Create/save/restore local identity prototype | Full administrator trust, storage policy and owner-release acceptance |
-| [Real local manager](https://github.com/Arameair/identity/tree/experiment/identity-real-manager-20261023) | Local identity cards, reversible archive, existing GitHub CLI account verification and read-only private-repo association in Go experiment | Official in-app OAuth/permissions broker, verified rollout |
-| [Controller port discovery](https://github.com/Arameair/identity/tree/experiment/identity-controller-port-discovery-20261023) | Read-only local port/service-marker checks; owner reported build and HTTP UI result for a candidate | Service authentication, approved registration and grant enforcement |
-| [Administrator/bootstrap design](https://github.com/Arameair/identity/tree/experiment/fresh-admin-bootstrap-design-20261023) | First-administrator proposals and mock-test plan | End-to-end verified production installer |
-| [Thought Processor design](https://github.com/Arameair/Thought-Processor/blob/experiment/identity-authority-registration-20261024/docs/discussions/2026-10-24-identity-authority-registration.md) | Cross-repo principle and proposed authenticated self-registration contract | Real integrations and measured independent live connections |
+| [`main`](../README.md) | Public README, architecture and project record; **no Go application in this branch** | Documentation maintained; no software release implied |
+| [`alpha`](https://github.com/Arameair/identity/tree/alpha) | Older owner-controlled README/design baseline | Not equivalent to latest candidate |
+| [`alpha-candidate-20261025`](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) | Standalone Go candidate with Windows build script, tests, app code, and paired-processor runbook | **PENDING owner promotion and reproducible clean-machine acceptance** |
+| [`experiment/identity-home-claude-20261025`](https://github.com/Arameair/identity/tree/experiment/identity-home-claude-20261025) | Independently developed Prototype B; evidence report and Windows trial guide | Developer Linux runtime evidence; owner Windows and real GitHub login not established in evidence report |
+| [`experiment/identity-home-gpt6-20261025`](https://github.com/Arameair/identity/tree/experiment/identity-home-gpt6-20261025) | Separate requested prototype lane | Do **not** assume a successful implementation or owner acceptance from the branch name |
+| [`experiment/identity-gpt6-alpha-candidate-20261025`](https://github.com/Arameair/identity/tree/experiment/identity-gpt6-alpha-candidate-20261025) | Additional candidate branch | Experimental; compare exact SHA and tests before using |
+| [`experiment/alpha-candidate-ux-fixes-20261025`](https://github.com/Arameair/identity/tree/experiment/alpha-candidate-ux-fixes-20261025) | Additional UX-fix experiment | Experimental; not an automatic Alpha promotion |
+| `stable` | Not found in the branch inventory checked October 25 | **No verified stable snapshot** |
 
-**Reminder:** Some older bootstrap plans centered launching Thought Controller early. Those are retained as historical proposals; the current direction is **Identity first, zero optional features required**.
+**Provenance caution:** Some experimental README files contain inherited descriptions of other branches. Verify `git branch --show-current` and `git rev-parse HEAD` before reporting a result. Branch names and README claims alone are not executable evidence.
 
-## Capability evidence matrix
+## Recent implementation vs. verification
 
-| Capability | Evidence/status |
-| --- | --- |
-| Local entity cards and archive | **CODE PRESENT IN EXPERIMENT**; owner acceptance still separate |
-| GitHub CLI session check | **CODE PRESENT IN EXPERIMENT**; not Identity-native account broker |
-| Thought Controller port detection | **CODE PRESENT IN EXPERIMENT**; discovery only, not trust |
-| Distinct first-run installation/admin/service identity with secure recovery | **DESIGN** |
-| Centrally organized feature-owned storage allocation/policy | **DESIGN — owner-selected direction** |
-| Feature self-registration and authenticated cross-service registry | **DESIGN — owner-selected direction** |
-| Grant issuance and receiver-side enforcement | **DESIGN** |
-| Thought Engine, Memory, Thought Processor as installed optional components | **DESIGN**; those components belong to separate repositories |
-| Opt-in always-available Identity background service | **OPEN QUESTION / NOT IMPLEMENTED** |
+| Capability | Source or report | What can be claimed today |
+| --- | --- | --- |
+| Standalone Go application, loopback UI and first-run flow | [Candidate source](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) | **CODE PRESENT**; candidate documents Windows commands. Clean owner Windows acceptance is pending |
+| GitHub App device-code sign-in, account visibility | Candidate `internal/github`, `internal/publisher`; [publisher setup](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/docs/PUBLISHER_GITHUB_APP.md) | **CODE PRESENT / REAL LOGIN NEEDS ACCEPTANCE**; device-flow fixture testing and candidate fixes exist; no secret-bearing client ID required |
+| GitHub polling and stale-code fixes | Candidate [README](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/README.md) | **FIX CLAIMED IN CANDIDATE**, including regression tests; not a verified end-user sign-in pass |
+| Feature list and access-request draft | Candidate `internal/features`; [Prototype B report](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) | **LOCAL DRAFT ONLY**; **NOT SUBMITTED**, **NOT GRANTED** |
+| Thought Processor detection | Candidate `internal/discovery`; Prototype B report | **READ-ONLY LOCAL DISCOVERY**; the other service's reported name is **UNVERIFIED**, not paired or authorized |
+| Persistent activity log and redacted Copy Diagnostics | Candidate `internal/logbook`, `internal/redact`; Prototype B report | Source and development test evidence; verify secret redaction and persistence again on real Windows |
+| Independent Identity/Processor stop and restart | Prototype B [Linux results](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) | **LOCAL DEV-LINUX RUNTIME VERIFIED FOR B**; not proof of every candidate or operating system |
+| Secure local administrator bootstrap and recovery | [Target first-run model](FIRST_RUN.md) | **DESIGN / INCOMPLETE**, not proven authorization |
+| Authenticated service enrollment, scoped grants and receiver-side enforcement | [Interfaces](INTERFACES.md), [Security](SECURITY.md) | **DESIGN ONLY / NOT VERIFIED** |
+| Published signed, generally usable binaries and releases | Candidate release workflow source | **WORKFLOW PRESENT**, but first real release execution not established |
+| Thought Engine, Memory and other optional features | Separate repositories, future integration plans | **NOT DEPLOYED BY IDENTITY** |
 
-## What counts as evidence
+## What the October 25 trial has shown — and has not
 
-Use **DESIGN**, **CODE PRESENT / UNVERIFIED**, **TESTED WITH FIXTURES**, **LOCAL RUNTIME VERIFIED**, **LIVE INTEGRATION VERIFIED**, **OWNER ACCEPTED**, **FAILED** or **BLOCKED**. An AI response, a UI health check or a compile result does not turn a planned feature into a real authorized connection.
+Prototype B's report documents a **real pair of processes on a developer Linux machine**, source tests, private local profiles, independent stops/restarts, sample diagnostics and mocked GitHub responses. Its author explicitly marks **real GitHub sign-in and owner Windows operation as not tested** at the time of that report.
 
-For each new experiment, report Alpha SHA, head SHA, OS/runtime, build/test commands, fixture-vs-live integration, exact operation IDs, failures and rollback. Link relevant issues and owner decisions.
+A later [Alpha candidate](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) documents attempted fixes to problems found during owner testing: GitHub responding `slow_down`, stale device approvals, insufficient waiting-state visibility, a conflicting port, and tab-state issues. The presence of fix descriptions **does not establish that the owner reran and passed all cases**.
 
-## Review and references
+The next meaningful test is the clean Windows walkthrough with real GitHub approval, an independently running Processor, offline/restart checks and a redacted operator report. These steps are in [Try the prototype](TRY_THE_PROTOTYPE.md).
 
-- [Decision register](DECISIONS.md)
-- [Roadmap](ROADMAP.md)
-- [Workflow](WORKFLOW.md)
-- [Independent review issue #14](https://github.com/Arameair/identity/issues/14)
-- [Original end-user design notes](END_USER_DESIGN_NOTES.md)
+## Terms used in this ledger
 
-Documentation may describe a target design confidently while always marking unimplemented security-sensitive features as **not yet verified**.
+- **DESIGN:** intention or proposed behavior, without a working implementation.
+- **CODE PRESENT / UNVERIFIED:** source claims a behavior; no sufficient reproducible live evidence yet.
+- **TESTED WITH FIXTURES:** tests use stand-in GitHub or Processor responses, not the real provider.
+- **LOCAL RUNTIME VERIFIED:** actual local process state was observed, with machine/branch scope recorded.
+- **LIVE INTEGRATION VERIFIED:** real external service behavior and exact authenticated operation were observed.
+- **OWNER ACCEPTED:** the owner explicitly accepted results; not equivalent to branch existence or passing CI.
+- **FAILED / BLOCKED / NOT RUN:** retain these results explicitly.
+
+Do not relabel **detected** as **trusted**, **account logged in** as **feature granted**, **local draft** as **submitted request**, or **build passed** as **installation accepted**.
+
+## Engineering and review links
+
+[Engineering story](PROJECT_JOURNEY.md) · [Roadmap](ROADMAP.md) · [Decisions](DECISIONS.md) · [Workflow](WORKFLOW.md) · [Experiment report template](EXPERIMENT_TEMPLATE.md) · [Independent review](REVIEW.md)
+
+All code changes to owner-controlled release lanes require explicit approval; improving this documentation does not move `alpha` or release software.
