@@ -243,7 +243,12 @@ func main(){
  if cfg.ClientID==""{fmt.Println("Publisher's public Client ID not configured: use github-app.json next to the executable.")}
  if !*noBrowser{if e:=openWindow(link);e!=nil{fmt.Fprintln(os.Stderr,"browser could not open automatically:",e)}}
  go func(){ticker:=time.NewTicker(6*time.Second);defer ticker.Stop()
-   for {select{case <-a.shutdown:return;case <-ticker.C:a.ops.CheckProcessor()}}
+   lastGitHub:=a.gh.View().Status
+   for {select{case <-a.shutdown:return;case <-ticker.C:
+     ghStatus:=a.gh.View().Status
+     if ghStatus!=lastGitHub {a.ops.Event("github","verified_state_change","",strings.ToUpper(ghStatus));lastGitHub=ghStatus}
+     a.ops.CheckProcessor()
+   }}
  }()
  a.ops.CheckProcessor()
  stop:=make(chan os.Signal,1);signal.Notify(stop,os.Interrupt,syscall.SIGTERM)
