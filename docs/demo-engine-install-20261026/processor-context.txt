@@ -1,0 +1,37 @@
+Thought Processor diagnostic context (sanitized)
+generated: 2026-10-25T16:44:59Z
+product: thought-processor 0.1.0-experiment  protocol: thought-processor.diagnostic/0-experimental
+build: revision=6b31525d1951566eb09fb1e8737abdfc7c0eb86a modified=true vcs_time=2026-10-25T16:42:15Z go=go1.24.7 linux/amd64
+run: run_314c1f69c4dbb228 pid=5533 port=7860 started=2026-10-25T16:43:47Z startup_ms=3
+profile: /home/claude/demo/tp-profile
+identity: address="http://127.0.0.1:7790" state=PAIRED freshness=CURRENT
+  last check 2026-10-25T16:44:57Z  1 ms  port=OPEN metadata=RESPONDED http=200 claims_identity=true
+thought engine: address="" state=NOT_CONFIGURED freshness=NEVER_CHECKED
+operation start: BLOCKED
+operation attach: BLOCKED
+operation stop: BLOCKED
+operation observe: BLOCKED
+next action: not_allowed
+metrics: refused=map[] rejected=map[no_session:2]
+  identity checks=6 outcomes=map[OPEN/RESPONDED:6] latency=map[max_ms:1 median_ms:1 min_ms:0 samples:6]
+recent events:
+  16:43:47 lifecycle/started 
+  16:43:50 session/signed_in 
+  16:44:08 config/addresses_saved 
+  16:44:08 probe/identity_open_responded 
+  16:44:09 pairing/paired 
+  16:44:11 install/install_requested 
+  16:44:11 install/install_download_started 
+  16:44:11 install/install_done 
+  16:44:39 install/access_not_allowed 
+  16:44:41 install/uninstalled 
+  16:44:42 install/access_not_allowed 
+  16:44:43 install/install_requested 
+  16:44:43 install/install_refused_not_allowed 
+  16:44:57 session/signed_in 
+  16:44:57 install/access_not_signed_in 
+pairing: paired with http://127.0.0.1:7790 (identity idn_54c0ffbf2cdd40ea8dff69bc, since 2026-10-25T16:44:09Z)
+install: phase=FAILED platform=linux-amd64 verify=
+  access: NOT_SIGNED_IN rule=repo-visibility-v0 account=- decision=dec_8d0ffd04bc020075 checked=2026-10-25T16:44:57Z
+  release: engine-v0.1.0-fixture thought-engine-linux-amd64 size=10388205 sha256=08b75a50ebb2ccbc7950e6b97ba668879463ee75cb3d13ba18e9cc4436e0e13e
+omitted by design: pairing token, operator code, session cookies, CSRF tokens, request bodies, environment variables, text returned by other programs (claims), log detail text

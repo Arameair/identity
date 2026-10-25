@@ -3,6 +3,7 @@
 **Identity** is the first program a person opens. It confirms **who they are** through GitHub, shows the **features** the publisher (Arameair) offers and honestly what state each one is in, and finds a **Thought Processor** running on the same computer. Then it settles into a small monitoring view: status on top, a live activity log, and **Copy Diagnostics**.
 
 > **Branch `alpha-candidate-20261025`.** Built from the 2026-10-25 home trial, with every problem found that day fixed (list below). The owner decides whether it becomes `alpha`.
+> **This branch (`experiment/engine-access-pairing-20261026`) adds:** pairing with Thought Processor and the Thought Engine install-access API. See [docs/ENGINE_INSTALL_DEMO_20261026.md](docs/ENGINE_INSTALL_DEMO_20261026.md).
 > **AI operators (e.g. a Grok bot):** follow **[AGENTS.md](AGENTS.md)** — exact steps, expected results, and what only the human may do.
 
 ## Quick start (Windows PowerShell, Go 1.22+)

@@ -5,7 +5,7 @@
 //   - only GET /api/health, the public self-description, is read
 //   - every field it returns is an UNTRUSTED CLAIM
 //
-// There is no authenticated Identity↔Processor contract yet, so the best
+// Discovery itself stays unauthenticated (pairing is separate), so the best
 // possible result is DETECTED — SELF-REPORTED, UNVERIFIED. Never "verified".
 package discovery
 
@@ -162,7 +162,7 @@ func Probe(ctx context.Context, addr string) Result {
 	}
 	r.State = Detected
 	r.OpenURL = "http://" + addr + "/"
-	r.Note = "it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied."
+	r.Note = "it describes itself as Thought Processor. That is only a self-claim; what Identity trusts is the pairing below — requests carrying the pairing token, not this address."
 	return r
 }
 

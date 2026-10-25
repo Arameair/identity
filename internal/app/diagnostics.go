@@ -89,7 +89,7 @@ func (a *App) Diagnostics(requestID string) string {
 		p("self_reported: app=%s version=%s protocol=%s (UNTRUSTED CLAIMS)", pr.ClaimedApp, pr.ClaimedVersion, pr.ClaimedProtocol)
 	}
 	p("note=%s", pr.Note)
-	p("authentication=NONE (no Identity↔Processor contract exists); Identity never reads Processor's operator code")
+	p("authentication: this discovery is unauthenticated (public health only); paired Processors authenticate with a token — see [pairing]. Identity never reads Processor's operator code")
 	p("")
 	p("[pairing and engine access]")
 	if e := a.Pair.LoadError(); e != "" {

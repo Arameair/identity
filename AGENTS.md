@@ -103,6 +103,16 @@ In Identity press **Copy Diagnostics** and paste it, plus Processor's *Copy Cont
 | Processor shows `WRONG SERVICE` / `NOT RUNNING` in Identity | Check the address and that window 1 is still running. |
 | Identity page says "This window isn't signed in" | Identity restarted; open the **new** `#key=` link from window 2. |
 
+## Step 7 (experiment branches only) — install Thought Engine through Processor
+
+Use Identity `experiment/engine-access-pairing-20261026` and Processor `experiment/install-thought-engine-20261026` instead of the alpha candidates.
+1. In Identity: *Manage → Thought Processor → Pair Thought Processor*. A code like `ABCD-EFGH` appears (valid 5 minutes). It's private, so don't paste it into chat.
+2. In Processor's **Thought Engine** card, type that code → *Pair with Identity*. **Expected:** "Paired", then Identity's answer: **ALLOWED** (the GitHub account can see Arameair/Thought-engine) or **NOT ALLOWED** plus what to do.
+3. If allowed → **Install Thought Engine**. **Expected:** "Installed", with version, SHA-256 and folder. Nothing is started.
+4. Report each as PASS/FAIL with Processor's *Copy context* and Identity's *Copy Diagnostics*.
+
+Needs a published Thought-engine release (tag `engine-v…`). Without one, Processor says "Thought Engine has no published version yet."
+
 ## Not in scope here (don't try to do these)
 
-Installing or starting the Thought Engine, Identity-granted permissions, Processor start/attach/stop of the Engine. These are design topics; see Thought-Processor's `docs/INSTALL_AUTHORITY_DISCUSSION_2026-10-25.md`.
+Starting the Thought Engine, Identity-granted permissions, Processor start/attach/stop of the Engine. These are design topics; see Thought-Processor's `docs/INSTALL_AUTHORITY_DISCUSSION_2026-10-25.md`.

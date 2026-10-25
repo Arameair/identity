@@ -1,0 +1,89 @@
+=== IDENTITY DIAGNOSTICS ===
+Paste-safe: credentials, session links, one-time codes, cookies and tokens are removed.
+Generated: 2026-10-25T16:44:22Z UTC | 2026-10-25 11:44:22 CDT -05:00 local | request req_0854bfabe1bd
+
+[build]
+app=identity version=0.3.0-alpha protocol=identity/0-alpha
+repo=Arameair/identity branch=UNKNOWN
+commit=346603f3475817f0efad9461ac0d7d479dc897a1 modified=false commit_time=2026-10-25T16:32:56Z
+go=go1.24.7 os=linux arch=amd64
+
+[process]
+status=RUNNING pid=5535 run=run_3a669597bd441025 bind=127.0.0.1 port=7790 uptime=35s
+started=2026-10-25T16:43:47Z UTC
+profile=~/.identity/default system_id=idn_54c0ffbf2cdd40ea8dff69bc profile_created=2026-10-25T16:43:47Z
+open_windows(sessions)=1
+endpoints: GET /api/health (public, self-reported); everything else requires this run's operator session + CSRF
+setup=COMPLETED at 2026-10-25T16:44:21Z
+
+[github]
+mode=TEST FIXTURE status=VERIFIED github_app=set (public client id Iv23…VssP) kind=built-in source=built into this build (Arameair's GitHub App)
+verified_account=Arameair id=1001 verified_at=2026-10-25T16:44:05Z (confirmed by GitHub API this session)
+session_token=memory only, expires 2026-10-25T19:44:05-05:00
+publisher_app_installations=READ count=1 
+  installation id=5 app=identity-fixture-app on=Arameair repos=selected
+  repo Arameair/Thought-Processor: VISIBLE (http 200, 2026-10-25T16:44:05Z)
+  repo Arameair/Thought-engine: VISIBLE (http 200, 2026-10-25T16:44:11Z)
+publisher=Arameair (name embedded in build; not a signed release)
+
+[thought processor — read-only discovery]
+address=127.0.0.1:7860 state=DETECTED — SELF-REPORTED, UNVERIFIED freshness=CURRENT
+checked=2026-10-25T16:44:17Z elapsed_ms=0 http=200
+self_reported: app=thought-processor version=0.1.0-experiment protocol=thought-processor.diagnostic/0-experimental (UNTRUSTED CLAIMS)
+note=it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied.
+authentication=NONE (no Identity↔Processor contract exists); Identity never reads Processor's operator code
+
+[pairing and engine access]
+paired_processors=1
+  tp_c94870cf5a978dbb label="Thought Processor (port 7860)" paired=2026-10-25T16:44:09Z last_used=2026-10-25T16:44:11Z
+last_engine_access=ALLOWED rule=repo-visibility-v0 account=Arameair decision=dec_e795b14450037299 checked=2026-10-25T16:44:11Z hint=-
+  reason=Your GitHub account Arameair can see Arameair/Thought-engine.
+
+[features — states only from evidence]
+Thought Processor (Arameair/Thought-Processor): availability=AVAILABLE — repository visible to your verified account | request=NOT REQUESTED | grant=NOT GRANTED — no publisher grant service exists yet
+Thought Engine (Arameair/Thought-engine): availability=AVAILABLE — repository visible to your verified account | request=NOT REQUESTED | grant=INSTALL ALLOWED — rule repo-visibility-v0: your account can see the repository (interim rule, not a publisher grant)
+local_drafts_total=0 (all NOT SUBMITTED)
+
+[log]
+file=~/.identity/default/logs/identity-events.jsonl in_memory=21 loaded_at_start=0 unreadable_lines=0 write_errors=0 rotations=0 last_id=21
+
+[latest problems (warn/error), newest last]
+(none recorded)
+
+[recent activity, newest last — up to 60]
+2026-10-25 11:43:47 CDT -05:00  info  lifecycle  identity.started             result=running — Identity is serving on loopback only {"branch":"UNKNOWN","client_id_source":"built into this build (Arameair's GitHub App)","github_mode":"TEST FIXTURE","github_status":"signed_out","log_loaded":"0","log_unreadable_lines":"0","pid":"5535","port":"7790","processor_address":"127.0.0.1:7860","profile":"~/.identity/default","profile_created":"true","revision":"346603f3475817f0efad9461ac0d7d479dc897a1","system_id":"idn_54c0ffbf2cdd40ea8dff69bc","version":"0.3.0-alpha"} [run_3a669597bd441025]
+2026-10-25 11:43:47 CDT -05:00  info  processor  processor.state_changed      result=DETECTED — SELF-REPORTED, UNVERIFIED — it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied. {"address":"127.0.0.1:7860","claimed_app":"thought-processor","claimed_protocol":"thought-processor.diagnostic/0-experimental","claimed_version":"0.1.0-experiment","elapsed_ms":"2","from":"unknown"} [run_3a669597bd441025]
+2026-10-25 11:43:49 CDT -05:00  info  web        session.opened               req_8a0e89aa0961 result=signed_in — an Identity window was opened with this run's private link {"sessions":"1"} [run_3a669597bd441025]
+2026-10-25 11:43:51 CDT -05:00  info  github     github.signin_start          result=requested — asking TEST FIXTURE GitHub for a device sign-in code {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:43:51 CDT -05:00  info  github     github.signin_waiting        result=waiting — code issued (not logged); waiting up to 300s for approval on http://127.0.0.1:8791/login/device {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:43:58 CDT -05:00  info  github     github.signin_poll_answer    result=authorization_pending — GitHub's answer to "is this code approved?" is now: authorization_pending {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:44:05 CDT -05:00  info  github     github.signin_poll_answer    result=access granted — GitHub's answer to "is this code approved?" is now: access granted {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:44:05 CDT -05:00  info  github     github.verified              result=verified — GitHub (TEST FIXTURE) confirmed account Arameair (id 1001); token kept in memory only {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:44:05 CDT -05:00  info  github     github.publisher_read        result=READ — installations READ (1); Arameair/Thought-Processor VISIBLE; Arameair/Thought-engine VISIBLE {"mode":"TEST FIXTURE"} [run_3a669597bd441025]
+2026-10-25 11:44:06 CDT -05:00  info  processor  processor.address_set        req_9c121beb5b07 result=saved — Thought Processor address set to 127.0.0.1:7860 (read-only public health checks only) [run_3a669597bd441025]
+2026-10-25 11:44:06 CDT -05:00  info  processor  processor.state_changed      result=DETECTED — SELF-REPORTED, UNVERIFIED — it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied. {"address":"127.0.0.1:7860","claimed_app":"thought-processor","claimed_protocol":"thought-processor.diagnostic/0-experimental","claimed_version":"0.1.0-experiment","elapsed_ms":"1","from":"unknown"} [run_3a669597bd441025]
+2026-10-25 11:44:07 CDT -05:00  info  pairing    pairing.code_created         req_c01f76df755c result=waiting — one-time pairing code shown in Identity's window (valid 5 minutes, not logged) [run_3a669597bd441025]
+2026-10-25 11:44:09 CDT -05:00  info  pairing    pairing.paired               req_99874efd4967 result=paired — Thought Processor tp_c94870cf5a978dbb paired with this Identity (token kept only as a hash) {"label":"Thought Processor (port 7860)"} [run_3a669597bd441025]
+2026-10-25 11:44:09 CDT -05:00  info  access     engine.access_decided        result=ALLOWED — Your GitHub account Arameair can see Arameair/Thought-engine. {"account":"Arameair","decision_id":"dec_e839cf4815ff13c8","hint":"-","rule":"repo-visibility-v0"} [run_3a669597bd441025]
+2026-10-25 11:44:09 CDT -05:00  info  access     engine.access_answered       req_4941d0a786e4 result=ALLOWED — answered Thought Processor tp_c94870cf5a978dbb {"decision_id":"dec_e839cf4815ff13c8"} [run_3a669597bd441025]
+2026-10-25 11:44:09 CDT -05:00  info  access     engine.release_described     req_7cd6d1603a85 result=ok — release engine-v0.1.0-fixture thought-engine-linux-amd64 described to tp_c94870cf5a978dbb {"decision_id":"dec_e839cf4815ff13c8","sha256":"[REDACTED]","size":"10388205"} [run_3a669597bd441025]
+2026-10-25 11:44:11 CDT -05:00  info  access     engine.access_decided        result=ALLOWED — Your GitHub account Arameair can see Arameair/Thought-engine. {"account":"Arameair","decision_id":"dec_e795b14450037299","hint":"-","rule":"repo-visibility-v0"} [run_3a669597bd441025]
+2026-10-25 11:44:11 CDT -05:00  info  access     engine.access_answered       req_36e7eb4e3da6 result=ALLOWED — answered Thought Processor tp_c94870cf5a978dbb {"decision_id":"dec_e795b14450037299"} [run_3a669597bd441025]
+2026-10-25 11:44:11 CDT -05:00  info  access     engine.release_described     req_499d19c0fcfe result=ok — release engine-v0.1.0-fixture thought-engine-linux-amd64 described to tp_c94870cf5a978dbb {"decision_id":"dec_e795b14450037299","sha256":"[REDACTED]","size":"10388205"} [run_3a669597bd441025]
+2026-10-25 11:44:11 CDT -05:00  info  access     engine.download_streamed     req_714f1f68bde6 result=streamed — engine-v0.1.0-fixture thought-engine-linux-amd64: 10388205 of 10388205 bytes in 25ms to tp_c94870cf5a978dbb {"decision_id":"dec_e795b14450037299"} [run_3a669597bd441025]
+2026-10-25 11:44:21 CDT -05:00  info  setup      setup.completed              req_22f88a758191 result=monitoring — setup finished; switching to the monitoring view {"drafts":"0","github_login":"Arameair","github_mode":"TEST FIXTURE","github_status":"verified","processor":"DETECTED — SELF-REPORTED, UNVERIFIED"} [run_3a669597bd441025]
+
+[not implemented — never shown as working]
+- Publisher access-request submission service (drafts stay local, NOT SUBMITTED)
+- Publisher approval / feature grants (nothing is ever shown as GRANTED)
+- Starting, attaching to or stopping the Thought Engine (install only)
+- Signed releases / signed decisions (checksums + pairing HMAC only)
+- Thought Engine observation grants and receiver-side enforcement
+- Persistent GitHub sign-in (the token is memory-only; restart = sign in again)
+- Signed release / signed publisher catalog
+
+[to reproduce]
+1. Build: go build -o identity.exe .  (from a checkout of branch UNKNOWN, commit above)
+2. Run:   .\identity.exe -port 7790 -data <profile folder>
+3. Thought Processor separately on its own port; set its address in Identity > Manage > Thought Processor
+=== END ===
