@@ -111,6 +111,7 @@ type View struct {
 	TokenExpiresAt *time.Time `json:"token_expires_at,omitempty"`
 	Message        string     `json:"message,omitempty"`
 	LastCheckedAt  *time.Time `json:"last_checked_at,omitempty"` // while waiting: last poll of GitHub
+	WaitingSince   *time.Time `json:"waiting_since,omitempty"`  // active device authorization start
 	PollNote       string     `json:"poll_note,omitempty"`
 }
 
@@ -135,6 +136,7 @@ type Client struct {
 	publisher   *Publisher
 	message     string
 	cancel      context.CancelFunc
+	waitStarted time.Time // active device authorization start
 	lastPoll    time.Time // last time GitHub was asked whether this code was approved
 	pollNote    string    // what GitHub (or the network) last said while waiting
 	pollFails   int
@@ -167,7 +169,8 @@ func (c *Client) View() View {
 		ClientIDKind: c.cfg.ClientIDKind, ClientIDHint: hint(c.cfg.ClientID), Message: c.message}
 	if c.status == Waiting {
 		e := c.expires
-		v.UserCode, v.VerifyURL, v.ExpiresAt = c.userCode, c.verifyURL, &e
+		ws := c.waitStarted
+		v.UserCode, v.VerifyURL, v.ExpiresAt, v.WaitingSince = c.userCode, c.verifyURL, &e, &ws
 		if !c.lastPoll.IsZero() {
 			lp := c.lastPoll
 			v.LastCheckedAt = &lp
@@ -306,7 +309,8 @@ func (c *Client) Start() error {
 		c.cancel()
 	}
 	c.status, c.userCode, c.deviceCode, c.verifyURL, c.message = Waiting, dc.UserCode, dc.DeviceCode, dc.VerificationURI, ""
-	c.lastPoll, c.pollNote, c.pollFails, c.pollAnswer = time.Time{}, "", 0, ""
+	c.waitStarted = time.Now().UTC()
+	c.lastPoll, c.pollNote, c.pollFails, c.pollAnswer = time.Time{}, "Waiting for GitHub. Choose your account and authorize this code in the GitHub tab.", 0, ""
 	c.expires = time.Now().Add(time.Duration(dc.ExpiresIn) * time.Second)
 	c.cancel = pcancel
 	c.mu.Unlock()
@@ -343,7 +347,7 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			c.mu.Unlock()
 			if still {
 				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-					c.fail(Expired, "The code expired before it was approved on GitHub.")
+					c.failForDevice(deviceCode, Expired, "The code expired before GitHub confirmed authorization. Select Connect GitHub to try again.")
 				}
 			}
 			return
@@ -363,7 +367,7 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			"device_code": {deviceCode}, "grant_type": {"urn:ietf:params:oauth:grant-type:device_code"}}, &tr)
 		cancel()
 		c.mu.Lock()
-		current := c.deviceCode == deviceCode
+		current := c.status == Waiting && c.deviceCode == deviceCode
 		if current {
 			c.lastPoll = time.Now().UTC()
 		}
@@ -377,6 +381,10 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			}
 			// The code is still valid, so keep waiting — but say so, visibly.
 			c.mu.Lock()
+			if c.status != Waiting || c.deviceCode != deviceCode {
+				c.mu.Unlock()
+				return
+			}
 			c.pollFails++
 			n := c.pollFails
 			c.pollNote = fmt.Sprintf("Can't get an answer from GitHub right now (%s); still trying — attempt %d.", err.Error(), n)
@@ -388,11 +396,15 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 			continue
 		}
 		c.mu.Lock()
+		if c.status != Waiting || c.deviceCode != deviceCode {
+			c.mu.Unlock()
+			return
+		}
 		if c.pollFails > 0 {
 			go c.onEvent("info", "github.signin_poll_recovered", "waiting", fmt.Sprintf("GitHub answering again after %d failed check(s)", c.pollFails))
 		}
 		c.pollFails = 0
-		c.pollNote = "GitHub says: not approved yet for this code."
+		c.pollNote = "GitHub has not confirmed approval. Check the GitHub tab for an account restriction, refusal, or incomplete authorization; Identity cannot read GitHub page banners."
 		answer := tr.Error
 		if tr.AccessToken != "" {
 			answer = "access granted"
@@ -408,7 +420,7 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 		c.mu.Unlock()
 		switch {
 		case tr.AccessToken != "":
-			c.finish(tr.AccessToken, tr.ExpiresIn)
+			c.finish(deviceCode, tr.AccessToken, tr.ExpiresIn)
 			return
 		case tr.Error == "authorization_pending":
 		case tr.Error == "slow_down":
@@ -420,20 +432,20 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 				interval += 5 * time.Second
 			}
 		case tr.Error == "access_denied":
-			c.fail(Denied, "Sign-in was cancelled on GitHub, so nothing was connected.")
+			c.failForDevice(deviceCode, Denied, "GitHub denied or cancelled this authorization. No account connected; check the GitHub tab before retrying.")
 			return
 		case tr.Error == "expired_token":
-			c.fail(Expired, "The code expired before it was approved on GitHub.")
+			c.failForDevice(deviceCode, Expired, "The code expired before GitHub confirmed authorization.")
 			return
 		default:
-			c.fail(Failed, "GitHub sign-in failed ("+tr.Error+").")
+			c.failForDevice(deviceCode, Failed, "GitHub sign-in failed ("+tr.Error+").")
 			return
 		}
 		t.Reset(pollInterval(interval))
 	}
 }
 
-func (c *Client) finish(token string, expiresIn int) {
+func (c *Client) finish(deviceCode, token string, expiresIn int) {
 	redact.Register("github_access_token", token)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -447,12 +459,18 @@ func (c *Client) finish(token string, expiresIn int) {
 	st, err := c.api(ctx, token, "/user", &u)
 	if err != nil || st != 200 || u.Login == "" || u.ID == 0 {
 		redact.Forget(token)
-		c.fail(Failed, fmt.Sprintf("GitHub approved sign-in, but the account could not be read back (HTTP %d).", st))
+		c.failForDevice(deviceCode, Failed, fmt.Sprintf("GitHub approved sign-in, but the account could not be read back (HTTP %d).", st))
 		return
 	}
 	acct := &Account{Login: u.Login, ID: u.ID, Name: u.Name, Type: u.Type, ProfileURL: u.HTMLURL, VerifiedAt: time.Now().UTC()}
 	pub := c.readPublisher(ctx, token)
 	c.mu.Lock()
+	// A cancelled/restarted device attempt must never resurrect an old account.
+	if c.status != Waiting || c.deviceCode != deviceCode {
+		c.mu.Unlock()
+		redact.Forget(token)
+		return
+	}
 	c.status, c.token, c.account, c.publisher, c.message = Verified, token, acct, pub, ""
 	c.userCode, c.deviceCode, c.verifyURL = "", "", ""
 	c.tokenExpiry = time.Time{}
@@ -559,6 +577,23 @@ func (c *Client) Recheck() error {
 	c.mu.Unlock()
 	c.onEvent("info", "github.publisher_read", pub.InstallationsResult, publisherSummary(pub))
 	return nil
+}
+
+// failForDevice changes state only when the exact device-code attempt is still
+// active. Slow or delayed GitHub responses must never override a newer sign-in.
+func (c *Client) failForDevice(deviceCode, status, msg string) {
+	c.mu.Lock()
+	if c.status != Waiting || c.deviceCode != deviceCode {
+		c.mu.Unlock()
+		return
+	}
+	redact.Forget(c.userCode)
+	redact.Forget(c.deviceCode)
+	c.status, c.message, c.userCode, c.deviceCode, c.verifyURL = status, msg, "", "", ""
+	c.mu.Unlock()
+	level := "warn"
+	if status == Failed { level = "error" }
+	c.onEvent(level, "github.signin_"+status, status, msg)
 }
 
 func (c *Client) fail(status, msg string) {
