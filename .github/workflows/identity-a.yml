@@ -1,0 +1,29 @@
+name: Identity A checks
+on:
+  push:
+    branches: [experiment/identity-home-gpt6-20261025]
+  workflow_dispatch:
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - run: go vet ./...
+      - run: go build -o identity-home-a .
+      - run: GOOS=windows GOARCH=amd64 go build -o identity-home-a.exe .
+      - name: Real local HTTP smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/id-a"
+          ./identity-home-a -no-browser -port 7797 -data "$RUNNER_TEMP/id-a" > "$RUNNER_TEMP/identity-run.log" 2>&1 &
+          pid=$!
+          trap 'kill -INT "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:7797/api/health > /dev/null && break; sleep .3; done
+          curl -fsS http://127.0.0.1:7797/api/health | grep '"app":"identity"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7797/api/state)" = 401
+          test -s "$RUNNER_TEMP/id-a/events.jsonl"

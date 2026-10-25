@@ -1,0 +1,9 @@
+{
+  "setup": "go build -o identity-home-a .",
+  "run": "./identity-home-a -no-browser -port \"$PORT\" -data \"$PC_DATA/identity-home-gpt6-a\"",
+  "windows": {
+    "setup": "go build -o identity-home-a.exe .",
+    "run": "identity-home-a.exe -no-browser -port %PORT% -data \"%PC_DATA%\\identity-home-gpt6-a\""
+  },
+  "path": "/"
+}
