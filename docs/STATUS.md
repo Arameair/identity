@@ -47,7 +47,7 @@ Prototype B's report documents a **real pair of processes on a developer Linux m
 
 A later [Alpha candidate](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) documents attempted fixes to problems found during owner testing: GitHub responding `slow_down`, stale device approvals, insufficient waiting-state visibility, a conflicting port, and tab-state issues. The presence of fix descriptions **does not establish that the owner reran and passed all cases**.
 
-The next meaningful **system-level** test is to open **Thought Processor**, have it present an authenticated connection to an independently running Identity service and reflect accurate Identity status/operations, with clean Windows restart, denial/offline checks and redacted evidence. The existing Identity-first Windows walkthrough remains useful as a **subsystem test** only, not proof of the corrected user experience. These steps are in [Try the prototype](TRY_THE_PROTOTYPE.md).
+The next meaningful **system-level** test is to open **Thought Processor**, have it present an authenticated connection to an independently running Identity service and reflect accurate Identity status/operations, with clean Windows restart, denial/offline checks and redacted evidence. The existing Identity-first Windows walkthrough remains useful as a **subsystem test** only, not proof of the corrected user experience. The [first-run target](FIRST_RUN.md) defines the intended Processor-led flow; the [existing trial guide](TRY_THE_PROTOTYPE.md) covers the older Identity-first **developer subsystem** test.
 
 ## Terms used in this ledger
 
