@@ -221,16 +221,10 @@ func main(){
  port:=flag.Int("port",7797,"Prototype A loopback port")
  data:=flag.String("data",filepath.Join(home,".identity","home-gpt6-a"),"isolated private Profile A")
  noBrowser:=flag.Bool("no-browser",false,"print operator link without opening browser")
- testWeb:=flag.String("test-github-web","","TEST FIXTURE ONLY — replaces github.com")
- testAPI:=flag.String("test-github-api","","TEST FIXTURE ONLY — replaces api.github.com")
  flag.Parse()
  if *port<1||*port>65535{fmt.Fprintln(os.Stderr,"invalid port");os.Exit(2)}
- web,api:="https://github.com","https://api.github.com"
- if *testWeb!=""||*testAPI!=""{
-  if *testWeb==""||*testAPI==""{fmt.Fprintln(os.Stderr,"both test Github urls required");os.Exit(2)}
-  web,api=*testWeb,*testAPI
- }
- cfg:=GitHubConfig{ClientID:appID(*data),WebBase:web,APIBase:api}
+ // Real GitHub only: Prototype A deliberately has no fixture-login switch.
+ cfg:=GitHubConfig{ClientID:appID(*data),WebBase:"https://github.com",APIBase:"https://api.github.com"}
  if err:=os.MkdirAll(*data,0700);err!=nil{fmt.Fprintln(os.Stderr,err);os.Exit(1)}
  lockPath:=filepath.Join(*data,"process.lock")
  lock,err:=os.OpenFile(lockPath,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600)
