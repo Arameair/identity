@@ -56,22 +56,13 @@ The [October 25 Alpha candidate](https://github.com/Arameair/identity/tree/alpha
 
 [Detailed status and evidence](docs/STATUS.md) · [Roadmap](docs/ROADMAP.md)
 
-## Try it on your computer
+## Explore the current prototype
 
-There is **no production installer to download from `main`**. For a reproducible Windows experiment, use the documented candidate. You need Git, Go 1.22+, and PowerShell; Project Controller is **not** required.
+**The normal user should open [Thought Processor](https://github.com/Arameair/Thought-Processor)—not Identity—to see and manage the system.** That complete Processor-led experience is **not yet available**: secure Processor-to-Identity administration has not been implemented.
 
-```powershell
-git clone --branch alpha-candidate-20261025 https://github.com/Arameair/identity.git
-cd identity
-.\scripts\build-windows.ps1
-.\identity.exe
-```
+For an honest **developer-only trial** of the existing components, follow the [October 25 paired candidate runbook](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md). It runs the programs independently. Its Identity-owned browser wizard is a **temporary subsystem test path**, not an endorsed end-user setup procedure. The detailed [Identity debug/test guide](docs/TRY_THE_PROTOTYPE.md) includes build prerequisites, PowerShell commands, expected results, logging and rollback.
 
-**Developer test only:** These commands open the **existing experimental Identity interface**. That is useful for testing Identity's implementation but is **not the approved end-user onboarding path**. The intended user opens [Thought Processor](https://github.com/Arameair/Thought-Processor) and interacts there; authenticated management of Identity from Processor is **not implemented**. For a paired investigation, run both processes independently using the [candidate runbook](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md).
-
-**Do not share the private `#key=` opening link, GitHub device codes, authentication tokens or session cookies.** A feature appearing as available is not the same as being granted.
-
-For prerequisites, full two-program instructions, expected and failure states, diagnostics and safe rollback, **follow [Try the prototype](docs/TRY_THE_PROTOTYPE.md)**.
+**Never share** private `#key=`/`#code=` links, GitHub device codes, tokens or cookies. A detected service is not a trusted service; a visible feature is not an approved grant.
 
 ## Explore the engineering work
 
@@ -80,7 +71,7 @@ For prerequisites, full two-program instructions, expected and failure states, d
 | What problem is this solving, and which choices were made? | [Engineering case study](docs/PROJECT_JOURNEY.md) |
 | What works, what was tested, and what remains uncertain? | [Status and branch ledger](docs/STATUS.md) |
 | How are Identity, Processor and independent features separated? | [Architecture](docs/ARCHITECTURE.md) and [Identity-first model](docs/IDENTITY_FIRST_MODEL.md) |
-| How should a brand-new user experience this? | [Prototype trial](docs/TRY_THE_PROTOTYPE.md) and [target first-run design](docs/FIRST_RUN.md) |
+| How should a brand-new user experience this? | [Thought Processor-led first-run target](docs/FIRST_RUN.md); [Identity subsystem trial](docs/TRY_THE_PROTOTYPE.md) is for developers only |
 | How will security, storage and grants work? | [Security](docs/SECURITY.md), [Storage](docs/STORAGE.md), [proposed interfaces](docs/INTERFACES.md) |
 | What is the implementation plan? | [Roadmap](docs/ROADMAP.md), [decisions](docs/DECISIONS.md), [independent review](docs/REVIEW.md) |
 | How are changes tested and promoted? | [Branch workflow](docs/WORKFLOW.md), [test report template](docs/EXPERIMENT_TEMPLATE.md) |
