@@ -7,7 +7,7 @@ Both repositories are public. Nothing here needs a GitHub token on the command l
 | Program | Repo | Branch | Port | Profile folder |
 | --- | --- | --- | --- | --- |
 | Thought Processor | `Arameair/Thought-Processor` | `alpha-candidate-20261025` | **7860** | `%USERPROFILE%\tp-alpha` |
-| Identity | `Arameair/identity` | `alpha-candidate-20261025` | **7790** | `%USERPROFILE%\.identity\default` |
+| Identity | `Arameair/identity` | `experiment/identity-gpt6-alpha-candidate-20261025` | **7790** | `%USERPROFILE%\.identity\default` |
 
 ## Rules — read first
 
@@ -47,15 +47,15 @@ Invoke-RestMethod http://127.0.0.1:7860/api/health
 
 ```powershell
 cd $HOME
-git clone --branch alpha-candidate-20261025 https://github.com/Arameair/identity.git
-cd identity
+git clone --branch experiment/identity-gpt6-alpha-candidate-20261025 https://github.com/Arameair/identity.git identity-gpt6-trial
+cd identity-gpt6-trial
 .\scripts\build-windows.ps1
 .\identity.exe -processor 127.0.0.1:7860
 ```
 If PowerShell blocks the script ("running scripts is disabled"), run the same steps by hand: `go vet ./...`, `go test ./...`, `go build -ldflags "-X main.buildBranch=alpha-candidate-20261025" -o identity.exe .`
 
 **Expected console lines:**
-- `Identity 0.3.0-alpha  branch alpha-candidate-20261025  commit <sha>`
+- `Identity 0.3.0-alpha  branch experiment/identity-gpt6-alpha-candidate-20261025  commit <sha>`
 - `github  : built into this build (Arameair's GitHub App)`. If it says *no publisher GitHub App built in*, stop: wrong branch or old checkout.
 - `run … pid … port 7790 (loopback only)`
 - `open : http://127.0.0.1:7790/#key=…` (private, rule 1). A browser window opens automatically.
@@ -68,7 +68,7 @@ If an old `IDENTITY_GITHUB_CLIENT_ID` environment variable is set in that window
 
 1. **Welcome** → *Begin*.
 2. **GitHub account** → *Connect GitHub*. A GitHub tab opens and the code is copied. **Hand over to the owner** (rule 2): paste the code, *Continue*, *Authorize*.
-   - Expect Identity to show the account **within ~15 seconds** of GitHub's "all set" page.
+   - Expect Identity to show the account after a successful poll; timing depends on GitHub's interval and any `slow_down` responses. Check GitHub for authorization problems if Identity remains pending.
    - While waiting, the screen shows *Last checked with GitHub … GitHub says …*.
    - Use **only** the newest tab, and don't press *Cancel* in between: every new start issues a new code.
 3. **Features** → Thought Processor and Thought Engine show *Availability / Request / Grant*. Grant always says **NOT GRANTED** (correct; no grant service exists yet). Saving a draft is optional and stays **NOT SUBMITTED**.
@@ -96,7 +96,7 @@ In Identity press **Copy Diagnostics** and paste it, plus Processor's *Copy Cont
 | `profile in use` | Another Identity already runs with that profile. Use it, or close it first. |
 | GitHub chip says *NO GITHUB APP IN THIS BUILD* | Wrong branch/old build. `git log -1` must show the alpha-candidate commit; rebuild. |
 | GitHub chip shows *your own GitHub App* | This profile saved a tester's own app earlier. *Manage → Account → Stop using it* returns to the built-in app. |
-| GitHub "all set" but Identity still *WAITING* | An older code was approved. Use the code on screen in the newest tab. Diagnostics line `waiting: … github_said=…` tells you GitHub's last answer. |
+| GitHub "all set" but Identity still checking | Allow for the next GitHub poll; check that the newest code was approved. Inspect the GitHub tab for account restrictions or refusals. Identity cannot read GitHub's page banners. Copy Diagnostics shows its latest actual poll result. |
 | `Can't get an answer from GitHub … attempt N` | Network/proxy/firewall blocking `github.com` from Identity. Report the diagnostics. |
 | *GitHub sign-in isn't switched on for this app* | Owner: enable **Device Flow** in the GitHub App settings. |
 | *GitHub doesn't recognise this app's Client ID* | Wrong/old build, or the app was deleted. Report it. |
