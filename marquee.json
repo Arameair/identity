@@ -1,0 +1,9 @@
+{
+  "setup": "go build -ldflags \"-X main.buildBranch=experiment/identity-home-claude-20261025\" -o identity-b .",
+  "run": "./identity-b -no-browser -port \"$PORT\" -data \"$PC_DATA\"",
+  "windows": {
+    "setup": "go build -ldflags \"-X main.buildBranch=experiment/identity-home-claude-20261025\" -o identity-b.exe .",
+    "run": "identity-b.exe -no-browser -port %PORT% -data \"%PC_DATA%\""
+  },
+  "path": "/"
+}

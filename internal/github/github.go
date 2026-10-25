@@ -202,10 +202,13 @@ func ValidClientID(id string) bool {
 	return strings.HasPrefix(id, "Iv") && len(id) >= 10 && len(id) <= 64 && !strings.ContainsAny(id, " \t\r\n/\\\"'")
 }
 
+// postForm sends GitHub's OAuth parameters form-encoded, as GitHub documents
+// for the device flow.
 func (c *Client) postForm(ctx context.Context, path string, form url.Values, out any) error {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.WebBase+path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Arameair-Identity-PrototypeB")
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return errors.New("couldn't reach GitHub (network error)")
@@ -213,6 +216,13 @@ func (c *Client) postForm(ctx context.Context, path string, form url.Values, out
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 	if resp.StatusCode != 200 {
+		// GitHub sometimes reports OAuth errors with a non-200 status and a JSON error body.
+		var e struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(b, &e) == nil && e.Error != "" {
+			return json.Unmarshal(b, out)
+		}
 		return fmt.Errorf("GitHub answered HTTP %d", resp.StatusCode)
 	}
 	return json.Unmarshal(b, out)
