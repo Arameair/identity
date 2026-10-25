@@ -27,7 +27,7 @@ alpha (current owner-approved starting point)
 
 - **`alpha`** is the starting point for every new coding experiment. Never assume experimental code is approved merely because it compiles.
 - **`experiment/<topic>-YYYYMMDD`** is a separately testable change from the *latest Alpha*. Port work from other branches only deliberately and document the source SHA.
-- **`stable`** is the owner's known-good snapshot when created and approved. As of 2026-10-23, no `stable` branch was found.
+- **`stable`** is the owner's known-good snapshot when created and approved. As of the 2026-10-25 branch review, no `stable` branch was found.
 - **`main`** is the welcoming project/release-facing lane. Documentation maintenance here does **not** approve an experimental executable or move Alpha/Stable.
 
 The historical creation of README-only main/alpha baselines is a bootstrap case, not evidence that a product was released.
