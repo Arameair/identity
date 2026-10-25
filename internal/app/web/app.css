@@ -154,3 +154,9 @@ dialog::backdrop { background: rgba(0,0,0,0.35); }
   .ev .evn, .ev .msg { grid-column: 2; }
   .chip { min-width: 0; flex: 1 1 140px; }
 }
+
+.guide-box { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--bg); }
+.guide { margin: 8px 0 0; padding-left: 20px; }
+.guide > li { margin-bottom: 12px; }
+.guide ul { margin: 6px 0 0; padding-left: 18px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }

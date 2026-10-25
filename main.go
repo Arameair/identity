@@ -21,6 +21,7 @@ import (
 
 	"github.com/Arameair/identity/internal/app"
 	"github.com/Arameair/identity/internal/github"
+	"github.com/Arameair/identity/internal/publisher"
 )
 
 const (
@@ -49,29 +50,56 @@ func defaultPort() int {
 	return DefaultPort
 }
 
-// clientID finds the publisher GitHub App's PUBLIC Client ID. Order:
-// env IDENTITY_GITHUB_CLIENT_ID, github-app.json beside the executable,
-// in the current folder, then in the profile.
-func clientID(dataDir string) (string, string) {
+// clientID picks which GitHub App sign-in uses. Normal users get the
+// publisher's app built into this binary. Order:
+//  1. env IDENTITY_GITHUB_CLIENT_ID             (developer override)
+//  2. <profile>/github-app.json                 (the person's own app, set up with the guide in Identity)
+//  3. github-app.json beside the exe / cwd      (developer override)
+//  4. publisher.GitHubAppClientID               (built in — the normal case)
+//
+// def is the same without step 2: what "switch back" returns to.
+func clientID(dataDir string) (cur, def app.AppChoice) {
+	def = builtinOrDev()
+	if v := os.Getenv("IDENTITY_GITHUB_CLIENT_ID"); strings.TrimSpace(v) != "" {
+		return def, def
+	}
+	p := filepath.Join(dataDir, "github-app.json")
+	if id := readClientIDFile(p); id != "" {
+		return app.AppChoice{ID: id, Source: "your own GitHub App (set up in Identity)", Kind: "own"}, def
+	}
+	return def, def
+}
+
+func builtinOrDev() app.AppChoice {
 	if id := strings.TrimSpace(os.Getenv("IDENTITY_GITHUB_CLIENT_ID")); id != "" {
-		return id, "environment IDENTITY_GITHUB_CLIENT_ID"
+		return app.AppChoice{ID: id, Source: "developer override: environment IDENTITY_GITHUB_CLIENT_ID", Kind: "developer"}
 	}
 	var paths []string
 	if exe, err := os.Executable(); err == nil {
 		paths = append(paths, filepath.Join(filepath.Dir(exe), "github-app.json"))
 	}
-	paths = append(paths, "github-app.json", filepath.Join(dataDir, "github-app.json"))
+	paths = append(paths, "github-app.json")
 	for _, p := range paths {
-		b, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		var m map[string]string
-		if json.Unmarshal(b, &m) == nil && github.ValidClientID(strings.TrimSpace(m["client_id"])) {
-			return strings.TrimSpace(m["client_id"]), p
+		if id := readClientIDFile(p); id != "" {
+			return app.AppChoice{ID: id, Source: "developer override: " + p, Kind: "developer"}
 		}
 	}
-	return "", ""
+	if id := strings.TrimSpace(publisher.GitHubAppClientID); github.ValidClientID(id) {
+		return app.AppChoice{ID: id, Source: "built into this build (" + publisher.Name + "'s GitHub App)", Kind: "built-in"}
+	}
+	return app.AppChoice{}
+}
+
+func readClientIDFile(p string) string {
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	var m map[string]string
+	if json.Unmarshal(b, &m) == nil && github.ValidClientID(strings.TrimSpace(m["client_id"])) {
+		return strings.TrimSpace(m["client_id"])
+	}
+	return ""
 }
 
 func openBrowser(link string) error {
@@ -117,10 +145,11 @@ func main() {
 	if err == nil {
 		*data = abs
 	}
-	cfg.ClientID, cfg.ClientIDSource = clientID(*data)
+	cur, def := clientID(*data)
+	cfg.ClientID, cfg.ClientIDSource, cfg.ClientIDKind = cur.ID, cur.Source, cur.Kind
 
 	branch := buildBranch
-	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, ProcessorAddr: *proc, Version: appVersion, Branch: branch})
+	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
 		os.Exit(1)
@@ -134,7 +163,9 @@ func main() {
 		if cfg.Mode() != "real" {
 			fmt.Printf("  GITHUB  : TEST FIXTURE at %s — not real GitHub\n", cfg.WebBase)
 		} else if cfg.ClientID == "" {
-			fmt.Println("  github  : publisher GitHub App Client ID not configured yet — setup will ask for it")
+			fmt.Println("  github  : this build has no publisher GitHub App built in — Identity can guide you through using your own")
+		} else {
+			fmt.Println("  github  : " + cfg.ClientIDSource)
 		}
 		fmt.Printf("  open    : %s\n", link)
 		fmt.Println("            (private link — do not paste it anywhere; it changes every start and is")

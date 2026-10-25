@@ -98,7 +98,7 @@
 
     if (gh.status === "verified" && gh.account) setChip("#chip-github", gh.mode === "real" ? "ok" : "warn", (gh.mode === "real" ? "VERIFIED · " : "FIXTURE · ") + gh.account.login, "Confirmed by GitHub API at " + fmtTime(gh.account.verified_at));
     else if (gh.status === "waiting") setChip("#chip-github", "info", "WAITING FOR APPROVAL");
-    else if (gh.status === "not_configured") setChip("#chip-github", "warn", "APP NOT CONFIGURED");
+    else if (gh.status === "not_configured") setChip("#chip-github", "warn", "NO GITHUB APP IN THIS BUILD");
     else if (gh.status === "error") setChip("#chip-github", "bad", "SIGN-IN FAILED", gh.message);
     else if (gh.status === "denied") setChip("#chip-github", "warn", "SIGN-IN CANCELLED");
     else if (gh.status === "expired") setChip("#chip-github", "warn", "SIGN-IN EXPIRED");
@@ -130,23 +130,33 @@
 
   function renderGitHub() {
     const gh = state.github, el = $("#gh-body");
-    $("#gh-config").hidden = gh.client_id_set;
+    const appLine = gh.client_id_kind === "built-in"
+      ? `Uses ${esc(state.publisher.name)}'s GitHub App, built into Identity — nothing to set up.`
+      : gh.client_id_kind === "own"
+        ? `Uses <strong>your own GitHub App</strong> (${esc(gh.client_id_hint)}). <button type="button" class="linkish" data-act="/api/github/own-app/remove">Stop using it</button>`
+        : gh.client_id_kind === "developer"
+          ? `Developer override: ${esc(gh.client_id_source)} (${esc(gh.client_id_hint)}).` : "";
+    const guideLink = `<button type="button" class="linkish" data-guide="open">Use my own GitHub App instead — Identity will walk you through it</button>`;
     let h = "";
     if (gh.mode !== "real") h += `<div class="note bad-note"><strong>TEST FIXTURE MODE.</strong> Identity is talking to a local stand-in for GitHub, not github.com. Nothing here is a real sign-in.</div>`;
     if (gh.status === "not_configured") {
-      h += `<p class="muted">Until the Client ID is known you can still continue: Identity works without GitHub, but feature availability stays UNKNOWN.</p>`;
+      h += `<div class="note warn-note"><strong>This copy of Identity has no GitHub App built in.</strong>
+        <p>Official copies from ${esc(state.publisher.name)} include one, so you'd just press Connect GitHub. With this copy you can set up your own in a few minutes — Identity walks you through each step.</p></div>
+        <div class="row"><button class="btn primary" type="button" data-guide="open">Help me set up a GitHub App</button></div>
+        <p class="muted small">Or skip for now: Identity works without GitHub, but feature availability stays UNKNOWN.</p>`;
     } else if (gh.status === "waiting") {
-      h += `<p>1. Open GitHub's device page. 2. Enter this code. 3. Approve. Identity notices automatically.</p>
+      h += `<p><strong>GitHub opened in a new tab and your code was copied.</strong> There: paste the code (Ctrl+V), press <em>Continue</em>, then <em>Authorize</em>. Identity notices by itself.</p>
         <div class="code-box"><span class="code" id="ucode">${esc(gh.user_code)}</span>
         <button class="btn" type="button" id="copy-code">Copy code</button>
-        <a class="btn primary" href="${esc(gh.verify_url)}" target="_blank" rel="noopener noreferrer">Open ${esc(new URL(gh.verify_url).host)} ↗</a></div>
-        <p class="muted small">The code expires ${gh.expires_at ? "at " + esc(fmtTime(gh.expires_at)) : "soon"}. It is never written to Identity's log or diagnostics.</p>
+        <a class="btn primary" id="gh-open" href="${esc(gh.verify_url)}" target="_blank" rel="noopener noreferrer">Open ${esc(new URL(gh.verify_url).host)} again ↗</a></div>
+        <p class="muted small">No new tab? Your browser blocked it — use the button above. The code expires ${gh.expires_at ? "at " + esc(fmtTime(gh.expires_at)) : "soon"} and is never written to Identity's log or diagnostics.</p>
         <div class="row"><button class="btn ghost" type="button" data-act="/api/github/cancel">Cancel sign-in</button></div>`;
     } else if (gh.status === "verified" && gh.account) {
       const ac = gh.account, pub = gh.publisher;
       h += `<dl class="account"><dt>Account</dt><dd><strong>${esc(ac.login)}</strong>${ac.name ? " (" + esc(ac.name) + ")" : ""}</dd>
         <dt>GitHub user id</dt><dd>${esc(ac.id)}</dd><dt>Verified</dt><dd>${esc(fmtTime(ac.verified_at))} — read back from the GitHub API with your sign-in</dd>
-        <dt>Sign-in kept</dt><dd>in memory only${gh.token_expires_at ? ", GitHub expires it " + esc(fmtTime(gh.token_expires_at)) : ""}</dd></dl>`;
+        <dt>Sign-in kept</dt><dd>in memory only${gh.token_expires_at ? ", GitHub expires it " + esc(fmtTime(gh.token_expires_at)) : ""}</dd>
+        <dt>GitHub App</dt><dd>${appLine}</dd></dl>`;
       if (pub) {
         h += `<h3>Publisher information from GitHub</h3><dl class="account"><dt>Publisher (build label)</dt><dd>${esc(state.publisher.name)} — ${esc(state.publisher.evidence)}</dd>
           <dt>App installations you can see</dt><dd>${esc(pub.installations_result)}${pub.installations_detail ? " — " + esc(pub.installations_detail) : ""}</dd>`;
@@ -158,11 +168,25 @@
     } else {
       if (gh.message) h += `<div class="note ${gh.status === "error" ? "bad-note" : "warn-note"}">${esc(gh.message)}</div>`;
       if (state.last_account) h += `<p class="muted">Last verified account on this profile: <strong>${esc(state.last_account.login)}</strong> (${esc(state.last_account.mode)}, ${esc(fmtTime(state.last_account.verified_at))}). That is history — you are not signed in now.</p>`;
-      h += `<div class="row"><button class="btn primary" type="button" data-act="/api/github/start">Connect GitHub</button></div>
-        <p class="muted small">Uses the publisher's GitHub App (${esc(gh.client_id_hint)}, from ${esc(gh.client_id_source)}). You will approve on GitHub's own website; Identity never sees your password.</p>`;
+      h += `<div class="row"><button class="btn primary" type="button" id="gh-connect">Connect GitHub</button></div>
+        <p class="muted small">Opens GitHub in a new tab. If you're already signed in to GitHub there, you just paste a code and press Authorize. Identity never sees your password.</p>
+        <p class="muted small">${appLine}</p>`;
+      if (gh.client_id_kind !== "own") h += `<p class="small">${guideLink}</p>`;
     }
     if (el.dataset.html !== h) { el.innerHTML = h; el.dataset.html = h; }
     $("#gh-next").textContent = gh.status === "verified" ? "Continue" : "Skip for now";
+  }
+
+  // Connect: open the tab during the click (so pop-up blockers allow it),
+  // then point it at GitHub's device page once Identity has the code.
+  async function connectGitHub() {
+    let w = null;
+    try { w = window.open("about:blank", "_blank"); } catch (e) { w = null; }
+    const r = await act("/api/github/start", {});
+    const gh = r && r.github;
+    if (!gh || gh.status !== "waiting") { if (w) w.close(); return; }
+    try { await navigator.clipboard.writeText(gh.user_code); } catch (e) { /* code stays visible on screen */ }
+    if (w) { try { w.opener = null; w.location.href = gh.verify_url; } catch (e) { w.close(); } }
   }
 
   function tagFor(result) {
@@ -326,7 +350,11 @@
       await act("/api/shutdown", {});
       document.body.innerHTML = '<div class="gate"><h1>Identity stopped</h1><p>Only Identity was stopped. Start it again from its program to continue; your profile and log are kept.</p></div>';
     });
-    $("#client-id-save").addEventListener("click", () => act("/api/setup/client-id", { client_id: $("#client-id").value }, "Client ID saved."));
+    $("#own-save").addEventListener("click", async () => {
+      const r = await act("/api/github/own-app", { client_id: $("#own-client-id").value }, "Your GitHub App is set. Now press Connect GitHub.");
+      if (r) { $("#gh-guide").hidden = true; $("#own-client-id").value = ""; }
+    });
+    $("#guide-close").addEventListener("click", () => ($("#gh-guide").hidden = true));
     $("#tp-addr").addEventListener("input", (e) => (e.target.dataset.touched = "1"));
     $("#tp-save").addEventListener("click", async () => { const r = await act("/api/processor/address", { address: $("#tp-addr").value }); if (r) { delete $("#tp-addr").dataset.touched; toast("Address saved: " + r.processor.state); } });
     $("#tp-check").addEventListener("click", () => act("/api/processor/check", {}));
@@ -335,6 +363,8 @@
     document.addEventListener("click", (ev) => {
       const t = ev.target.closest("[data-act]");
       if (t) { ev.preventDefault(); act(t.dataset.act, t.dataset.feature ? { feature: t.dataset.feature } : {}); return; }
+      if (ev.target.closest("[data-guide]")) { $("#gh-guide").hidden = false; $("#gh-guide").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      if (ev.target.id === "gh-connect") { connectGitHub(); return; }
       if (ev.target.id === "copy-code") {
         navigator.clipboard.writeText($("#ucode").textContent).then(() => toast("Code copied."), () => toast("Select the code and copy it by hand.", true));
       }

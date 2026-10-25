@@ -64,3 +64,9 @@ authentication=NONE (no Identity↔Processor contract exists)
 
 ## Rollback
 Stop: Ctrl+C / close window / *Stop Identity*. Remove profile `~/.identity/home-claude-b`. No other branch or profile was touched; delete this branch to remove the prototype entirely.
+
+## Update 2026-10-25 07:40 — built-in publisher app, one-click browser sign-in, guided own-app setup
+- **Built-in app:** `internal/publisher.GitHubAppClientID` is shipped inside the binary (source constant or `-ldflags -X`). Verified: an `-ldflags` build prints `github : built into this build (Arameair's GitHub App)`. **The real Client ID is not in the source yet** — the publisher adds it once ([PUBLISHER_GITHUB_APP.md](PUBLISHER_GITHUB_APP.md)).
+- **Connect GitHub** now opens GitHub's device page in a new tab (opened during the click, so pop-up blockers allow it; `opener` cleared) and copies the code. Verified in headless Chromium against the TEST FIXTURE: new tab URL = fixture device page, clipboard = displayed code (`v2-05-builtin-waiting.png`, `v2-06-builtin-verified-FIXTURE.png`).
+- **No built-in app:** the GitHub step says so plainly and offers **Help me set up a GitHub App** — a 5-step guide that opens GitHub's registration page pre-filled (name, homepage, read-only contents, webhook off) and accepts the Client ID (`v2-01`, `v2-02`, `v2-03`). The person's own app is saved in their profile and can be removed to return to the built-in app.
+- Tests: new `main_test.go` (choice order: developer env > own app > developer file > built-in) and `TestOwnAppGuideSwitchesAndReverts`. Real github.com still **NOT TESTED** from this sandbox (its proxy blocks `github.com/login/*`).

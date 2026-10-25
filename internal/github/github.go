@@ -35,6 +35,7 @@ const (
 type Config struct {
 	ClientID       string // public Client ID of the publisher's GitHub App (not a secret)
 	ClientIDSource string // where it came from, for diagnostics
+	ClientIDKind   string // "built-in" (publisher's app) | "own" (set up by the user in Identity) | "developer" (env/file override)
 	WebBase        string
 	APIBase        string
 }
@@ -100,6 +101,7 @@ type View struct {
 	Mode           string     `json:"mode"`
 	ClientIDSet    bool       `json:"client_id_set"`
 	ClientIDSource string     `json:"client_id_source,omitempty"`
+	ClientIDKind   string     `json:"client_id_kind,omitempty"`
 	ClientIDHint   string     `json:"client_id_hint,omitempty"`
 	UserCode       string     `json:"user_code,omitempty"` // shown to the person only while waiting; never logged
 	VerifyURL      string     `json:"verify_url,omitempty"`
@@ -156,7 +158,7 @@ func (c *Client) View() View {
 	defer c.mu.Unlock()
 	c.expireTokenLocked()
 	v := View{Status: c.status, Mode: c.cfg.Mode(), ClientIDSet: c.cfg.ClientID != "", ClientIDSource: c.cfg.ClientIDSource,
-		ClientIDHint: hint(c.cfg.ClientID), Message: c.message}
+		ClientIDKind: c.cfg.ClientIDKind, ClientIDHint: hint(c.cfg.ClientID), Message: c.message}
 	if c.status == Waiting {
 		e := c.expires
 		v.UserCode, v.VerifyURL, v.ExpiresAt = c.userCode, c.verifyURL, &e
@@ -186,15 +188,19 @@ func (c *Client) expireTokenLocked() {
 	}
 }
 
-// SetClientID configures the public Client ID if none is set yet.
-func (c *Client) SetClientID(id, source string) error {
+// UseApp switches which GitHub App sign-in uses (empty id = none). Any
+// sign-in in progress or active session is ended first, because a token
+// belongs to the app that issued it.
+func (c *Client) UseApp(id, source, kind string) {
+	c.Disconnect()
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.cfg.ClientID != "" {
-		return errors.New("a GitHub App Client ID is already configured; nothing changed")
+	c.cfg.ClientID, c.cfg.ClientIDSource, c.cfg.ClientIDKind, c.message = id, source, kind, ""
+	if id == "" {
+		c.status = NotConfigured
+	} else {
+		c.status = SignedOut
 	}
-	c.cfg.ClientID, c.cfg.ClientIDSource, c.status, c.message = id, source, SignedOut, ""
-	return nil
+	c.mu.Unlock()
 }
 
 // ValidClientID checks the public Client ID format of GitHub Apps (Iv…).

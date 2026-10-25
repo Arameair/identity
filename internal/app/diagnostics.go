@@ -50,7 +50,7 @@ func (a *App) Diagnostics(requestID string) string {
 	}
 	p("")
 	p("[github]")
-	p("mode=%s status=%s client_id=%s source=%s", gv.Mode, strings.ToUpper(gv.Status), yesNo(gv.ClientIDSet, "configured (public, "+gv.ClientIDHint+")", "NOT CONFIGURED"), orDash(gv.ClientIDSource))
+	p("mode=%s status=%s github_app=%s kind=%s source=%s", gv.Mode, strings.ToUpper(gv.Status), yesNo(gv.ClientIDSet, "set (public client id "+gv.ClientIDHint+")", "NONE IN THIS BUILD"), orDash(gv.ClientIDKind), orDash(gv.ClientIDSource))
 	if gv.Account != nil {
 		p("verified_account=%s id=%d verified_at=%s (confirmed by GitHub API this session)", gv.Account.Login, gv.Account.ID, gv.Account.VerifiedAt.Format(time.RFC3339))
 		if gv.TokenExpiresAt != nil {

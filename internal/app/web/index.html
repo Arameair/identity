@@ -116,14 +116,30 @@
 <!-- Panels: one copy each, moved between setup steps and the Manage dialog. -->
 <div id="panels" hidden>
   <div class="panel" id="panel-github">
-    <div id="gh-config" hidden>
-      <div class="note warn-note">
-        <strong>This copy of Identity doesn't know the publisher's GitHub App yet.</strong>
-        <p>Paste the app's public <em>Client ID</em> (it starts with <code>Iv</code>; it is not a password). Or put <code>github-app.json</code> next to the program — see TRIAL_START_HERE.md.</p>
-      </div>
-      <div class="row"><input id="client-id" placeholder="Iv23li…" autocomplete="off" spellcheck="false"><button class="btn" id="client-id-save" type="button">Save Client ID</button></div>
-    </div>
     <div id="gh-body"></div>
+    <div id="gh-guide" class="guide-box" hidden>
+      <h3>Set up your own GitHub App — about 3 minutes</h3>
+      <p class="muted small">Only needed if this copy of Identity has no publisher app built in, or you're testing. It's free, and Identity never needs a password or a client secret.</p>
+      <ol class="guide">
+        <li><strong>Open GitHub's "Register new GitHub App" page.</strong> The name, homepage and permissions are filled in for you.
+          <div class="row"><a class="btn primary" id="guide-open" target="_blank" rel="noopener noreferrer" href="https://github.com/settings/apps/new?name=Identity%20sign-in&amp;description=Sign-in%20for%20Arameair%20Identity%20(device%20flow)&amp;url=https%3A%2F%2Fgithub.com%2FArameair%2Fidentity&amp;public=false&amp;webhook_active=false&amp;contents=read&amp;metadata=read">Open GitHub ↗</a></div>
+          <div class="muted small">If GitHub asks you to sign in first, do that — the page comes back afterwards.</div></li>
+        <li><strong>On that page, check these settings:</strong>
+          <ul>
+            <li><em>GitHub App name</em> — keep it; if GitHub says it's taken, add your username.</li>
+            <li><em>Callback URL</em> — leave empty.</li>
+            <li><strong><em>Enable Device Flow</em> — tick this box.</strong> Sign-in won't work without it.</li>
+            <li><em>Webhook → Active</em> — untick.</li>
+            <li><em>Repository permissions → Contents</em> — Read-only.</li>
+            <li><em>Where can this GitHub App be installed?</em> — Only on this account.</li>
+          </ul></li>
+        <li><strong>Click "Create GitHub App".</strong> On the page that opens, find <strong>Client ID</strong> (it starts with <code>Iv</code>) and copy it. Ignore "Generate a new client secret" — it isn't needed.</li>
+        <li><strong>Paste the Client ID here:</strong>
+          <div class="row"><input id="own-client-id" placeholder="Iv23li…" autocomplete="off" spellcheck="false"><button class="btn primary" id="own-save" type="button">Use this app</button></div></li>
+        <li><span class="muted">Optional:</span> on your app's page choose <strong>Install App</strong> and pick the repositories Identity should check. Without that you can still sign in, but repositories show as UNAVAILABLE.</li>
+      </ol>
+      <div class="row"><button class="btn ghost" id="guide-close" type="button">Close guide</button></div>
+    </div>
   </div>
   <div class="panel" id="panel-features">
     <div id="feat-body"></div>

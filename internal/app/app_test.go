@@ -189,7 +189,7 @@ func TestSecurityBoundaries(t *testing.T) {
 	if code, _ := h.do("POST", "/api/github/start", `{}`, nil); code != 502 {
 		t.Fatal("sign-in started without Client ID")
 	}
-	if code, _ := h.do("POST", "/api/setup/client-id", `{"client_id":"not-an-id"}`, nil); code != 400 {
+	if code, _ := h.do("POST", "/api/github/own-app", `{"client_id":"not-an-id"}`, nil); code != 400 {
 		t.Fatal("bad client id accepted")
 	}
 	if code, _ := h.do("POST", "/api/drafts", `{"feature":"thought-processor"}`, nil); code != 409 {
@@ -338,5 +338,49 @@ func TestStopFromUIStopsOnlyIdentity(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("did not stop")
+	}
+}
+
+func TestOwnAppGuideSwitchesAndReverts(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("IDENTITY_GITHUB_CLIENT_ID", "")
+	builtin := github.Config{ClientID: "Iv23liBUILTIN0001", ClientIDSource: "built into this build", ClientIDKind: "built-in", WebBase: github.RealWeb, APIBase: github.RealAPI}
+	github.SetPollScaleForTests(20 * time.Millisecond)
+	a, err := New(Options{Port: 0, DataDir: dir, GitHub: builtin, DefaultApp: AppChoice{ID: builtin.ClientID, Source: builtin.ClientIDSource, Kind: "built-in"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	ctx, cancel := context.WithCancel(context.Background())
+	h := &harness{t: t, a: a, cancel: cancel, done: make(chan error, 1)}
+	ready := make(chan string, 1)
+	go func() { h.done <- a.Run(ctx, ln, func(l string) { ready <- l }) }()
+	h.link = <-ready
+	h.base = "http://127.0.0.1:" + strconv.Itoa(a.Port)
+	jar, _ := cookiejar.New(nil)
+	h.c = &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	defer h.stop()
+	h.signIn()
+
+	if g := h.state()["github"].(map[string]any); g["client_id_kind"] != "built-in" || g["status"] != "signed_out" {
+		t.Fatalf("built-in app not ready: %v", g)
+	}
+	if code, _ := h.do("POST", "/api/github/own-app", `{"client_id":"Iv23liOWNAPP00001"}`, nil); code != 200 {
+		t.Fatal("own app refused")
+	}
+	if g := h.state()["github"].(map[string]any); g["client_id_kind"] != "own" {
+		t.Fatalf("own app not in use: %v", g)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "github-app.json")); !strings.Contains(string(b), "Iv23liOWNAPP00001") {
+		t.Fatal("own app not saved in profile")
+	}
+	if code, _ := h.do("POST", "/api/github/own-app/remove", `{}`, nil); code != 200 {
+		t.Fatal("remove refused")
+	}
+	if g := h.state()["github"].(map[string]any); g["client_id_kind"] != "built-in" || g["client_id_hint"] != "Iv23…0001" {
+		t.Fatalf("did not return to built-in app: %v", g)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "github-app.json")); !os.IsNotExist(err) {
+		t.Fatal("own app file left behind")
 	}
 }

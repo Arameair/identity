@@ -1,7 +1,7 @@
 # Identity Prototype B (Claude) — home trial start here
 
 **Branch:** `experiment/identity-home-claude-20261025` (from `alpha` 8d08fec). Experimental — not promoted anywhere.
-**Implementation commit:** `7ea0dabba74dd90980bdfc4d0f6ff66b4080f312` (later commits on this branch are docs/evidence only).
+**Implementation commit:** see the branch head; the latest code change is "built-in publisher GitHub App + guided own-app setup" (2026-10-25).
 **Runs beside Prototype A:** B uses port **7798** and profile `%USERPROFILE%\.identity\home-claude-b`; A (GPT-6) uses 7797 and its own profile. Thought Processor uses 7860.
 
 Results and evidence: [docs/HOME_TRIAL_EVIDENCE_CLAUDE.md](docs/HOME_TRIAL_EVIDENCE_CLAUDE.md).
@@ -30,16 +30,14 @@ go build -ldflags "-X main.buildBranch=experiment/identity-home-claude-20261025"
 
 Your browser opens Identity's welcome screen. If it doesn't, copy the `open :` link from Window 2 into the browser. That link is private and changes every start.
 
-**GitHub sign-in needs the publisher app's public Client ID** (starts with `Iv`, not a secret). Either paste it on the *GitHub account* step, or before starting put a file `github-app.json` next to `identity-b.exe`:
-```json
-{ "client_id": "Iv23li..." }
-```
-The app must have **Device Flow enabled** (see `docs/SETUP_GITHUB_APP.md` on branch `experiment/identity-standalone-access-trial-20261024`). Without it you can still finish setup — GitHub shows *APP NOT CONFIGURED* and feature availability stays *UNKNOWN*.
+**GitHub sign-in.** Normal users never set up a GitHub App: the publisher's app ships inside Identity and they just press **Connect GitHub**. Identity opens GitHub in a new tab with the code already copied — paste, *Continue*, *Authorize*.
+- **Publisher (you), once:** register the app and put its public Client ID in `internal/publisher/publisher.go` — see [docs/PUBLISHER_GITHUB_APP.md](docs/PUBLISHER_GITHUB_APP.md). Until then this branch has **no app built in**.
+- **Without a built-in app** (this branch today, or for testing): the GitHub step offers **Help me set up a GitHub App**, a 5-step guide inside Identity that opens GitHub's registration page pre-filled and takes the Client ID from you. You can also skip GitHub; Identity still works.
 
 ## What you'll see
 
 1. **Welcome** — what Identity will and won't do, your System ID and profile folder.
-2. **GitHub account** — *Connect GitHub* shows a code and a button to github.com/login/device. Approve there; Identity then shows the account GitHub confirmed, the publisher app installations you can see, and whether Thought-Processor / Thought-engine repositories are visible to you.
+2. **GitHub account** — *Connect GitHub* opens GitHub's device page in a new tab and copies your code. Paste it, press Continue and Authorize; Identity then shows the account GitHub confirmed, the publisher app installations you can see, and whether Thought-Processor / Thought-engine repositories are visible to you.
 3. **Features** — Thought Processor and Thought Engine, each with *Availability*, *Request*, *Grant*. You can save a local access-request draft; it is labelled **DRAFT SAVED LOCALLY — NOT SUBMITTED**. Grant is always **NOT GRANTED** (no grant service exists).
 4. **Thought Processor** — address is pre-filled `127.0.0.1:7860`; press *Use this address*. Expected: **DETECTED — SELF-REPORTED, UNVERIFIED**, plus an *Open Thought Processor* button (Processor will ask for its own code).
 5. **Done → Finish setup** — Identity switches to the small monitoring view: status chips on top, large live log, **Copy Diagnostics** top-right. Everything else is under **Manage**.

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -112,7 +113,8 @@ func (a *App) Handler() http.Handler {
 		}
 		writeJSON(w, 200, map[string]bool{"logged": true})
 	}))
-	m.HandleFunc("POST /api/setup/client-id", a.wrap(mutate, a.handleClientID))
+	m.HandleFunc("POST /api/github/own-app", a.wrap(mutate, a.handleOwnApp))
+	m.HandleFunc("POST /api/github/own-app/remove", a.wrap(mutate, a.handleOwnAppRemove))
 	m.HandleFunc("POST /api/setup/complete", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now().UTC()
 		if err := a.Store.UpdateSettings(func(s *profile.Settings) { s.SetupCompletedAt = &now }); err != nil {
@@ -266,26 +268,45 @@ func (a *App) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"csrf": csrf})
 }
 
-func (a *App) handleClientID(w http.ResponseWriter, r *http.Request) {
+// handleOwnApp: the person followed Identity's guide, registered their own
+// GitHub App and pasted its public Client ID. Saved in the profile; it
+// replaces the built-in app for this profile until removed.
+func (a *App) handleOwnApp(w http.ResponseWriter, r *http.Request) {
 	var b struct {
 		ClientID string `json:"client_id"`
 	}
 	decode(r, &b)
 	id := strings.TrimSpace(b.ClientID)
 	if !github.ValidClientID(id) {
-		a.fail(w, r, 400, "setup", "setup.client_id_invalid", "enter the publisher GitHub App's public Client ID (it starts with Iv)")
+		a.fail(w, r, 400, "setup", "github.own_app_invalid", "that doesn't look like a GitHub App Client ID — it starts with Iv and is on the app's General page (not the client secret)")
 		return
 	}
-	path := a.Store.Root + string(os.PathSeparator) + "github-app.json"
-	if err := a.GH.SetClientID(id, "profile github-app.json (entered in setup)"); err != nil {
-		a.fail(w, r, 409, "setup", "setup.client_id_exists", err.Error())
+	if os.Getenv("IDENTITY_GITHUB_CLIENT_ID") != "" {
+		a.fail(w, r, 409, "setup", "github.own_app_blocked", "a developer override (IDENTITY_GITHUB_CLIENT_ID) is set for this run; remove it to use your own app")
 		return
 	}
+	path := filepath.Join(a.Store.Root, "github-app.json")
 	if err := profile.WriteJSON(path, map[string]string{"client_id": id}); err != nil {
-		a.Log.Error("setup", "setup.client_id_not_saved", reqID(r), "memory_only", "Client ID set for this run but could not be saved: "+err.Error(), nil)
-	} else {
-		a.Log.Info("setup", "setup.client_id_saved", reqID(r), "saved", "public GitHub App Client ID saved to the profile (not a secret)", nil)
+		a.fail(w, r, 500, "setup", "github.own_app_not_saved", "could not save: "+err.Error())
+		return
 	}
+	a.GH.UseApp(id, "your own GitHub App (set up in Identity)", "own")
+	a.Log.Info("github", "github.own_app_set", reqID(r), "saved", "this profile now signs in with the person's own GitHub App (public Client ID saved in the profile; not a secret)", nil)
+	writeJSON(w, 200, a.State())
+}
+
+func (a *App) handleOwnAppRemove(w http.ResponseWriter, r *http.Request) {
+	if err := os.Remove(filepath.Join(a.Store.Root, "github-app.json")); err != nil && !os.IsNotExist(err) {
+		a.fail(w, r, 500, "setup", "github.own_app_not_removed", "could not remove: "+err.Error())
+		return
+	}
+	d := a.opt.DefaultApp
+	a.GH.UseApp(d.ID, d.Source, d.Kind)
+	what := "no built-in app in this build"
+	if d.ID != "" {
+		what = d.Source
+	}
+	a.Log.Info("github", "github.own_app_removed", reqID(r), "removed", "own GitHub App removed from this profile; now using "+what, nil)
 	writeJSON(w, 200, a.State())
 }
 

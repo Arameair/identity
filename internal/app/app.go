@@ -21,6 +21,7 @@ import (
 	"github.com/Arameair/identity/internal/github"
 	"github.com/Arameair/identity/internal/logbook"
 	"github.com/Arameair/identity/internal/profile"
+	"github.com/Arameair/identity/internal/publisher"
 	"github.com/Arameair/identity/internal/redact"
 )
 
@@ -28,7 +29,7 @@ const (
 	Product   = "identity"
 	Protocol  = "identity.home-trial/0-experimental"
 	Prototype = "B (Claude) — first-use experience"
-	Publisher = "Arameair"
+	Publisher = publisher.Name
 )
 
 // NotImplemented is shown in the UI and diagnostics so nothing missing is
@@ -43,7 +44,13 @@ var NotImplemented = []string{
 	"Signed release / signed publisher catalog",
 }
 
+// AppChoice is one GitHub App sign-in can use (public Client ID only).
+type AppChoice struct {
+	ID, Source, Kind string
+}
+
 type Options struct {
+	DefaultApp    AppChoice // what "use the publisher's app again" returns to
 	Port          int
 	DataDir       string
 	GitHub        github.Config
