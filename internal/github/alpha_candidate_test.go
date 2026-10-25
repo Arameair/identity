@@ -13,7 +13,7 @@ import (
 
 func TestCandidatePendingHasActionableMessageWithoutAssumingCause(t *testing.T) {
     SetPollScaleForTests(15 * time.Millisecond)
-    defer SetPollScaleForTests(time.Duration(0))
+    defer setPollHook(func(d time.Duration) time.Duration { return d })
     mux := http.NewServeMux()
     var server *httptest.Server
     mux.HandleFunc("POST /login/device/code", func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func TestCandidatePendingHasActionableMessageWithoutAssumingCause(t *testing.T) 
 
 func TestCandidateLateOAuthApprovalCannotResurrectCancelledSignIn(t *testing.T) {
     SetPollScaleForTests(15 * time.Millisecond)
-    defer SetPollScaleForTests(time.Duration(0))
+    defer setPollHook(func(d time.Duration) time.Duration { return d })
     entered := make(chan struct{})
     release := make(chan struct{})
     mux := http.NewServeMux()
