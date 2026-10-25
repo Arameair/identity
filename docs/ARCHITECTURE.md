@@ -99,7 +99,7 @@ This is a **logical example**, not a mandatory physical directory or a claim tha
 
 ## Security reality
 
-The present prototype uses an already authenticated GitHub CLI session for read-only verification; this **does not** make Identity an OAuth broker. Local port checks are discovery, **not** authenticated service registration. Loopback and HTTP Origin checks do not create a trusted channel by themselves. See [Security](SECURITY.md), [Interfaces](INTERFACES.md) and [Status](STATUS.md).
+Different experiments use different GitHub approaches: the older local manager checks an existing `gh` CLI session, while the October 25 Go candidate implements a GitHub App device-flow sign-in path. **Neither is proof of Identity-issued feature grants.** Local Processor port checks remain discovery, **not** authenticated registration. Loopback binding and browser session checks do not create a trusted inter-service channel by themselves. See [Security](SECURITY.md), [Interfaces](INTERFACES.md) and [Status](STATUS.md).
 
 ## Sources of direction and unresolved questions
 
