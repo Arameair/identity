@@ -1,6 +1,8 @@
 # Independent design review
 
-**Status:** Open for independent critique. Reviews are proposals until the human owner accepts a decision. Updated 2026-10-24.
+**Status:** Open for independent critique. Reviews are proposals until the human owner accepts a decision. Updated 2026-10-25.
+
+**Accepted interface boundary:** People and administrators work through **Thought Processor**; Identity is the independent authority service behind it. Earlier Identity-first dashboard proposals remain historical review material, not the current UX direction. See [Decision D-08](DECISIONS.md) and [First run](FIRST_RUN.md).
 
 Our architecture is being developed collaboratively with human direction and multiple AI perspectives, **including the opportunity for Grok to disagree**. No AI's proposal becomes policy by being persuasive, repeated or committed as notes.
 
