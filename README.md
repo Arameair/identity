@@ -1,12 +1,12 @@
 # Identity
 
-**A local-first identity and capability foundation for independently running software features.**
+**The identity and authorization service behind Thought Processor's human-facing control interface.**
 
 **Status: active prototype development — not a released identity/security platform.** Updated October 25, 2026. This `main` branch is the **public project and documentation entry point**; executable Go prototypes live on experimental branches.
 
-Identity explores a practical question: **How can separate applications recognize participants, advertise available capabilities, and eventually enforce access decisions without becoming one tightly coupled program?**
+Identity explores a practical question: **How can a person administer a collection of independent features through Thought Processor while Identity supplies durable identities, relationships and permission decisions behind the scenes?**
 
-> **Guiding principle:** Identity organizes who and what belongs to the system, and what each participant is authorized to access. **Each feature owns its own execution, data and logs.**
+> **Human-facing rule:** People and administrators work in **Thought Processor**. **Identity is a service/authority, not the normal user dashboard.** Each feature owns its execution, data and logs. This is the intended architecture, not a completed integration.
 
 [**Try the current prototype**](docs/TRY_THE_PROTOTYPE.md) · [**See what actually works**](docs/STATUS.md) · [**Read the engineering case study**](docs/PROJECT_JOURNEY.md)
 
@@ -22,21 +22,21 @@ A companion, a Thought Processor, a memory feature, and future tools may operate
 
 These are **not interchangeable**. A program answering on a local port does not make it a trusted peer. A GitHub login or visible feature repository does not automatically grant feature access.
 
-Identity is intended to be the system's organizing and trust foundation—not the reasoning engine, a central log collector, a replacement for Memory, or a required process supervisor.
+**Thought Processor is the primary place to look at and manage the system.** It should present identities, accounts, available features, approval flows, connections, states and diagnostics; Identity supplies authoritative data and decisions through a future authenticated integration. Identity is not the normal application a person should browse, nor is it the reasoning engine, Memory or the process supervisor.
 
 ## How the pieces fit
 
 ```mermaid
 flowchart TD
-    P[Person / administrator] --> I[Identity]
-    G[GitHub account] -. "optional account sign-in" .-> I
-    I -. "local read-only discovery in prototype" .-> TP[Thought Processor]
+    U[Person / administrator] --> TP[Thought Processor - primary UI]
+    TP -. "planned authenticated management requests" .-> I[Identity - authority service]
     I -. "planned registration and scoped grants" .-> F[Independent features]
-    TP -. "planned catalog and status" .-> F
-    F --> D[Each feature's own data and execution]
+    TP -. "planned discovery, status and diagnostics" .-> F
+    G[GitHub provider] -. "user-approved account operations via Identity" .-> I
+    F --> D[Feature-owned work and storage]
 ```
 
-**Diagram key:** solid arrows represent conceptual ownership or direct user interaction; dashed arrows include optional integrations and explicitly planned relationships. In the current prototype, Processor detection is **self-reported and unverified**, not authenticated pairing.
+**Diagram key:** The solid arrow is the **intended human entry point**, not a claim that the integrated workflow is already implemented. Dashed arrows are **planned** interactions. The current October 25 candidate instead exposes its own Identity browser interface and detects Processor through an unverified local health endpoint. **That is an experimental implementation gap, not the intended user experience.**
 
 [Identity-first design](docs/IDENTITY_FIRST_MODEL.md) · [System architecture](docs/ARCHITECTURE.md) · [Security boundaries](docs/SECURITY.md)
 
@@ -45,7 +45,7 @@ flowchart TD
 | Area | October 25 position |
 | --- | --- |
 | Core vision and responsibilities | Documented on `main`; open design questions are tracked |
-| Runnable standalone Identity UI | **Go code present in experimental branches**, not on `main` |
+| Human-facing control via Thought Processor | **SELECTED DESIGN; NOT YET INTEGRATED**. Existing Identity-first browser UI is temporary prototype/debug behavior, not the desired product |
 | GitHub device sign-in and feature visibility | Implemented as candidate code; test fixtures and some development observations exist, but the most recent owner-acceptance state is **pending** |
 | Local Thought Processor detection | Candidate has a read-only probe; no authenticated service-pairing contract |
 | Local profile, persistent activity log and Copy Diagnostics | Candidate implementation and prototype test reports; independently verify on the target machine |
@@ -67,7 +67,7 @@ cd identity
 .\identity.exe
 ```
 
-This should start Identity locally and open a browser-based first-run experience. GitHub connection is optional to run the local UI, but required for the candidate's live GitHub-account visibility test. A separate [Thought Processor](https://github.com/Arameair/Thought-Processor) process is only required to test their interaction.
+**Developer test only:** These commands open the **existing experimental Identity interface**. That is useful for testing Identity's implementation but is **not the approved end-user onboarding path**. The intended user opens [Thought Processor](https://github.com/Arameair/Thought-Processor) and interacts there; authenticated management of Identity from Processor is **not implemented**. For a paired investigation, run both processes independently using the [candidate runbook](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md).
 
 **Do not share the private `#key=` opening link, GitHub device codes, authentication tokens or session cookies.** A feature appearing as available is not the same as being granted.
 
