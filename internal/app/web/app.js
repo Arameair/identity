@@ -136,13 +136,13 @@
         ? `Uses <strong>your own GitHub App</strong> (${esc(gh.client_id_hint)}). <button type="button" class="linkish" data-act="/api/github/own-app/remove">Stop using it</button>`
         : gh.client_id_kind === "developer"
           ? `Developer override: ${esc(gh.client_id_source)} (${esc(gh.client_id_hint)}).` : "";
-    const guideLink = `<button type="button" class="linkish" data-guide="open">Use my own GitHub App instead — Identity will walk you through it</button>`;
     let h = "";
     if (gh.mode !== "real") h += `<div class="note bad-note"><strong>TEST FIXTURE MODE.</strong> Identity is talking to a local stand-in for GitHub, not github.com. Nothing here is a real sign-in.</div>`;
     if (gh.status === "not_configured") {
       h += `<div class="note warn-note"><strong>This copy of Identity has no GitHub App built in.</strong>
         <p>Official copies from ${esc(state.publisher.name)} include one, so you'd just press Connect GitHub. With this copy you can set up your own in a few minutes — Identity walks you through each step.</p></div>
         <div class="row"><button class="btn primary" type="button" data-guide="open">Help me set up a GitHub App</button></div>
+        <p class="muted small">(This is a test build. In an official build this step is just a Connect GitHub button.)</p>
         <p class="muted small">Or skip for now: Identity works without GitHub, but feature availability stays UNKNOWN.</p>`;
     } else if (gh.status === "waiting") {
       h += `<p><strong>GitHub opened in a new tab and your code was copied.</strong> There: paste the code (Ctrl+V), press <em>Continue</em>, then <em>Authorize</em>. Identity notices by itself.</p>
@@ -173,7 +173,6 @@
       h += `<div class="row"><button class="btn primary" type="button" id="gh-connect">Connect GitHub</button></div>
         <p class="muted small">Opens GitHub in a new tab. If you're already signed in to GitHub there, you just paste a code and press Authorize. Identity never sees your password.</p>
         <p class="muted small">${appLine}</p>`;
-      if (gh.client_id_kind !== "own") h += `<p class="small">${guideLink}</p>`;
     }
     if (el.dataset.html !== h) { el.innerHTML = h; el.dataset.html = h; }
     $("#gh-next").textContent = gh.status === "verified" ? "Continue" : "Skip for now";
@@ -271,7 +270,10 @@
   function openManage(tab) {
     const d = $("#manage");
     $$("#manage .tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
-    $("#manage-slot").replaceChildren($("#panel-" + tab));
+    // Park the panel currently shown back in storage first; replaceChildren
+    // alone would detach it from the page and lose it on the next tab switch.
+    $$("#manage-slot .panel").forEach((p) => $("#panels").appendChild(p));
+    $("#manage-slot").appendChild($("#panel-" + tab));
     if (!d.open) d.showModal();
   }
   function closeManage() {
@@ -365,7 +367,7 @@
     document.addEventListener("click", (ev) => {
       const t = ev.target.closest("[data-act]");
       if (t) { ev.preventDefault(); act(t.dataset.act, t.dataset.feature ? { feature: t.dataset.feature } : {}); return; }
-      if (ev.target.closest("[data-guide]")) { $("#gh-guide").hidden = false; $("#gh-guide").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      if (ev.target.closest("[data-guide]")) { if ($("#manage").open) openManage("github"); $("#gh-guide").hidden = false; $("#gh-guide").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
       if (ev.target.id === "gh-connect") { connectGitHub(); return; }
       if (ev.target.id === "copy-code") {
         navigator.clipboard.writeText($("#ucode").textContent).then(() => toast("Code copied."), () => toast("Select the code and copy it by hand.", true));

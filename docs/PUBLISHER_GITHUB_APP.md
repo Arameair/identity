@@ -12,10 +12,12 @@ github.com → your avatar → **Settings → Developer settings → GitHub Apps
 | Callback URL | leave empty |
 | **Enable Device Flow** | **ticked** (required) |
 | Webhook → Active | unticked |
-| Repository permissions → Contents | Read-only (Metadata becomes read-only automatically) |
+| Repository permissions | **Only Metadata: Read-only** (GitHub adds it automatically). Leave Contents and everything else at *No access* — Identity today only reads who you are (`/user`), which app installations you can see (`/user/installations`) and whether a repo is visible (`/repos/{owner}/{repo}`), none of which needs Contents. |
 | Where can this GitHub App be installed? | **Any account** if other people (e.g. family, testers) will sign in. "Only on this account" may stop anyone but you from authorizing it. |
 
 Create it, then copy the **Client ID** (starts with `Iv`) from its General page.
+
+> **When Identity starts downloading Engine releases** (see Thought-Processor's install-authority notes), add **Contents: Read-only** then. GitHub will ask each person to approve the added permission the next time they sign in — that's the honest moment to ask for it.
 
 ## 2. Install it on the feature repositories
 On the app page: **Install App → Arameair → Only select repositories → Thought-Processor, Thought-engine**. This is what lets Identity show "repository visible" for people who have access to those repos. It grants nobody access by itself.
