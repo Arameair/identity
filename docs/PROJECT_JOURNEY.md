@@ -11,14 +11,14 @@ Identity is an exploration of a reusable, local-first trust and organization lay
 ## Constraints that shaped the work
 
 - **Independent components:** each feature starts, stops, logs, and retains its own data without a mandatory monolithic controller.
-- **New-machine onboarding:** a person should be able to try Identity on a computer without the author's Project Controller or personal GitHub credentials.
+- **New-machine onboarding:** a person should use **Thought Processor as the primary UI**, with Identity providing the independently running identity/authorization backend. Neither should require the author's Project Controller or personal credentials.
 - **Visible truth:** detected services, self-reported identities, authenticated services and authorized operations must have different status labels.
 - **Security boundaries:** local secrets and device codes must not be placed in GitHub commits, diagnostic copies or ordinary feature logs.
 - **Evidence-driven iteration:** multiple experimental approaches compete, and only the owner explicitly approves promotion from Alpha to Stable/Main.
 
 ## Architecture and decisions
 
-Identity is responsible for **durable identity records, associations, service registration concepts, access decisions and feature-owned storage references**. The Thought Processor is a separate operational interface that can show available features and runtime status. Individual features retain their own processing, logs and storage.
+Identity is responsible for **durable identity records, associations, service registration concepts, access decisions and feature-owned storage references**. **Thought Processor is the intended main application for people and administrators**, providing first-run, account/identity management, feature choices, approval prompts and operational diagnostics. Its future authenticated integration with Identity must request decisions rather than invent grants. Individual features retain their own processing, logs and storage.
 
 The distinction between **identity**, **installation**, **runtime instance**, **account authentication**, **feature availability**, and **permission to execute** is deliberate. A local HTTP response or visible GitHub repository must never silently become an authorization grant.
 
@@ -32,6 +32,8 @@ See [Identity-first model](IDENTITY_FIRST_MODEL.md), [Architecture](ARCHITECTURE
 | Oct 24 — system boundary | Identity-first startup, independent features, organized but feature-owned storage, proposed grants and registration | Architecture and acceptance documents; much of the contract remains **design only** |
 | Oct 25 — Prototype B | Standalone Go application, local monitor/logging, mocked GitHub device flow, read-only Processor detection, process independence | Developer Linux runtime and fixture testing documented in [Prototype B evidence](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md); owner Windows and real GitHub results were outstanding in that report |
 | Oct 25 — Alpha candidate | [`alpha-candidate-20261025`](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) adds a publisher-app configuration, diagnostic visibility and fixes for sign-in polling, stale codes, UI state and port conflicts | Fixes are **documented by the candidate**, not independently verified here; owner acceptance and promotion remain pending |
+
+**Design correction (Oct 25):** Early prototypes inverted the presentation boundary: users were asked to open Identity and detect Thought Processor. The intended product is the opposite: **open Processor and work through it; Identity serves verified authority data behind the UI**. The old wizard remains a legitimate backend diagnostic experiment, but is not the desired final onboarding design.
 
 The core recent testing challenge is not simply to make two pages render. It is to demonstrate that **two actual programs can communicate without confusing discovery with trust, leaking credentials, or taking control of one another's lifecycle**.
 
@@ -56,9 +58,9 @@ These describe the **work evidenced by the repositories**, not a claim of produc
 
 ## Gaps and next acceptance point
 
-**Not delivered as a verified service:** authenticated Identity-to-Processor pairing, durable permission issuance and receiving-service enforcement, secure administrator recovery, user feature-request submission, and a published general release. The `main` branch contains documentation only; its design narrative must not be mistaken for executable capability.
+**Not delivered as a verified service:** **Processor-led Identity setup and administration**, authenticated Identity-to-Processor pairing, durable permission issuance and receiving-service enforcement, secure administrator recovery, user feature-request submission, and a published general release. The `main` branch contains documentation only; its design narrative must not be mistaken for executable capability.
 
-The next useful milestone is a **real clean Windows install** on a separate user profile: build from the candidate, complete/decline real GitHub device sign-in, run Processor alongside it, verify both stop/restart independently, capture redacted diagnostics and record the owner's pass/fail decision. Only after evidence and explicit approval should executable code be promoted.
+The next useful milestone is a **real clean Windows paired trial** on a separate user profile: open **Thought Processor** as the first human-facing application, connect to an independently running Identity backend with correctly labelled unverified versus authenticated states, and demonstrate status, stop/restart, and safe diagnostics. The existing Identity-owned GitHub wizard may be separately tested as a subsystem, but **must not be presented as final user onboarding**. Permission changes require a future authenticated request/enforcement protocol and explicit owner acceptance. Only after evidence and explicit approval should executable code be promoted.
 
 ## Authorship and scope
 
