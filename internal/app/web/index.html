@@ -78,7 +78,7 @@
       </div>
       <div class="step" data-step="2">
         <h1>Features</h1>
-        <p class="lead">Each state below comes from real evidence. Where there is no evidence, it says so.</p>
+        <p class="lead">Each state below comes from real evidence. Where there is no evidence, it says so. Continue does not submit drafts or grant access.</p>
         <div class="slot" data-panel="features"></div>
         <div class="nav"><button class="btn ghost" data-go="1" type="button">Back</button><button class="btn primary" data-go="3" type="button">Continue</button></div>
       </div>
@@ -122,7 +122,7 @@
       <p class="muted small">Only needed if this copy of Identity has no publisher app built in, or you're testing. It's free, and Identity never needs a password or a client secret.</p>
       <ol class="guide">
         <li><strong>Open GitHub's "Register new GitHub App" page.</strong> The name, homepage and the one permission it needs are filled in for you.
-          <div class="row"><a class="btn primary" id="guide-open" target="_blank" rel="noopener noreferrer" href="https://github.com/settings/apps/new?name=Identity%20sign-in&amp;description=Sign-in%20for%20Arameair%20Identity%20(device%20flow)&amp;url=https%3A%2F%2Fgithub.com%2FArameair%2Fidentity&amp;public=false&amp;webhook_active=false&amp;metadata=read">Open GitHub ↗</a></div>
+          <div class="row"><a class="btn primary" id="guide-open" target="_blank" rel="noopener noreferrer" href="https://github.com/settings/apps/new?name=Identity%20sign-in%20YOUR-USERNAME&amp;description=Sign-in%20for%20Arameair%20Identity%20(device%20flow)&amp;url=https%3A%2F%2Fgithub.com%2FArameair%2Fidentity&amp;public=false&amp;webhook_active=false&amp;metadata=read">Open GitHub ↗</a></div>
           <div class="muted small">If GitHub asks you to sign in first, do that — the page comes back afterwards.</div></li>
         <li><strong>On that page, check these settings:</strong>
           <ul>
@@ -131,7 +131,7 @@
             <li><strong><em>Enable Device Flow</em> — tick this box.</strong> Sign-in won't work without it.</li>
             <li><em>Webhook → Active</em> — untick.</li>
             <li><em>Repository permissions</em> — leave everything at <em>No access</em> except <em>Metadata: Read-only</em> (GitHub sets that one automatically). Identity only needs to know who you are and which repositories you can see.</li>
-            <li><em>Where can this GitHub App be installed?</em> — Only on this account.</li>
+            <li><em>Where can this GitHub App be installed?</em> — Any account (so other people can connect).</li>
           </ul></li>
         <li><strong>Click "Create GitHub App".</strong> On the page that opens, find <strong>Client ID</strong> (it starts with <code>Iv</code>) and copy it. Ignore "Generate a new client secret" — it isn't needed.</li>
         <li><strong>Paste the Client ID here:</strong>
