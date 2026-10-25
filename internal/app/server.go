@@ -24,7 +24,10 @@ var webFS embed.FS
 
 type ctxKey int
 
-const reqIDKey ctxKey = 1
+const (
+	reqIDKey  ctxKey = 1
+	clientKey ctxKey = 2
+)
 
 func reqID(r *http.Request) string {
 	if v, ok := r.Context().Value(reqIDKey).(string); ok {
@@ -55,6 +58,8 @@ const (
 	bootstrap
 	private
 	mutate
+	machine // program-to-program: no browser Origin allowed, JSON, no session
+	paired  // machine + valid pairing bearer token
 )
 
 // Handler returns the full HTTP handler with host, origin, session and CSRF checks.
@@ -169,6 +174,7 @@ func (a *App) Handler() http.Handler {
 	}))
 	m.HandleFunc("POST /api/drafts", a.wrap(mutate, a.handleDraft))
 	m.HandleFunc("POST /api/drafts/withdraw", a.wrap(mutate, a.handleWithdraw))
+	a.engineRoutes(m)
 	m.HandleFunc("POST /api/shutdown", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
 		a.Log.Info("lifecycle", "identity.stop_requested", reqID(r), "stopping", "Stop Identity pressed", nil)
 		writeJSON(w, 200, map[string]string{"stopping": "identity only"})
@@ -203,6 +209,24 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
 		if level == public {
+			h(w, r)
+			return
+		}
+		if level == machine || level == paired {
+			// These routes are for Thought Processor (a program), never for a web page.
+			if r.Header.Get("Origin") != "" {
+				a.fail(w, r, 403, "pairing", "pairing.browser_refused", "this endpoint is for a paired program, not a web page")
+				return
+			}
+			if level == paired {
+				tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+				c, ok := a.Pair.Authenticate(tok)
+				if !ok {
+					a.fail(w, r, 401, "pairing", "pairing.token_refused", "this program is not paired with this Identity (or the pairing was removed)")
+					return
+				}
+				r = r.WithContext(context.WithValue(r.Context(), clientKey, c))
+			}
 			h(w, r)
 			return
 		}
@@ -387,6 +411,8 @@ func (a *App) State() map[string]any {
 			"profile_path": profile.DisplayPath(a.Store.Root), "system_id": a.Store.Profile.SystemID,
 			"profile_created_at": a.Store.Profile.CreatedAt, "status": "RUNNING",
 		},
+		"pairing":         a.pairingState(),
+		"engine_access":   a.LastAccess(),
 		"publisher":       map[string]string{"name": Publisher, "evidence": "name embedded in this experimental build — not a signed release"},
 		"setup":           map[string]any{"completed": set.SetupCompletedAt != nil, "completed_at": set.SetupCompletedAt},
 		"github":          gv,

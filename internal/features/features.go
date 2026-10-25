@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,7 @@ type Feature struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Repo        string `json:"repo"`
+	InstallRule bool   `json:"install_rule"` // installable through Processor under an access rule
 }
 
 // Catalog is embedded in this experimental build. It is not a signed
@@ -33,8 +35,8 @@ type Feature struct {
 var Catalog = []Feature{
 	{ID: "thought-processor", Name: "Thought Processor", Repo: "Arameair/Thought-Processor",
 		Description: "Connection and diagnostic workspace: shows services, their truthful state, logs and flow."},
-	{ID: "thought-engine", Name: "Thought Engine", Repo: "Arameair/Thought-engine",
-		Description: "Spark → Trace → Thought processing. Needs an Identity-granted observation permission that does not exist yet."},
+	{ID: "thought-engine", Name: "Thought Engine", Repo: "Arameair/Thought-engine", InstallRule: true,
+		Description: "Spark → Trace → Thought processing. Thought Processor can install it if your Identity allows it."},
 }
 
 func Repos() []string {
@@ -56,14 +58,18 @@ func Find(id string) (Feature, bool) {
 
 // State labels, shown verbatim in the UI and diagnostics.
 const (
-	AvailVisible  = "AVAILABLE — repository visible to your verified account (not an entitlement)"
-	AvailHidden   = "UNAVAILABLE — GitHub does not show this repository to your account"
-	AvailUnknown  = "UNKNOWN — sign in to GitHub to check"
-	AvailFailed   = "UNKNOWN — GitHub check failed"
-	ReqNone       = "NOT REQUESTED"
-	ReqDraft      = "DRAFT SAVED LOCALLY — NOT SUBMITTED"
-	GrantNone     = "NOT GRANTED — no publisher grant service exists yet"
-	DraftDelivery = "NOT SUBMITTED — no publisher submission service exists; nothing was sent to anyone"
+	AvailVisible = "AVAILABLE — repository visible to your verified account"
+	AvailHidden  = "UNAVAILABLE — GitHub does not show this repository to your account"
+	AvailUnknown = "UNKNOWN — sign in to GitHub to check"
+	AvailFailed  = "UNKNOWN — GitHub check failed"
+	ReqNone      = "NOT REQUESTED"
+	ReqDraft     = "DRAFT SAVED LOCALLY — NOT SUBMITTED"
+	GrantNone    = "NOT GRANTED — no publisher grant service exists yet"
+	// InstallAllowed applies only to features with an install rule (Thought
+	// Engine, rule repo-visibility-v0 approved by the owner 2026-10-25).
+	InstallAllowed = "INSTALL ALLOWED — rule repo-visibility-v0: your account can see the repository (interim rule, not a publisher grant)"
+	InstallDenied  = "NOT ALLOWED — rule repo-visibility-v0: your account can't see the repository"
+	DraftDelivery  = "NOT SUBMITTED — no publisher submission service exists; nothing was sent to anyone"
 )
 
 type Draft struct {
@@ -199,6 +205,7 @@ type Card struct {
 	Request      string     `json:"request"`
 	RequestKind  string     `json:"request_kind"` // not_requested | draft
 	Grant        string     `json:"grant"`
+	NextStep     string     `json:"next_step,omitempty"`
 	Draft        *Draft     `json:"draft,omitempty"`
 	CheckedAt    *time.Time `json:"checked_at,omitempty"`
 }
@@ -211,13 +218,27 @@ func (s *Store) Cards(gv github.View) []Card {
 			if rc, ok := gv.RepoVisible(f.Repo); ok {
 				t := rc.CheckedAt
 				c.CheckedAt = &t
+				owner := strings.SplitN(f.Repo, "/", 2)[0]
 				switch rc.Result {
 				case "VISIBLE":
 					c.Availability, c.AvailKind = AvailVisible, "available"
+					if f.InstallRule {
+						c.Grant = InstallAllowed
+						c.NextStep = "Install it from Thought Processor (pair Processor with Identity first)."
+					}
 				case "NOT VISIBLE":
 					c.Availability, c.AvailKind = AvailHidden, "unavailable"
+					if f.InstallRule {
+						c.Grant = InstallDenied
+					}
+					if strings.EqualFold(gv.Account.Login, owner) {
+						c.NextStep = "You own this repository: install Identity's GitHub App on it (GitHub → the app → Install App → Configure → add " + strings.SplitN(f.Repo, "/", 2)[1] + "), then press Check again."
+					} else {
+						c.NextStep = "Ask " + owner + " to give " + gv.Account.Login + " access to " + f.Repo + "."
+					}
 				default:
 					c.Availability = AvailFailed
+					c.NextStep = "Press Check again on the GitHub step; if it repeats, Copy Diagnostics."
 				}
 			}
 			if d := s.For(f.ID, gv.Account.ID, gv.Mode); d != nil {

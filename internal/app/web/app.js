@@ -105,7 +105,7 @@
     else setChip("#chip-github", "", s.last_account ? "NOT SIGNED IN · last " + s.last_account.login : "NOT SIGNED IN");
 
     const pcls = p.state.startsWith("DETECTED") ? (p.freshness === "STALE" ? "warn" : "info") : p.state === "NOT CONFIGURED" || p.state === "NOT CHECKED YET" ? "" : p.state === "WRONG SERVICE" ? "bad" : "warn";
-    const plabel = p.state.startsWith("DETECTED") ? "DETECTED · UNVERIFIED" : p.state;
+    const plabel = p.state.startsWith("DETECTED") ? (s.pairing.clients.length ? "DETECTED · PAIRED" : "DETECTED · NOT PAIRED") : p.state;
     setChip("#chip-processor", pcls, plabel + (p.freshness === "STALE" ? " · STALE" : ""), (p.address || "no address") + " — " + (p.note || ""));
     const open = $("#open-tp");
     if (p.open_url && p.freshness === "CURRENT") { open.href = p.open_url; open.hidden = false; open.title = "Opens Thought Processor's own page. It will ask for its own operator code — Identity does not sign you in."; }
@@ -145,12 +145,13 @@
         <p class="muted small">(This is a test build. In an official build this step is just a Connect GitHub button.)</p>
         <p class="muted small">Or skip for now: Identity works without GitHub, but feature availability stays UNKNOWN.</p>`;
     } else if (gh.status === "waiting") {
-      h += `<p><strong>GitHub opened in a new tab and your code was copied.</strong> There: paste the code (Ctrl+V), press <em>Continue</em>, then <em>Authorize</em>. Identity notices by itself.</p>
+      const waited = gh.waiting_since ? (Date.now() - new Date(gh.waiting_since)) / 1000 : 0;
+      h += `<p><strong>GitHub opened in a new tab and your code was copied.</strong> There, GitHub may first ask you to <em>pick your account</em>. Then paste the code (Ctrl+V), press <em>Continue</em>, then <em>Authorize</em>. Identity notices by itself.</p>
         <div class="code-box"><span class="code" id="ucode">${esc(gh.user_code)}</span>
         <button class="btn" type="button" id="copy-code">Copy code</button>
         <a class="btn primary" id="gh-open" href="${esc(gh.verify_url)}" target="_blank" rel="noopener noreferrer">Open ${esc(new URL(gh.verify_url).host)} again ↗</a></div>
-        <p class="small"><strong>${gh.last_checked_at ? "Last checked with GitHub " + esc(ago(gh.last_checked_at)) : "Checking with GitHub every few seconds"}</strong>${gh.poll_note ? " — " + esc(gh.poll_note) : ""}</p>
-        <p class="muted small">GitHub said "all set" but this didn't change within ~10 seconds? Then GitHub approved a different (older) code. Open GitHub again and enter the code shown here.</p>
+        <p class="small"><strong>${waited < 20 || !gh.last_checked_at ? "Checking with GitHub…" : "Last checked with GitHub " + esc(ago(gh.last_checked_at))}</strong>${waited >= 20 && gh.poll_note ? " — " + esc(gh.poll_note) : ""}</p>
+        ${waited >= 60 ? `<div class="note warn-note"><strong>Still waiting.</strong> If the GitHub tab showed a red banner — for example <em>"This account is flagged, and therefore cannot authorize a third party application"</em> — GitHub refused this account. Identity can't see that banner, so check the GitHub tab. Otherwise: if GitHub said "all set" but this didn't change, it approved a different (older) code — enter the code shown here.</div>` : ""}
         <p class="muted small">No new tab? Your browser blocked it — use the button above. The code expires ${gh.expires_at ? "at " + esc(fmtTime(gh.expires_at)) : "soon"} and is never written to Identity's log or diagnostics.</p>
         <div class="row"><button class="btn ghost" type="button" data-act="/api/github/cancel">Cancel sign-in</button></div>`;
     } else if (gh.status === "verified" && gh.account) {
@@ -161,7 +162,7 @@
         <dt>GitHub App</dt><dd>${appLine}</dd></dl>`;
       if (pub) {
         h += `<h3>Publisher information from GitHub</h3><dl class="account"><dt>Publisher (build label)</dt><dd>${esc(state.publisher.name)} — ${esc(state.publisher.evidence)}</dd>
-          <dt>App installations you can see</dt><dd>${esc(pub.installations_result)}${pub.installations_detail ? " — " + esc(pub.installations_detail) : ""}</dd>`;
+          <dt>App installations you can see</dt><dd>${esc(pub.installations_result)}${pub.installations_detail ? " — " + esc(pub.installations_detail) : ""}${pub.installations_result === "READ" && !pub.installations.length ? `<br><span class="small"><strong>What to do:</strong> nothing for normal use. Repository checks still work for public repositories; ${esc(state.publisher.name)} installs the app on its private repositories.</span>` : ""}</dd>`;
         for (const i of pub.installations) h += `<dt></dt><dd><code>${esc(i.app_slug)}</code> on <strong>${esc(i.account)}</strong> · installation ${esc(i.id)} · ${esc(i.repository_selection)} repositories</dd>`;
         for (const r of pub.repos) h += `<dt>${esc(r.repo)}</dt><dd>${tagFor(r.result)} <span class="muted small">checked ${esc(ago(r.checked_at))}</span></dd>`;
         h += `</dl><p class="muted small">Seeing a repository is <strong>not</strong> permission to use the feature. No publisher approval exists yet.</p>`;
@@ -171,7 +172,11 @@
       if (gh.message) h += `<div class="note ${gh.status === "error" ? "bad-note" : "warn-note"}">${esc(gh.message)}</div>`;
       if (state.last_account) h += `<p class="muted">Last verified account on this profile: <strong>${esc(state.last_account.login)}</strong> (${esc(state.last_account.mode)}, ${esc(fmtTime(state.last_account.verified_at))}). That is history — you are not signed in now.</p>`;
       h += `<div class="row"><button class="btn primary" type="button" id="gh-connect">Connect GitHub</button></div>
-        <p class="muted small">Opens GitHub in a new tab. If you're already signed in to GitHub there, you just paste a code and press Authorize. Identity never sees your password.</p>
+        <p class="muted small">Opens GitHub in a new tab. GitHub may ask you to pick your account; then paste the code (already copied) and press Authorize. Identity never sees your password.</p>
+        <details class="legend"><summary>What GitHub's page will say, and what it means</summary><dl>
+          <dt>"Act on your behalf"</dt><dd>GitHub's standard wording for every app sign-in. Identity only reads who you are, which of the app's installations you can see, and whether certain repositories are visible to you. It can't change anything.</dd>
+          <dt>"Not owned or operated by GitHub"</dt><dd>True of every app made by someone other than GitHub — here, ${esc(state.publisher.name)}.</dd>
+          <dt>"Fewer than 10 users"</dt><dd>Normal for a new app.</dd></dl></details>
         <p class="muted small">${appLine}</p>`;
     }
     if (el.dataset.html !== h) { el.innerHTML = h; el.dataset.html = h; }
@@ -217,7 +222,8 @@
       h += `<div class="card"><div class="t">${esc(f.name)}</div><div class="d">${esc(f.description)}</div>
         <dl class="states"><dt>Availability</dt><dd><span class="tag ${av}">${esc(f.availability)}</span></dd>
         <dt>Request</dt><dd><span class="tag ${rq}">${esc(f.request)}</span>${f.draft ? ` <span class="muted small">saved ${esc(fmtTime(f.draft.created_at))}</span>` : ""}</dd>
-        <dt>Grant</dt><dd><span class="tag">${esc(f.grant)}</span></dd>${extra}</dl>
+        <dt>Grant</dt><dd><span class="tag ${f.grant.startsWith("INSTALL ALLOWED") ? "ok" : ""}">${esc(f.grant)}</span></dd>${extra}</dl>
+        ${f.next_step ? `<p class="small"><strong>What to do:</strong> ${esc(f.next_step)}</p>` : ""}
         <div class="row">${btn}</div></div>`;
     }
     h += `</div>`;
@@ -229,7 +235,7 @@
   }
 
   function renderProcessor() {
-    const p = state.processor;
+    const p = state.processor, pr = state.pairing;
     const inp = $("#tp-addr");
     if (document.activeElement !== inp && !inp.dataset.touched) inp.value = p.address || "127.0.0.1:7860";
     const cls = p.state.startsWith("DETECTED") ? "info-note" : p.state === "WRONG SERVICE" ? "bad-note" : p.state === "NOT CONFIGURED" || p.state === "NOT CHECKED YET" ? "note" : "warn-note";
@@ -237,8 +243,26 @@
     if (p.checked_at) {
       h += `<dl class="account"><dt>Address</dt><dd>${esc(p.address)}</dd><dt>Last checked</dt><dd>${esc(fmtTime(p.checked_at))} (${esc(p.elapsed_ms)} ms)</dd>`;
       if (p.claimed_app) h += `<dt>It says it is</dt><dd>${esc(p.claimed_app)} ${esc(p.claimed_version)} · ${esc(p.claimed_protocol)} <span class="tag warn">SELF-REPORTED</span></dd>`;
-      h += `<dt>Authentication</dt><dd>none — no Identity↔Processor contract exists yet</dd></dl>`;
+      h += `<dt>Authentication</dt><dd>${pr.clients.length ? "paired (a Processor holds a pairing token)" : "none yet — pair it below"}</dd></dl>`;
     }
+    if (p.state.startsWith("DETECTED") && !pr.clients.length) h += `<p class="small"><strong>What to do:</strong> pair it, so Processor can ask Identity whether you may install Thought Engine.</p>`;
+    h += `<h3>Pairing with Thought Processor</h3>`;
+    if (pr.load_error) h += `<div class="note bad-note">${esc(pr.load_error)}</div>`;
+    if (pr.pending_code) {
+      const left = Math.max(0, Math.round((new Date(pr.expires_at) - Date.now()) / 1000));
+      h += `<div class="code-box"><span class="code">${esc(pr.pending_code)}</span><span class="small">Type this into Thought Processor's <em>Pair with Identity</em> box. Valid ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} more, once.</span>
+        <button class="btn ghost" type="button" data-act="/api/pairing/cancel">Cancel</button></div>`;
+    } else {
+      h += `<div class="row"><button class="btn ${pr.clients.length ? "ghost" : "primary"}" type="button" data-act="/api/pairing/code">${pr.clients.length ? "Pair another Processor" : "Pair Thought Processor"}</button></div>
+        <p class="muted small">Shows a one-time code here. Pairing lets Processor ask "may this person install Thought Engine?" — Identity answers from your GitHub sign-in. The code is never logged.</p>`;
+    }
+    for (const c of pr.clients) h += `<dl class="account"><dt>Paired</dt><dd><strong>${esc(c.label || c.processor_id)}</strong> <span class="muted small">${esc(c.processor_id)}</span></dd><dt>Since</dt><dd>${esc(fmtTime(c.paired_at))}${c.last_used ? " · last asked " + esc(ago(c.last_used)) : ""}</dd>
+      <dt></dt><dd><button class="btn ghost" type="button" data-act="/api/pairing/unpair" data-processor="${esc(c.processor_id)}">Unpair</button></dd></dl>`;
+    const d = state.engine_access;
+    h += `<h3>Thought Engine install access</h3>`;
+    if (d) h += `<div class="note ${d.allowed ? "ok-note" : d.state === "CHECK_FAILED" ? "warn-note" : "warn-note"}"><strong>${esc(d.state)}</strong> <span class="muted small">rule ${esc(d.rule)} · ${esc(ago(d.checked_at))}</span><p>${esc(d.reason)}</p><p class="small"><strong>What to do:</strong> ${esc(d.next_step)}</p></div>`;
+    else h += `<p class="muted small">Not checked yet. Processor asks automatically once paired.</p>`;
+    h += `<div class="row"><button class="btn ghost" type="button" data-act="/api/access/check">Check access now</button></div>`;
     if (p.open_url && p.freshness === "CURRENT") h += `<div class="row"><a class="btn primary" id="open-tp-2" href="${esc(p.open_url)}" target="_blank" rel="noopener noreferrer">Open Thought Processor ↗</a></div>
       <p class="muted small">Opens Processor's own page. Processor will ask for <em>its</em> operator code (shown in Processor's console window). Identity never reads or sends that code.</p>`;
     h += `<p class="muted small">Identity re-checks every 10 seconds and logs only changes. Closing either program never stops the other.</p>`;
@@ -366,7 +390,7 @@
     // Delegated buttons inside re-rendered panels.
     document.addEventListener("click", (ev) => {
       const t = ev.target.closest("[data-act]");
-      if (t) { ev.preventDefault(); act(t.dataset.act, t.dataset.feature ? { feature: t.dataset.feature } : {}); return; }
+      if (t) { ev.preventDefault(); act(t.dataset.act, t.dataset.feature ? { feature: t.dataset.feature } : t.dataset.processor ? { processor_id: t.dataset.processor } : {}); return; }
       if (ev.target.closest("[data-guide]")) { if ($("#manage").open) openManage("github"); $("#gh-guide").hidden = false; $("#gh-guide").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
       if (ev.target.id === "gh-connect") { connectGitHub(); return; }
       if (ev.target.id === "copy-code") {

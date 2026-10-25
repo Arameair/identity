@@ -112,6 +112,7 @@ type View struct {
 	Message        string     `json:"message,omitempty"`
 	LastCheckedAt  *time.Time `json:"last_checked_at,omitempty"` // while waiting: last poll of GitHub
 	PollNote       string     `json:"poll_note,omitempty"`
+	WaitingSince   *time.Time `json:"waiting_since,omitempty"`
 }
 
 // EventFunc receives sign-in state changes. Details never contain secrets.
@@ -139,6 +140,7 @@ type Client struct {
 	pollNote    string    // what GitHub (or the network) last said while waiting
 	pollFails   int
 	pollAnswer  string // last distinct answer, logged on change
+	waitSince   time.Time
 }
 
 func New(cfg Config, featureRepos []string, onEvent EventFunc) *Client {
@@ -173,6 +175,8 @@ func (c *Client) View() View {
 			v.LastCheckedAt = &lp
 		}
 		v.PollNote = c.pollNote
+		ws := c.waitSince
+		v.WaitingSince = &ws
 	}
 	if c.status == Verified {
 		if c.account != nil {
@@ -307,6 +311,7 @@ func (c *Client) Start() error {
 	}
 	c.status, c.userCode, c.deviceCode, c.verifyURL, c.message = Waiting, dc.UserCode, dc.DeviceCode, dc.VerificationURI, ""
 	c.lastPoll, c.pollNote, c.pollFails, c.pollAnswer = time.Time{}, "", 0, ""
+	c.waitSince = time.Now().UTC()
 	c.expires = time.Now().Add(time.Duration(dc.ExpiresIn) * time.Second)
 	c.cancel = pcancel
 	c.mu.Unlock()

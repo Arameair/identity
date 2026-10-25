@@ -91,6 +91,33 @@ func (a *App) Diagnostics(requestID string) string {
 	p("note=%s", pr.Note)
 	p("authentication=NONE (no Identity↔Processor contract exists); Identity never reads Processor's operator code")
 	p("")
+	p("[pairing and engine access]")
+	if e := a.Pair.LoadError(); e != "" {
+		p("pairing_error=%s", e)
+	}
+	clients := a.Pair.Clients()
+	p("paired_processors=%d", len(clients))
+	for _, c := range clients {
+		lu := "never"
+		if !c.LastUsed.IsZero() {
+			lu = c.LastUsed.Format(time.RFC3339)
+		}
+		p("  %s label=%q paired=%s last_used=%s", c.ProcessorID, c.Label, c.PairedAt.Format(time.RFC3339), lu)
+	}
+	if code, _ := a.Pair.Pending(); code != "" {
+		p("pairing_code=WAITING (value not shown)")
+	}
+	if d := a.LastAccess(); d != nil {
+		login := "-"
+		if d.Account != nil {
+			login = d.Account.Login
+		}
+		p("last_engine_access=%s rule=%s account=%s decision=%s checked=%s hint=%s", d.State, d.Rule, login, d.DecisionID, d.CheckedAt.Format(time.RFC3339), orDash(d.Hint))
+		p("  reason=%s", d.Reason)
+	} else {
+		p("last_engine_access=NOT CHECKED YET")
+	}
+	p("")
 	p("[features — states only from evidence]")
 	for _, c := range a.Feats.Cards(gv) {
 		p("%s (%s): availability=%s | request=%s | grant=%s", c.Name, c.Repo, c.Availability, c.Request, c.Grant)

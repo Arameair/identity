@@ -20,6 +20,7 @@ import (
 	"github.com/Arameair/identity/internal/features"
 	"github.com/Arameair/identity/internal/github"
 	"github.com/Arameair/identity/internal/logbook"
+	"github.com/Arameair/identity/internal/pairing"
 	"github.com/Arameair/identity/internal/profile"
 	"github.com/Arameair/identity/internal/publisher"
 	"github.com/Arameair/identity/internal/redact"
@@ -37,8 +38,8 @@ const (
 var NotImplemented = []string{
 	"Publisher access-request submission service (drafts stay local, NOT SUBMITTED)",
 	"Publisher approval / feature grants (nothing is ever shown as GRANTED)",
-	"Verified install or start of features",
-	"Authenticated Identity↔Processor contract (Processor is only DETECTED, self-reported)",
+	"Starting, attaching to or stopping the Thought Engine (install only)",
+	"Signed releases / signed decisions (checksums + pairing HMAC only)",
 	"Thought Engine observation grants and receiver-side enforcement",
 	"Persistent GitHub sign-in (the token is memory-only; restart = sign in again)",
 	"Signed release / signed publisher catalog",
@@ -95,6 +96,8 @@ type App struct {
 	Log      *logbook.Book
 	GH       *github.Client
 	Feats    *features.Store
+	Pair     *pairing.Store
+	access   accessCache
 	Watch    *discovery.Watcher
 	Sess     *Sessions
 	Build    BuildInfo
@@ -123,6 +126,7 @@ func New(opt Options) (*App, error) {
 
 	a.GH = github.New(opt.GitHub, features.Repos(), a.onGitHubEvent)
 	a.Feats = features.Open(st.Root)
+	a.Pair = pairing.Open(st.Root)
 
 	addr := st.Settings().ProcessorAddress
 	if opt.ProcessorAddr != "" {

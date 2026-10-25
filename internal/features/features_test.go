@@ -69,11 +69,14 @@ func TestCardsNeverClaimGrant(t *testing.T) {
 	}}}
 	s.Save("thought-processor", acct, "TEST FIXTURE", "idn_x")
 	cards := s.Cards(gv)
+	if cards[1].Grant != InstallDenied || cards[0].Grant != GrantNone {
+		t.Fatalf("install rule grant: %+v", cards)
+	}
 	if cards[0].AvailKind != "available" || cards[0].RequestKind != "draft" || cards[1].AvailKind != "unavailable" || cards[1].RequestKind != "not_requested" {
 		t.Fatalf("%+v", cards)
 	}
 	for _, c := range append(cards, s.Cards(github.View{Status: github.SignedOut})...) {
-		if c.Grant != GrantNone || strings.Contains(c.Request, "SUBMITTED") && !strings.Contains(c.Request, "NOT SUBMITTED") {
+		if (c.Grant != GrantNone && c.Grant != InstallAllowed && c.Grant != InstallDenied) || strings.Contains(c.Request, "SUBMITTED") && !strings.Contains(c.Request, "NOT SUBMITTED") {
 			t.Fatalf("card claims more than evidence: %+v", c)
 		}
 	}
