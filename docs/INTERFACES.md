@@ -2,6 +2,12 @@
 
 **This document defines questions and proposed contracts, not APIs that are currently implemented.** The experimental Go app has its own limited local HTTP endpoints. Do not assume other repositories accept the messages described here.
 
+## Human-facing management boundary (planned)
+
+**Thought Processor is the sole normal user/administrator interface.** Identity must expose authenticated, scope-checked service operations that Processor can use to **show** trusted identity and account state, **request** administrative decisions, and **display** the confirmed outcome. Processor should not own a second source of truth for identities/grants, and Identity should not require a separate dashboard for everyday setup or feature management. All flows need traceable request IDs, explicit actor authority, safe consent handling and clear unavailable/denied states.
+
+This integration is **not implemented** in the October 25 candidate. The candidate's direct Identity wizard and unauthenticated health detection are developer tests, not Processor-to-Identity management calls. The first milestone should prove a minimally authenticated **read-only status** request before any account or grant mutation.
+
 ## Identity cards
 
 An authoritative identity card should provide a stable entity ID, type, display name, creation time, schema version and explicit references to its administrator/installation, repositories and enabled features. Its ID must not change when a name, software branch or local port changes.
@@ -31,7 +37,7 @@ Independent services should be able to start first and **request enrollment or r
 
 A future registration interface must **authenticate the caller or require first-time enrollment approval**. A self-reported name/ID, local port or filesystem path is not proof. Identity may record an unverified discovery result, but it must not issue feature-to-feature permissions solely from that result.
 
-Thought Processor is the independent **discovery, connection and diagnostics surface**. It queries authorized Identity service records and shows actual application instances. It does not issue its own canonical IDs or become a mandatory router of source data. After scoped authorization, source and destination features communicate **directly**, and the receiving service enforces access.
+Thought Processor is the primary **person/administrator UI** and the independent **discovery, connection and diagnostics surface**. It queries authorized Identity service records and shows actual application instances. It does not issue its own canonical IDs or become a mandatory router of source data. After scoped authorization, source and destination features communicate **directly**, and the receiving service enforces access.
 
 **Operational states:** `unknown` / `discovered-unverified` / `registered` / `running` / `authenticated` / `authorized` / `ready` must not be collapsed into a single "connected" state. Grant revocation, renewal and Identity-unavailable behavior need explicit, measured semantics.
 
