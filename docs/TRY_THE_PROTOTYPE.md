@@ -1,6 +1,8 @@
-# Try the current Identity prototype
+# Developer subsystem trial — current Identity candidate
 
-**Last reviewed:** 2026-10-25 · **Audience:** testers and first-time contributors · **Status:** experimental, not a release.
+**Last reviewed:** 2026-10-25 · **Audience:** developers and integration testers · **Status:** experimental, not a release.
+
+> **Do not treat this as the final end-user install guide.** The owner has specified that the **person/administrator interacts through Thought Processor**, while Identity is its independent backend authority. The candidate currently opens an **Identity-owned** browser wizard and looks for Processor in the opposite direction. This guide preserves a truthful way to test the existing code while that UX/integration mismatch is unresolved. [Intended first-run design](FIRST_RUN.md).
 
 The default `main` branch contains project documentation, not an application to launch. To run Identity, explicitly check out an **experimental branch**. The currently documented test candidate is [`alpha-candidate-20261025`](https://github.com/Arameair/identity/tree/alpha-candidate-20261025). It has not been promoted or certified for general use.
 
@@ -20,7 +22,7 @@ git --version
 go version
 ```
 
-## 2. Build and start Identity by itself
+## 2. Build and start Identity as a subsystem test
 
 ```powershell
 cd $HOME
@@ -34,7 +36,7 @@ The script runs `go vet ./...`, `go test ./...`, and a Windows build. Identity u
 
 If your PowerShell execution policy blocks the script, use the candidate's [runbook](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md) for the direct `go` commands rather than weakening system policy unnecessarily.
 
-**Expected first-run journey:** welcome; optional GitHub sign-in; feature availability; optional Processor address; monitor with live log and **Copy Diagnostics**. A fresh standalone Identity may report Processor as offline. That is expected if Processor is not running.
+**What this experimental code actually does:** Its own browser opens welcome; optional GitHub sign-in; feature availability; Processor address; monitor with live log and **Copy Diagnostics**. A fresh standalone Identity may report Processor as offline. **This is a developer diagnostic/prototype UI, not the approved place for a person's normal interactions.**
 
 ### GitHub account connection
 
@@ -44,9 +46,9 @@ The candidate says its publisher GitHub App's **public Client ID** is built into
 - A local feature request is a draft marked **NOT SUBMITTED**, not an actual request sent or approved.
 - If the flow stalls, record the on-screen state and redacted diagnostics; do not post device codes, tokens, sign-in URLs containing private fragments, or cookies.
 
-## 3. Optional: run alongside Thought Processor
+## 3. Paired integration test with Thought Processor
 
-For the paired trial, the candidate's [AGENTS.md](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md) supplies exact commands for its matching Processor candidate. Follow that tested *plan* rather than assuming any Processor branch is interchangeable.
+For the paired trial, the candidate's [AGENTS.md](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md) supplies exact commands for its matching Processor candidate. Follow that documented *plan* rather than assuming any Processor branch is interchangeable. **Open Thought Processor as the primary human-facing window to inspect its current Identity card.** The present setup flow may still require direct Identity UI actions because the intended Processor-mediated management protocol is missing; mark those as **GAP**, not PASS.
 
 In brief:
 
@@ -56,7 +58,7 @@ In brief:
 4. Stop Processor; confirm Identity stays running and reports the offline state. Restart Processor; confirm the status updates.
 5. Stop Identity; confirm Processor stays alive. Restart Identity; verify its System ID and permitted local logs remain while the GitHub session requires fresh sign-in.
 
-Both applications must retain independent lifecycles. Neither should silently start, stop, or authorize the other.
+Both applications must retain independent lifecycles. Neither should silently start, stop, or authorize the other. **A self-reported "found" card is not an authenticated Identity backend.**
 
 ## 4. Record real test evidence
 
@@ -76,7 +78,10 @@ OS / Go version:
 Identity branch / SHA:
 Processor branch / SHA (if used):
 Build & tests: PASS / FAIL / NOT RUN
-Identity started and local page opened: PASS / FAIL / NOT RUN
+Identity process started: PASS / FAIL / NOT RUN
+Processor is the human-facing UI: PASS / FAIL / NOT RUN / GAP
+Processor can securely manage Identity: PASS / FAIL / NOT RUN / GAP
+Direct experimental Identity page (debug only): PASS / FAIL / NOT RUN
 GitHub real login: PASS / FAIL / NOT RUN / SKIPPED
 Read-only Processor discovery: PASS / FAIL / NOT RUN
 Independent stop / restart: PASS / FAIL / NOT RUN
@@ -95,7 +100,7 @@ For a broader evidence checklist see [home-trial acceptance criteria](https://gi
 - If Processor is offline, confirm that Processor is running on the separately configured address. A response identifying itself as Processor is still unverified.
 - **Reset is destructive:** only after backing up any wanted test data and stopping Identity, you may remove the *specific test profile you created*. For isolation on future runs, start Identity with `-data "$env:USERPROFILE\.identity\portfolio-trial"` instead of the default profile.
 
-Do not use this experiment to guard sensitive services or confidential data. The authorization/grant layer is not implemented.
+Do not use this experiment to guard sensitive services or confidential data. The authorization/grant layer is not implemented. **A successful test of the current Identity UI is not acceptance of the intended Processor-first human interface.**
 
 ## Where next?
 
