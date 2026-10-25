@@ -29,7 +29,7 @@ See [Identity-first model](IDENTITY_FIRST_MODEL.md), [Architecture](ARCHITECTURE
 | Period / lane | Work investigated | Evidence and caveat |
 | --- | --- | --- |
 | Oct 23 — local prototypes | Local identity records, reversible archival, GitHub CLI account checks and port discovery | Implementations exist on separate `experiment/*` branches; they do not establish a verified secure trust system |
-| Oct 24 — system boundary | Identity-first startup, independent features, organized but feature-owned storage, proposed grants and registration | Architecture and acceptance documents; much of the contract remains **design only** |
+| Oct 24 — system boundary | Earlier Identity-first setup proposals, independent features, organized but feature-owned storage, proposed grants and registration | Historical UX proposals are superseded by the **Oct 25 Processor-first user interface decision**; much of the security contract remains **design only** |
 | Oct 25 — Prototype B | Standalone Go application, local monitor/logging, mocked GitHub device flow, read-only Processor detection, process independence | Developer Linux runtime and fixture testing documented in [Prototype B evidence](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md); owner Windows and real GitHub results were outstanding in that report |
 | Oct 25 — Alpha candidate | [`alpha-candidate-20261025`](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) adds a publisher-app configuration, diagnostic visibility and fixes for sign-in polling, stale codes, UI state and port conflicts | Fixes are **documented by the candidate**, not independently verified here; owner acceptance and promotion remain pending |
 
