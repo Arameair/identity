@@ -1,41 +1,63 @@
-> **Experiment branch `experiment/identity-home-claude-20261025` — Identity Prototype B (Claude).** A runnable standalone Identity for the 2026-10-26 home trial: **[start here](TRIAL_START_HERE_CLAUDE.md)** · [evidence & acceptance](docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) · [consolidation decisions](docs/CONSOLIDATION_DECISIONS.md). The blueprint text below is from `alpha` and unchanged.
+# Identity
 
-# Identity — reusable entity and account manager
+**Identity** is the first program a person opens. It confirms **who they are** through GitHub, shows the **features** the publisher (Arameair) offers and honestly what state each one is in, and finds a **Thought Processor** running on the same computer. Then it settles into a small monitoring view: status on top, a live activity log, and **Copy Diagnostics**.
 
-> **Status: project blueprint, not a working account manager.** No GitHub/Discord credentials, logins, Thought Controller registration, or provisioning are implemented.
+> **Branch `alpha-candidate-20261025`.** Built from the 2026-10-25 home trial, with every problem found that day fixed (list below). The owner decides whether it becomes `alpha`.
+> **AI operators (e.g. a Grok bot):** follow **[AGENTS.md](AGENTS.md)** — exact steps, expected results, and what only the human may do.
 
-**Identity** is the independent setup and continuity component of the Thought Controller ecosystem. It can create or restore a uniquely identified **entity** (AI companion, person, business, team, project, etc.), guide its user through GitHub repository setup, manage access through secure local credentials, and register capabilities with a compatible Thought Controller. **Personality and thinking are optional modules, not part of the definition of identity.**
+## Quick start (Windows PowerShell, Go 1.22+)
 
-## Start here: click through the project
-
-The detailed, clickable proposal is on the **design experiment branch**, not yet approved/promoted to Alpha:
-
-**[▶ Open the Identity project guide](https://github.com/Arameair/identity/blob/experiment/design-foundation-20261023/README.md)**
-
-That guide links to the vision, step-by-step first-run wizard, entity model, account/security plan, Thought Controller handshake, examples, decisions, test gates and implementation instructions.
-
-## Core principle
-
-One reusable **Identity application** can create or restore many separate **entity identities**. Each entity is associated with its own **private GitHub repository** as a non-secret environment blueprint, while its local identity state and credentials stay outside code checkout folders. A GitHub *account* may securely own more than one entity repository; creating an entity does not mean automating creation of a new GitHub user account.
-
-```mermaid
-flowchart LR
-    U[Owner / user] --> I[Identity app]
-    I --> R[Private GitHub repo per entity]
-    I <-->|registration + capability discovery| T[Thought Controller]
-    T <-->|optional puzzle pieces| M[Memory / Communication / Perception]
+```powershell
+git clone --branch alpha-candidate-20261025 https://github.com/Arameair/identity.git
+cd identity
+.\scripts\build-windows.ps1        # vet + tests + build identity.exe
+.\identity.exe                     # opens your browser on the welcome screen
 ```
 
-**Safety:** passwords, MFA codes, access tokens, API keys, private keys, and session cookies never belong in GitHub, even private repositories. The planned account manager uses a protected local secrets store and user-approved limited access.
+Thought Processor is a separate program (repo `Arameair/Thought-Processor`); start it first, on port 7860. [AGENTS.md](AGENTS.md) has both programs step by step.
 
-## Project rules
+## What it does — and doesn't
 
-- `main`: bootstrapped public-facing README (the repo itself is currently **private**).
-- `alpha`: owner-controlled baseline.
-- `experiment/*`: unapproved prototypes and design proposals.
-- `stable`: optional later snapshot of an approved Alpha.
-- **Never auto-promote** experimental work to Alpha/main or imply that a design is implemented.
-- Independent lifecycle and observable diagnostics when eventually run through [Project Controller](https://github.com/Arameair/Project-controller).
-- [Thought Controller's repair/test plan](https://github.com/Arameair/Thought-Controller/issues/3) remains the prerequisite for live integration.
+| Does | Doesn't (yet) |
+| --- | --- |
+| GitHub sign-in through the publisher's GitHub App (device flow; no password or client secret; sign-in kept in memory only) | Submit access requests to the publisher (drafts stay local, marked **NOT SUBMITTED**) |
+| Shows the account GitHub confirmed, the publisher-app installations it can see, and which feature repositories are visible | Grant features (nothing is ever shown as **GRANTED**) |
+| Finds Thought Processor read-only via its public health page (**DETECTED — SELF-REPORTED, UNVERIFIED**) and links to it | Sign you in to Thought Processor (it has its own operator code) or start/stop it |
+| Persistent, redacted activity log; Copy Diagnostics safe to paste into a chat | Persist the GitHub sign-in across restarts (by design) |
 
-This is a planning repository. See the design-branch guide for proposed implementation and acceptance criteria.
+## Defaults
+
+| | Default | Change with |
+| --- | --- | --- |
+| Port | **7790** (127.0.0.1 only) | `-port N` or `IDENTITY_PORT` (`0` = any free port) |
+| Profile folder | `~/.identity/default` (`%USERPROFILE%\.identity\default`) | `-data DIR` or `IDENTITY_DATA` |
+| Thought Processor address | asked during setup (pre-filled `127.0.0.1:7860`) | `-processor 127.0.0.1:7860` |
+
+Other programs' ports: Thought Processor 7860, Thought-engine 7798.
+
+## GitHub App (publisher, once)
+
+Normal users never create a GitHub App. The publisher's app **public** Client ID is compiled in from `internal/publisher/publisher.go`. If it is empty, the build says so and offers a guided "set up your own app" option instead. Setup and permissions: [docs/PUBLISHER_GITHUB_APP.md](docs/PUBLISHER_GITHUB_APP.md).
+
+## Fixed since the 2026-10-25 trial
+
+| Problem seen | Fix |
+| --- | --- |
+| GitHub said "all set" but Identity never finished signing in: GitHub kept answering `slow_down` | Polls at GitHub's returned interval **+2 s** margin, never at the exact minimum (regression test included) |
+| While waiting, failed checks were silent | Every change in GitHub's answer is logged; the waiting screen shows "last checked … GitHub says …"; Copy Diagnostics includes it |
+| Cancelling and reconnecting left an approved-but-old code | Replaced sign-ins stop polling; the screen explains that an older code was approved |
+| Users would have had to create their own GitHub App | Publisher's Client ID built in; the own-app guide moved to *Manage → Identity → Advanced* |
+| The guide asked for more GitHub permission than needed | Metadata read-only only |
+| Switching tabs in *Manage* lost panels | Fixed |
+| Default port 7798 clashed with Thought-engine | Identity now defaults to 7790 |
+| Build label said "UNKNOWN" branch under Project Controller | Branch taken from `-ldflags`, else Project Controller's `PC_BRANCH` |
+
+## Releases
+
+Push a tag `identity-v*` and the workflow `.github/workflows/identity-release.yml` tests, builds `identity.exe` + Linux binary + `SHA256SUMS`, and publishes a GitHub Release. It refuses to release a build without the publisher Client ID. *(Not yet run; the first tag is its first test.)*
+
+## Repository map
+
+`main.go` flags and startup · `internal/app` HTTP server, UI, diagnostics · `internal/github` device flow · `internal/discovery` Thought Processor probe · `internal/features` catalog and local drafts · `internal/logbook` persistent log · `internal/profile` data folder and lock · `internal/redact` secret removal · `internal/publisher` built-in publisher info · `scripts/` build and test helpers · `docs/` decisions, publisher setup, trial history.
+
+Tests: `go test ./...` (unit + real-HTTP runtime tests; GitHub and Processor stand-ins are labelled TEST FIXTURE).

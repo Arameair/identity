@@ -14,7 +14,7 @@ var canaries = map[string]string{
 	"fine grained":       "github_pat_11CANARY0000000000_abcdefghijklmnopqrstuvwxyz",
 	"refresh token":      "ghr_CANARYrefresh0123456789abcdefghijklmn",
 	"auth header":        "Authorization: Bearer CANARYbearer-0123456789",
-	"cookie header":      "Cookie: identity_b_session=CANARYcookievalue0123",
+	"cookie header":      "Cookie: identity_session=CANARYcookievalue0123",
 	"set cookie":         "Set-Cookie: tp_session=CANARYsetcookie; HttpOnly",
 	"device code json":   `{"device_code":"CANARYdevice0123456789","user_code":"WDJB-MJHT"}`,
 	"user code":          "Enter code WDJB-MJHT at github.com/login/device",

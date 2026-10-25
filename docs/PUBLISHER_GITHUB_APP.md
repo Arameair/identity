@@ -22,7 +22,7 @@ Create it, then copy the **Client ID** (starts with `Iv`) from its General page.
 ## 2. Install it on the feature repositories
 On the app page: **Install App → Arameair → Only select repositories → Thought-Processor, Thought-engine**. This is what lets Identity show "repository visible" for people who have access to those repos. It grants nobody access by itself.
 
-## 3. Ship the Client ID
+## 3. Ship the Client ID (done: `Iv23livvYZb0CafGVssP` is built in since 2026-10-25)
 Edit `internal/publisher/publisher.go`:
 ```go
 var GitHubAppClientID = "Iv23liXXXXXXXXXXXXXX"

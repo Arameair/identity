@@ -1,10 +1,12 @@
+> **Historical record of the 2026-10-25 home trial (Prototype B).** Names, ports and paths below are from that trial; the current app is described in the repository [README](../../../README.md).
+
 # Identity Prototype B (Claude) — home trial start here
 
 **Branch:** `experiment/identity-home-claude-20261025` (from `alpha` 8d08fec). Experimental — not promoted anywhere.
 **Implementation commit:** see the branch head; the latest code change is "built-in publisher GitHub App + guided own-app setup" (2026-10-25).
 **Runs beside Prototype A:** B uses port **7798** and profile `%USERPROFILE%\.identity\home-claude-b`; A (GPT-6) uses 7797 and its own profile. Thought Processor uses 7860.
 
-Results and evidence: [docs/HOME_TRIAL_EVIDENCE_CLAUDE.md](docs/HOME_TRIAL_EVIDENCE_CLAUDE.md).
+Results and evidence: [docs/HOME_TRIAL_EVIDENCE_CLAUDE.md](HOME_TRIAL_EVIDENCE_CLAUDE.md).
 
 ## Windows — first run (PowerShell, Go installed)
 
@@ -31,7 +33,7 @@ go build -ldflags "-X main.buildBranch=experiment/identity-home-claude-20261025"
 Your browser opens Identity's welcome screen. If it doesn't, copy the `open :` link from Window 2 into the browser. That link is private and changes every start.
 
 **GitHub sign-in.** Normal users never set up a GitHub App: the publisher's app ships inside Identity and they just press **Connect GitHub**. Identity opens GitHub in a new tab with the code already copied — paste, *Continue*, *Authorize*.
-- **Publisher (you), once:** register the app and put its public Client ID in `internal/publisher/publisher.go` — see [docs/PUBLISHER_GITHUB_APP.md](docs/PUBLISHER_GITHUB_APP.md). Until then this branch has **no app built in**.
+- **Publisher (you), once:** register the app and put its public Client ID in `internal/publisher/publisher.go` — see [docs/PUBLISHER_GITHUB_APP.md](../../PUBLISHER_GITHUB_APP.md). Until then this branch has **no app built in**.
 - **Without a built-in app** (this branch today, or for testing): the GitHub step offers **Help me set up a GitHub App**, a 5-step guide inside Identity that opens GitHub's registration page pre-filled and takes the Client ID from you. You can also skip GitHub; Identity still works.
 
 ## What you'll see

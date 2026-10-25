@@ -1,10 +1,11 @@
-# Build Identity Prototype B on Windows from this checkout (embeds the commit SHA).
+# Build Identity on Windows from this checkout (embeds commit and branch).
 # Usage (PowerShell, from the repository folder):  .\scripts\build-windows.ps1
 $ErrorActionPreference = "Stop"
 go version
 go vet ./...
 go test ./...
-go build -ldflags "-X main.buildBranch=experiment/identity-home-claude-20261025" -o identity-b.exe .
+$branch = (git rev-parse --abbrev-ref HEAD).Trim()
+go build -ldflags "-X main.buildBranch=$branch" -o identity.exe .
 Write-Host ""
-Write-Host "Built identity-b.exe from commit $(git rev-parse HEAD)"
-Write-Host "Start it with:  .\identity-b.exe"
+Write-Host "Built identity.exe from $branch @ $(git rev-parse HEAD)"
+Write-Host "Start it with:  .\identity.exe"

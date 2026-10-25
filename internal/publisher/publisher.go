@@ -12,5 +12,5 @@ package publisher
 
 const Name = "Arameair"
 
-// GitHubAppClientID — publisher: paste the app's Client ID between the quotes.
-var GitHubAppClientID = ""
+// GitHubAppClientID — Arameair's GitHub App (public Client ID, added 2026-10-25).
+var GitHubAppClientID = "Iv23livvYZb0CafGVssP"

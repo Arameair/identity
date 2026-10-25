@@ -59,7 +59,7 @@ var rules = []rule{
 	{regexp.MustCompile(`(?i)\b(bearer|token)\s+[A-Za-z0-9_\-\.=]{8,}`), "$1 " + Mask},
 	// Cookie headers.
 	{regexp.MustCompile(`(?i)((?:set-)?cookie\s*[:=]\s*)[^\r\n]+`), "${1}" + Mask},
-	{regexp.MustCompile(`(?i)\b(identity_b_session|tp_session|identity_trial)=[^\s;"']+`), "$1=" + Mask},
+	{regexp.MustCompile(`(?i)\b(identity_session|identity_b_session|tp_session|identity_trial)=[^\s;"']+`), "$1=" + Mask},
 	// GitHub token formats (classic, fine-grained, app user/server/refresh).
 	{regexp.MustCompile(`\b(gh[pousr]_[A-Za-z0-9_]{16,})`), Mask},
 	{regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{20,}`), Mask},

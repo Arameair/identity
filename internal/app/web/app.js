@@ -1,5 +1,5 @@
 "use strict";
-// Identity Prototype B UI. Plain JS, no external code (strict CSP).
+// Identity UI. Plain JS, no external code (strict CSP).
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -93,7 +93,7 @@
   function apply(s) {
     state = s;
     const a = s.app, b = a.build, gh = s.github, p = s.processor;
-    $("#brand-sub").textContent = "Prototype B · " + b.version + " · " + (b.revision === "UNKNOWN" ? "commit UNKNOWN" : b.revision.slice(0, 10) + (b.modified === "true" ? "+dirty" : ""));
+    $("#brand-sub").textContent = b.version + " · " + (b.revision === "UNKNOWN" ? "commit UNKNOWN" : b.revision.slice(0, 10) + (b.modified === "true" ? "+dirty" : ""));
     setChip("#chip-identity", "ok", "RUNNING · port " + a.port, "PID " + a.pid + " · " + a.profile_path + " · " + a.system_id);
 
     if (gh.status === "verified" && gh.account) setChip("#chip-github", gh.mode === "real" ? "ok" : "warn", (gh.mode === "real" ? "VERIFIED · " : "FIXTURE · ") + gh.account.login, "Confirmed by GitHub API at " + fmtTime(gh.account.verified_at));

@@ -24,7 +24,7 @@ func (a *App) Diagnostics(requestID string) string {
 	var b strings.Builder
 	p := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
 
-	p("=== IDENTITY DIAGNOSTICS — Prototype B (Claude) ===")
+	p("=== IDENTITY DIAGNOSTICS ===")
 	p("Paste-safe: credentials, session links, one-time codes, cookies and tokens are removed.")
 	p("Generated: %s UTC | %s local | request %s", now.UTC().Format(time.RFC3339), now.Format("2006-01-02 15:04:05 MST -07:00"), requestID)
 	p("")
@@ -127,8 +127,8 @@ func (a *App) Diagnostics(requestID string) string {
 	}
 	p("")
 	p("[to reproduce]")
-	p("1. Build: go build -o identity-b.exe .  (from a checkout of branch %s, commit above)", a.Build.Branch)
-	p("2. Run:   .\\identity-b.exe -port %d -data <profile folder>", a.Port)
+	p("1. Build: go build -o identity.exe .  (from a checkout of branch %s, commit above)", a.Build.Branch)
+	p("2. Run:   .\\identity.exe -port %d -data <profile folder>", a.Port)
 	p("3. Thought Processor separately on its own port; set its address in Identity > Manage > Thought Processor")
 	p("=== END ===")
 	return redact.String(b.String())

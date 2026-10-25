@@ -95,7 +95,7 @@ func Open(root string) (*Store, error) {
 	b, err := os.ReadFile(p)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		s.Profile = Profile{Schema: Schema, SystemID: "idn_" + RandHex(12), CreatedAt: time.Now().UTC(), Label: "Identity home trial (Prototype B)"}
+		s.Profile = Profile{Schema: Schema, SystemID: "idn_" + RandHex(12), CreatedAt: time.Now().UTC(), Label: "Identity"}
 		if err := writeJSON(p, s.Profile); err != nil {
 			return fail(fmt.Errorf("cannot save new profile: %w", err))
 		}

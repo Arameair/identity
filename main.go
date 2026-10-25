@@ -1,8 +1,8 @@
-// Identity — home-trial Prototype B (Claude): first-use experience.
+// Identity — standalone identity app: first-use setup, GitHub sign-in, feature catalog, read-only Thought Processor discovery.
 //
 // One standalone executable. No Project Controller, no gh CLI needed.
 //
-//	identity-b.exe [-port 7798] [-data <profile folder>] [-processor 127.0.0.1:7860] [-no-browser]
+//	identity.exe [-port 7790] [-data <profile folder>] [-processor 127.0.0.1:7860] [-no-browser]
 package main
 
 import (
@@ -25,26 +25,28 @@ import (
 )
 
 const (
-	DefaultPort = 7798 // Prototype A (GPT-6) uses 7797; Thought Processor 7860
-	appVersion  = "0.2.0-home-trial-b"
+	// 7790 avoids Thought-engine (7798), Thought Processor (7860) and the
+	// 2026-10-25 trial prototypes (7797, 7798).
+	DefaultPort = 7790
+	appVersion  = "0.3.0-alpha"
 )
 
-// Set with: go build -ldflags "-X main.buildBranch=experiment/identity-home-claude-20261025"
+// Optional: go build -ldflags "-X main.buildBranch=<branch>"; otherwise PC_BRANCH, else UNKNOWN.
 var buildBranch = ""
 
 func defaultData() string {
-	if v := os.Getenv("IDENTITY_B_DATA"); v != "" {
+	if v := os.Getenv("IDENTITY_DATA"); v != "" {
 		return v
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return filepath.Join(".", "identity-home-claude-b")
+		return filepath.Join(".", "identity-data")
 	}
-	return filepath.Join(home, ".identity", "home-claude-b")
+	return filepath.Join(home, ".identity", "default")
 }
 
 func defaultPort() int {
-	if v, err := strconv.Atoi(os.Getenv("IDENTITY_B_PORT")); err == nil && v > 0 {
+	if v, err := strconv.Atoi(os.Getenv("IDENTITY_PORT")); err == nil && v > 0 {
 		return v
 	}
 	return DefaultPort
@@ -149,6 +151,9 @@ func main() {
 	cfg.ClientID, cfg.ClientIDSource, cfg.ClientIDKind = cur.ID, cur.Source, cur.Kind
 
 	branch := buildBranch
+	if branch == "" {
+		branch = os.Getenv("PC_BRANCH") // set by Project Controller
+	}
 	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
@@ -157,7 +162,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	err = a.Run(ctx, nil, func(link string) {
-		fmt.Printf("Identity — Prototype B (Claude) %s  commit %s\n", appVersion, short(a.Build.Revision))
+		fmt.Printf("Identity %s  branch %s  commit %s\n", appVersion, a.Build.Branch, short(a.Build.Revision))
 		fmt.Printf("  profile : %s\n", *data)
 		fmt.Printf("  run     : %s   pid %d   port %d (loopback only)\n", a.RunID, os.Getpid(), a.Port)
 		if cfg.Mode() != "real" {

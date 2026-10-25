@@ -28,7 +28,7 @@ import (
 const (
 	Product   = "identity"
 	Protocol  = "identity.home-trial/0-experimental"
-	Prototype = "B (Claude) — first-use experience"
+	Prototype = "alpha candidate"
 	Publisher = publisher.Name
 )
 
@@ -185,7 +185,7 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 		a.Log.Warn("lifecycle", "identity.open_link_not_saved", "", "warn", err.Error(), nil)
 	}
 	v := a.GH.View()
-	a.Log.Info("lifecycle", "identity.started", "", "running", "Identity Prototype B is serving on loopback only", map[string]string{
+	a.Log.Info("lifecycle", "identity.started", "", "running", "Identity is serving on loopback only", map[string]string{
 		"pid": strconv.Itoa(os.Getpid()), "port": strconv.Itoa(a.Port), "profile": profile.DisplayPath(a.Store.Root),
 		"system_id": a.Store.Profile.SystemID, "profile_created": strconv.FormatBool(a.Store.Created),
 		"version": a.Build.Version, "revision": a.Build.Revision, "branch": a.Build.Branch,

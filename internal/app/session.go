@@ -29,7 +29,7 @@ type sessionRec struct {
 	created time.Time
 }
 
-const CookieName = "identity_b_session"
+const CookieName = "identity_session"
 
 func NewSessions() *Sessions {
 	return &Sessions{key: profile.RandHex(24), sess: map[string]sessionRec{}}
