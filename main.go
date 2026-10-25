@@ -60,6 +60,7 @@ type App struct {
  runID string
  revision string
  shutdown chan struct{}
+ shutdownOnce sync.Once
 }
 func hexID(n int)string{v:=make([]byte,n);if _,e:=rand.Read(v);e!=nil{panic(e)};return hex.EncodeToString(v)}
 func newApp(port int,dir string,ghcfg GitHubConfig)(*App,error){
@@ -72,7 +73,7 @@ func newApp(port int,dir string,ghcfg GitHubConfig)(*App,error){
  if err != nil { return nil, err }
  a.ops=ops; a.started=time.Now().UTC(); a.runID="run_"+hexID(8); a.revision="UNKNOWN"
  if b,ok:=debug.ReadBuildInfo();ok {for _,s:=range b.Settings {if s.Key=="vcs.revision" && len(s.Value)==40 {a.revision=s.Value}}}
- a.shutdown=make(chan struct{},1)
+ a.shutdown=make(chan struct{})
  if err:=os.MkdirAll(filepath.Join(dir,"runtime"),0700);err!=nil{return nil,err}
  if err:=os.WriteFile(filepath.Join(dir,"runtime","operator-code"),[]byte(a.key),0600);err!=nil{return nil,err}
  a.ops.Event("identity","started",a.runID,"RUNNING")
