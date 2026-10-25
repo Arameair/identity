@@ -4,9 +4,9 @@
 
 ## Executive status
 
-**Experimental runnable app: yes, on candidate branches. Released secure Identity authority: no.** The default `main` branch contains documentation only. Recent Go candidates implement a first-run UI, GitHub device-flow integration, local state/diagnostics, and a **read-only** Thought Processor status probe. Authenticated service pairing, publisher feature-request submission, real feature grants and grant enforcement remain unimplemented or unverified.
+**Experimental runnable app: yes, on candidate branches. Released secure Identity authority: no.** **Architectural UX correction (owner, Oct 25): Thought Processor must be the sole normal human/admin interface. Identity is the service behind it.** The default `main` branch contains documentation only. Recent Go candidates implement a first-run UI, GitHub device-flow integration, local state/diagnostics, and a **read-only** Thought Processor status probe. Authenticated service pairing, publisher feature-request submission, real feature grants and grant enforcement remain unimplemented or unverified.
 
-The immediate goal is to let another person build and run Identity with a separate Thought Processor instance on a clean computer, then report a traceable PASS/FAIL result without relying on the author's Project Controller.
+The immediate goal is to let another person run **Thought Processor as the visible application**, with a separately running Identity service, on a clean computer—and produce traceable PASS/FAIL evidence without requiring the author's Project Controller. Existing candidates currently require direct use of an Identity browser wizard; this is **a known interaction-design gap** and not accepted as the final onboarding experience.
 
 [Try the candidate](TRY_THE_PROTOTYPE.md) · [Project case study](PROJECT_JOURNEY.md) · [Acceptance checklist](https://github.com/Arameair/identity/blob/experiment/identity-consolidated-home-trial-20261025/docs/HOME_TRIAL_ACCEPTANCE_2026-10-25.md)
 
@@ -29,7 +29,7 @@ The immediate goal is to let another person build and run Identity with a separa
 
 | Capability | Source or report | What can be claimed today |
 | --- | --- | --- |
-| Standalone Go application, loopback UI and first-run flow | [Candidate source](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) | **CODE PRESENT**; candidate documents Windows commands. Clean owner Windows acceptance is pending |
+| Standalone Go application, loopback UI and first-run flow | [Candidate source](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) | **CODE PRESENT**; a direct Identity browser wizard exists, but the intended UI belongs in **Thought Processor**. Target UX **NOT IMPLEMENTED**; clean Windows acceptance pending |
 | GitHub App device-code sign-in, account visibility | Candidate `internal/github`, `internal/publisher`; [publisher setup](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/docs/PUBLISHER_GITHUB_APP.md) | **CODE PRESENT / REAL LOGIN NEEDS ACCEPTANCE**; device-flow fixture testing and candidate fixes exist; no secret-bearing client ID required |
 | GitHub polling and stale-code fixes | Candidate [README](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/README.md) | **FIX CLAIMED IN CANDIDATE**, including regression tests; not a verified end-user sign-in pass |
 | Feature list and access-request draft | Candidate `internal/features`; [Prototype B report](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) | **LOCAL DRAFT ONLY**; **NOT SUBMITTED**, **NOT GRANTED** |
@@ -47,7 +47,7 @@ Prototype B's report documents a **real pair of processes on a developer Linux m
 
 A later [Alpha candidate](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) documents attempted fixes to problems found during owner testing: GitHub responding `slow_down`, stale device approvals, insufficient waiting-state visibility, a conflicting port, and tab-state issues. The presence of fix descriptions **does not establish that the owner reran and passed all cases**.
 
-The next meaningful test is the clean Windows walkthrough with real GitHub approval, an independently running Processor, offline/restart checks and a redacted operator report. These steps are in [Try the prototype](TRY_THE_PROTOTYPE.md).
+The next meaningful **system-level** test is to open **Thought Processor**, have it present an authenticated connection to an independently running Identity service and reflect accurate Identity status/operations, with clean Windows restart, denial/offline checks and redacted evidence. The existing Identity-first Windows walkthrough remains useful as a **subsystem test** only, not proof of the corrected user experience. These steps are in [Try the prototype](TRY_THE_PROTOTYPE.md).
 
 ## Terms used in this ledger
 
