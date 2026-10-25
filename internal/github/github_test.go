@@ -159,3 +159,44 @@ func TestNoClientIDIsNotConfigured(t *testing.T) {
 		t.Fatal("client id validation")
 	}
 }
+
+func TestPollFailuresAreVisibleNotSilent(t *testing.T) {
+	SetPollScaleForTests(20 * time.Millisecond)
+	mux := http.NewServeMux()
+	var srv *httptest.Server
+	mux.HandleFunc("POST /login/device/code", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"device_code": "dc-500", "user_code": "ABCD-5000", "verification_uri": srv.URL + "/login/device", "expires_in": 60, "interval": 5})
+	})
+	mux.HandleFunc("POST /login/oauth/access_token", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(502) })
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+	var mu sync.Mutex
+	warned := 0
+	c := New(Config{ClientID: "IvFIXTURE0001", WebBase: srv.URL, APIBase: srv.URL}, nil, func(l, e, r, d string) {
+		if e == "github.signin_poll_failed" {
+			mu.Lock()
+			warned++
+			mu.Unlock()
+		}
+	})
+	c.Start()
+	defer c.Cancel()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		v := c.View()
+		if v.LastCheckedAt != nil && strings.Contains(v.PollNote, "HTTP 502") {
+			mu.Lock()
+			n := warned
+			mu.Unlock()
+			if n == 0 {
+				t.Fatal("failure not logged")
+			}
+			if v.Status != Waiting {
+				t.Fatalf("transient failure ended sign-in: %+v", v)
+			}
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("poll failure never surfaced: %+v", c.View())
+}

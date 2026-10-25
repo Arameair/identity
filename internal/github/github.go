@@ -110,6 +110,8 @@ type View struct {
 	Publisher      *Publisher `json:"publisher,omitempty"`
 	TokenExpiresAt *time.Time `json:"token_expires_at,omitempty"`
 	Message        string     `json:"message,omitempty"`
+	LastCheckedAt  *time.Time `json:"last_checked_at,omitempty"` // while waiting: last poll of GitHub
+	PollNote       string     `json:"poll_note,omitempty"`
 }
 
 // EventFunc receives sign-in state changes. Details never contain secrets.
@@ -133,6 +135,9 @@ type Client struct {
 	publisher   *Publisher
 	message     string
 	cancel      context.CancelFunc
+	lastPoll    time.Time // last time GitHub was asked whether this code was approved
+	pollNote    string    // what GitHub (or the network) last said while waiting
+	pollFails   int
 }
 
 func New(cfg Config, featureRepos []string, onEvent EventFunc) *Client {
@@ -162,6 +167,11 @@ func (c *Client) View() View {
 	if c.status == Waiting {
 		e := c.expires
 		v.UserCode, v.VerifyURL, v.ExpiresAt = c.userCode, c.verifyURL, &e
+		if !c.lastPoll.IsZero() {
+			lp := c.lastPoll
+			v.LastCheckedAt = &lp
+		}
+		v.PollNote = c.pollNote
 	}
 	if c.status == Verified {
 		if c.account != nil {
@@ -290,6 +300,7 @@ func (c *Client) Start() error {
 		c.cancel()
 	}
 	c.status, c.userCode, c.deviceCode, c.verifyURL, c.message = Waiting, dc.UserCode, dc.DeviceCode, dc.VerificationURI, ""
+	c.lastPoll, c.pollNote, c.pollFails = time.Time{}, "", 0
 	c.expires = time.Now().Add(time.Duration(dc.ExpiresIn) * time.Second)
 	c.cancel = pcancel
 	c.mu.Unlock()
@@ -330,12 +341,42 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 		err := c.postForm(rctx, "/login/oauth/access_token", url.Values{"client_id": {cid},
 			"device_code": {deviceCode}, "grant_type": {"urn:ietf:params:oauth:grant-type:device_code"}}, &tr)
 		cancel()
-		switch {
-		case err != nil:
+		c.mu.Lock()
+		current := c.deviceCode == deviceCode
+		if current {
+			c.lastPoll = time.Now().UTC()
+		}
+		c.mu.Unlock()
+		if !current {
+			return // a newer sign-in replaced this one
+		}
+		if err != nil {
 			if ctx.Err() != nil {
 				continue
 			}
-			// transient network problem: the code is still valid, keep waiting
+			// The code is still valid, so keep waiting — but say so, visibly.
+			c.mu.Lock()
+			c.pollFails++
+			n := c.pollFails
+			c.pollNote = fmt.Sprintf("Can't get an answer from GitHub right now (%s); still trying — attempt %d.", err.Error(), n)
+			c.mu.Unlock()
+			if n == 1 || n%6 == 0 {
+				c.onEvent("warn", "github.signin_poll_failed", "retrying", fmt.Sprintf("checking for approval failed %d time(s): %s", n, err.Error()))
+			}
+			t.Reset(pollInterval(interval))
+			continue
+		}
+		c.mu.Lock()
+		if c.pollFails > 0 {
+			go c.onEvent("info", "github.signin_poll_recovered", "waiting", fmt.Sprintf("GitHub answering again after %d failed check(s)", c.pollFails))
+		}
+		c.pollFails = 0
+		c.pollNote = "GitHub says: not approved yet for this code."
+		if tr.Error == "slow_down" {
+			c.pollNote = "GitHub asked Identity to check less often; still waiting."
+		}
+		c.mu.Unlock()
+		switch {
 		case tr.AccessToken != "":
 			c.finish(tr.AccessToken, tr.ExpiresIn)
 			return

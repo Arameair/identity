@@ -149,6 +149,8 @@
         <div class="code-box"><span class="code" id="ucode">${esc(gh.user_code)}</span>
         <button class="btn" type="button" id="copy-code">Copy code</button>
         <a class="btn primary" id="gh-open" href="${esc(gh.verify_url)}" target="_blank" rel="noopener noreferrer">Open ${esc(new URL(gh.verify_url).host)} again ↗</a></div>
+        <p class="small"><strong>${gh.last_checked_at ? "Last checked with GitHub " + esc(ago(gh.last_checked_at)) : "Checking with GitHub every few seconds"}</strong>${gh.poll_note ? " — " + esc(gh.poll_note) : ""}</p>
+        <p class="muted small">GitHub said "all set" but this didn't change within ~10 seconds? Then GitHub approved a different (older) code. Open GitHub again and enter the code shown here.</p>
         <p class="muted small">No new tab? Your browser blocked it — use the button above. The code expires ${gh.expires_at ? "at " + esc(fmtTime(gh.expires_at)) : "soon"} and is never written to Identity's log or diagnostics.</p>
         <div class="row"><button class="btn ghost" type="button" data-act="/api/github/cancel">Cancel sign-in</button></div>`;
     } else if (gh.status === "verified" && gh.account) {
