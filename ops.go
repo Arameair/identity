@@ -74,7 +74,7 @@ func(o *Operations) Handle(w http.ResponseWriter,r *http.Request,a *App)bool{
   case "archive","restore":found:=false;for i:=range next.Cards{if next.Cards[i].ID==x.ID{found=true;if x.Action=="archive"{t:=time.Now().UTC();next.Cards[i].Archived=&t}else{next.Cards[i].Archived=nil};break}};if !found{o.mu.Unlock();sendJSON(w,404,map[string]string{"error":"card missing"});return true}
   default:o.mu.Unlock();sendJSON(w,400,map[string]string{"error":"unsupported action"});return true}
   e:=saveRegistry(filepath.Join(o.dir,"registry.json"),next);if e==nil{o.registry=next};o.mu.Unlock();if e!=nil{sendJSON(w,500,map[string]string{"error":"disk write failed"});return true};o.Event("records",x.Action,x.ID,"OK");sendJSON(w,200,o.Records());return true
- case "/api/stop":sendJSON(w,202,map[string]string{"status":"STOPPING"});select{case a.shutdown<-struct{}{}:default:};return true
+ case "/api/stop":sendJSON(w,202,map[string]string{"status":"STOPPING"});o.Event("identity","stop_requested",a.runID,"PENDING");a.shutdownOnce.Do(func(){close(a.shutdown)});return true
  }
  return false
 }
