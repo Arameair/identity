@@ -35,4 +35,4 @@ Identity is not a chatbot, Thought Engine, Memory database, autonomous code edit
 
 ## Current limits
 
-The current `main` branch is documentation only. Local IDs, GitHub CLI verification and limited service discovery are present on experimental branches, but production service identity, security, grant enforcement and first-run recovery have not been proven. See [Status](STATUS.md), [Roadmap](ROADMAP.md) and [Review](REVIEW.md).
+The current `main` branch is documentation only. Earlier experiments demonstrate local IDs and GitHub CLI checks. The October 25 Go candidate additionally contains a guided local UI, GitHub App device-flow code and read-only Thought Processor detection. Production service identity, authenticated grants and secure first-run recovery remain unproven. See [Status](STATUS.md), [Roadmap](ROADMAP.md) and [Review](REVIEW.md).
