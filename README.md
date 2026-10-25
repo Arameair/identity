@@ -2,14 +2,16 @@
 
 **Identity** is the first program a person opens. It confirms **who they are** through GitHub, shows the **features** the publisher (Arameair) offers and honestly what state each one is in, and finds a **Thought Processor** running on the same computer. Then it settles into a small monitoring view: status on top, a live activity log, and **Copy Diagnostics**.
 
-> **Branch `alpha-candidate-20261025`.** Built from the 2026-10-25 home trial, with every problem found that day fixed (list below). The owner decides whether it becomes `alpha`.
+ > **GPT-6 experimental comparison candidate.** Forked from `alpha-candidate-20261025` at `7addeee`. This branch adds guarded OAuth polling, actionable first-run messages, regression tests and CI. It is **not Alpha** and has not passed a real second-user trial. Compare it with the other team's candidate before promotion.
+>
+> **[GPT-6 candidate evaluation and standalone setup](docs/GPT6_CANDIDATE_EVALUATION_2026-10-25.md)** — exact comparison cases and the no-Project-Controller test.
 > **AI operators (e.g. a Grok bot):** follow **[AGENTS.md](AGENTS.md)** — exact steps, expected results, and what only the human may do.
 
 ## Quick start (Windows PowerShell, Go 1.22+)
 
 ```powershell
-git clone --branch alpha-candidate-20261025 https://github.com/Arameair/identity.git
-cd identity
+git clone --branch experiment/identity-gpt6-alpha-candidate-20261025 https://github.com/Arameair/identity.git identity-gpt6-trial
+cd identity-gpt6-trial
 .\scripts\build-windows.ps1        # vet + tests + build identity.exe
 .\identity.exe                     # opens your browser on the welcome screen
 ```
@@ -39,7 +41,7 @@ Other programs' ports: Thought Processor 7860, Thought-engine 7798.
 
 Normal users never create a GitHub App. The publisher's app **public** Client ID is compiled in from `internal/publisher/publisher.go`. If it is empty, the build says so and offers a guided "set up your own app" option instead. Setup and permissions: [docs/PUBLISHER_GITHUB_APP.md](docs/PUBLISHER_GITHUB_APP.md).
 
-## Fixed since the 2026-10-25 trial
+## Inherited baseline fixes (from `alpha-candidate-20261025`)
 
 | Problem seen | Fix |
 | --- | --- |
