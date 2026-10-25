@@ -1,6 +1,6 @@
 # Design decisions and unresolved questions
 
-**Reviewed:** 2026-10-24. Keep **owner-selected direction**, **independent review**, and **tested behavior** separate. This register is not proof that any new cross-service integrations work.
+**Reviewed:** 2026-10-25. Keep **owner-selected direction**, **independent review**, and **tested behavior** separate. This register is not proof that any new cross-service integrations work.
 
 ## Confirmed owner direction
 
@@ -13,13 +13,14 @@
 | D-05 | **Manual promotion.** | New functional experiments start from Alpha; owner reviews and explicitly promotes; experiments cannot silently update Alpha/Stable/Main | Established workflow |
 | D-06 | **Truthful diagnostic states.** | Installed, discovered, authenticated, authorized, enabled, ready, processed and persisted are distinct | Established principle |
 | D-07 | **Open independent review.** | Invite Grok and other reviewers to challenge decisions; feedback stays attributed and unapproved until owner decides | Requested 2026-10-24; [Issue #14](https://github.com/Arameair/identity/issues/14) |
+| D-08 | **Thought Processor is the human and administrator interface; Identity is the service authority behind it.** | First run, accounts, permissions, feature catalog, statuses and normal diagnostics belong in Thought Processor. Identity owns authoritative decisions and records, not a parallel user dashboard. Direct Identity tools may serve development/recovery only. | Owner correction 2026-10-25; **accepted architecture direction, integration not implemented** |
 
 ## Pending architecture choices
 
 | ID | Question | Current direction | Status |
 | --- | --- | --- | --- |
 | I-01 | Should Identity launch as a background service? | Compare opt-in lightweight service, manual UI/service and hybrid; no automatic installation | **OPEN** |
-| I-02 | How does first-run establish administrator authority and protect keys across OSes? | Verify local admin/auth and OS credential facilities before claiming secure operation | **OPEN** |
+| I-02 | How does **Processor-led** first-run establish administrator authority and protect keys across OSes? | Processor presents the flow; Identity validates durable trust using an authenticated protocol; verify OS credential facilities before any success claim | **OPEN** |
 | I-03 | How do unknown features prove enrollment/service identity? | Authenticated claim + administrator approval, not just port discovery | **OPEN** |
 | I-04 | What is the feature-to-feature authorization and revocation contract? | Receiver enforces scoped grants, expiry/revocation and bounded offline policy | **OPEN** |
 | I-05 | How are storage roots, encryption, backups and cross-OS migrations governed? | Identity-owned location references, isolated feature storage, no code checkout content | **OPEN** |
@@ -32,7 +33,7 @@
 
 The [end-user notes](END_USER_DESIGN_NOTES.md) recommend *one folder, one process* and **no background service** for the first usable product. This is useful for a minimalist prototype but is **not accepted as a universal ecosystem constraint**. Separately owned storage **is** owner-confirmed. The background service versus manual startup choice remains open and is specifically [under independent review](https://github.com/Arameair/identity/issues/14).
 
-The outside-user notes also propose a Thought Engine readiness section on the default Identity dashboard. Whether to show this only as an **optional feature card**, when installed, should remain separate from the core Identity health status.
+The outside-user notes also propose a Thought Engine readiness section on the default **Identity** dashboard. That UI placement is superseded by **D-08**: if useful, the feature's status belongs in **Thought Processor**. This does not approve installing or requiring Thought Engine.
 
 ## Evidence and decision policy
 
