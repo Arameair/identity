@@ -138,6 +138,7 @@ type Client struct {
 	lastPoll    time.Time // last time GitHub was asked whether this code was approved
 	pollNote    string    // what GitHub (or the network) last said while waiting
 	pollFails   int
+	pollAnswer  string // last distinct answer, logged on change
 }
 
 func New(cfg Config, featureRepos []string, onEvent EventFunc) *Client {
@@ -241,7 +242,10 @@ func (c *Client) postForm(ctx context.Context, path string, form url.Values, out
 		}
 		return fmt.Errorf("GitHub answered HTTP %d", resp.StatusCode)
 	}
-	return json.Unmarshal(b, out)
+	if err := json.Unmarshal(b, out); err != nil {
+		return fmt.Errorf("GitHub's reply was not JSON (HTTP %d, %s)", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	return nil
 }
 
 // Start begins device-flow sign-in. While already waiting it is a no-op.
@@ -300,7 +304,7 @@ func (c *Client) Start() error {
 		c.cancel()
 	}
 	c.status, c.userCode, c.deviceCode, c.verifyURL, c.message = Waiting, dc.UserCode, dc.DeviceCode, dc.VerificationURI, ""
-	c.lastPoll, c.pollNote, c.pollFails = time.Time{}, "", 0
+	c.lastPoll, c.pollNote, c.pollFails, c.pollAnswer = time.Time{}, "", 0, ""
 	c.expires = time.Now().Add(time.Duration(dc.ExpiresIn) * time.Second)
 	c.cancel = pcancel
 	c.mu.Unlock()
@@ -372,6 +376,15 @@ func (c *Client) poll(ctx context.Context, deviceCode string, interval time.Dura
 		}
 		c.pollFails = 0
 		c.pollNote = "GitHub says: not approved yet for this code."
+		answer := tr.Error
+		if tr.AccessToken != "" {
+			answer = "access granted"
+		}
+		changed := answer != c.pollAnswer
+		c.pollAnswer = answer
+		if changed {
+			go c.onEvent("info", "github.signin_poll_answer", answer, "GitHub's answer to \"is this code approved?\" is now: "+answer)
+		}
 		if tr.Error == "slow_down" {
 			c.pollNote = "GitHub asked Identity to check less often; still waiting."
 		}

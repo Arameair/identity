@@ -64,6 +64,11 @@ func (a *App) Diagnostics(requestID string) string {
 	if gv.Message != "" {
 		p("last_message=%s", gv.Message)
 	}
+	if gv.LastCheckedAt != nil {
+		p("waiting: last_checked=%s (%s ago) github_said=%s", gv.LastCheckedAt.Format(time.RFC3339), time.Since(*gv.LastCheckedAt).Round(time.Second), orDash(gv.PollNote))
+	} else if gv.Status == "waiting" {
+		p("waiting: GitHub not asked yet (first check comes ~5 s after the code is issued)")
+	}
 	if gv.Publisher != nil {
 		p("publisher_app_installations=%s count=%d %s", gv.Publisher.InstallationsResult, len(gv.Publisher.Installations), gv.Publisher.InstallationsDetail)
 		for _, i := range gv.Publisher.Installations {
