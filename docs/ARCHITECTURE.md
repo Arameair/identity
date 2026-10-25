@@ -4,13 +4,19 @@
 
 > **Identity owns the organization and authority of the system. Each feature owns its actual work.**
 
-**Status:** Architecture and integration direction, **not implemented multi-service authorization**. The current experimental Go manager creates local records and detects some services without authenticating them. [Current status](STATUS.md).
+**Status:** Architecture and integration direction, **not implemented multi-service authorization**. **Owner correction (2026-10-25): Thought Processor is the normal human/administrator interface; Identity is the independent authority service behind it.** The current experimental Identity browser wizard does not match that target interaction boundary. [Current status](STATUS.md).
+
+## Human interface versus service authority
+
+**The person or administrator opens Thought Processor.** Thought Processor presents the system: setup, identities, account connections, available features, requested approvals, health, logs and diagnostics. It requests authoritative information and operations from **Identity**, over a future authenticated service interface. Identity does not become a second normal user dashboard. A developer-only direct Identity diagnostics/recovery path is acceptable if clearly scoped.
+
+**Important:** Thought Processor is **the control surface**, not a credential vault or the authority that issues grants. Identity must run independently and receiving features must enforce granted permissions. The UI-to-Identity protocol, initial trust bootstrap and secure consent flow are **not yet implemented**; merely reversing a discovery arrow or embedding a page would not implement them. Processor is not a mandatory data-path proxy.
 
 ## Three different layers
 
 ```text
 +-------------------------------------------------------------+
-| Identity: identity and authority                             |
+| Identity: authority service, not primary human UI              |
 | Durable IDs | ownership | account references | storage      |
 | locations/policy | registered services | scoped grants       |
 +----------------------+--------------------------------------+
@@ -18,7 +24,7 @@
        discover, enroll, approve and verify (control plane)
                        |
 +----------------------v--------------------------------------+
-| Thought Processor: optional cross-feature control surface   |
+| Thought Processor: primary user/admin control surface         |
 | service cards | connection map | real logs/flow/metrics     |
 | original feature UI | truthful status and diagnostics       |
 +-------------+---------------------+-------------------------+
@@ -42,7 +48,7 @@ Arrows represent *possible authorized connections*, **not already implemented AP
 | Component | Owns | Does not own |
 | --- | --- | --- |
 | **Identity** | Stable installation, administrator, entity and service IDs; ownership; account authorization references; registration/grant policies; storage-location governance and audit decisions | Every service's content, AI reasoning, model calls, process execution or raw log transit |
-| **Thought Processor** | Catalog-based discovery of compatible running services; authorized connection assistance; inspection, truthful status cards, developer diagnostics | Canonical identity authority, credential vault, automatic deployment, thought content or every log |
+| **Thought Processor** | **Primary human and administrator UI**; first-run/restore presentation, identity and account management views, user consent/approval screens, feature catalog, live diagnostics, authorized service interaction | Canonical identity authority, credential vault, independent feature execution, direct access to ungranted resources, or pretending discovery is authentication |
 | **Thought Engine** | Optional observation processing, candidate thoughts, directed waves, temporary working context, source evidence, its own records/worker calls | Issuing identity-wide permission or treating thoughts as memory |
 | **Memory** | Optional, separately enabled persistence and recall of historical experience | Becoming mandatory for any thought or identity |
 | **Source features** | Their own data collection, logs, domain functionality, lifecycle and permission enforcement | Automatic access to any other entity or feature |
@@ -89,9 +95,9 @@ This is a **logical example**, not a mandatory physical directory or a claim tha
 
 ## Clean machine and failure behavior
 
-- Identity must be usable with **zero optional features** and without GitHub sign-in. [First-run proposal](FIRST_RUN.md).
+- The **Identity service** must work with zero optional cognitive features and without GitHub sign-in; normal human interaction happens through **Thought Processor** when available. No separate Identity browser dashboard is required for product onboarding. [First-run proposal](FIRST_RUN.md).
 - An optional feature can be stopped without deleting its durable service registration or corrupting another feature.
-- Closing Processor does not stop source services or revoke their previously valid grants.
+- Closing Processor does not stop Identity or source services or revoke their previously valid grants.
 - If Identity is unavailable, no **new** privilege should be granted. Previously authorized independent work may continue only under a tested, bounded offline policy.
 - If a service proposes a direction for additional observation, it cannot create a new grant or start an uncontrolled program.
 - Experimental `PC_DATA` and branch checkouts must stay distinct from durable production data.
