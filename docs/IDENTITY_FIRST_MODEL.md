@@ -1,6 +1,8 @@
-# Identity-first architecture
+# Identity-first **authority** architecture (not Identity-first UI)
 
-**Design direction · 24 October 2026 · Not an implemented cross-service protocol**
+**Design direction · updated 25 October 2026 · Not an implemented cross-service protocol**
+
+**Human interface decision:** A person or administrator works through **Thought Processor**. Identity remains an independently running authority service, with a developer-only troubleshooting interface where necessary. **Identity-first** describes authority and dependency boundaries—not which browser window a user should open. The current experimental Identity wizard is not the intended user-facing product.
 
 Identity is the **durable identity, trust, relationship and policy authority** for an ecosystem of independent applications and capabilities. The owner clarified that **every independently developed feature should also have an identity**. This is broader than a profile manager for a companion or an external-account broker.
 
@@ -9,7 +11,7 @@ The current main branch is **documentation**, not a production service. Runnable
 ## Architectural thesis
 
 - **Identity knows who and what exists.** It preserves durable identities, purpose or capability descriptions, relationships, ownership/trust and authorization decisions.
-- **Thought Processor knows what's running.** It discovers live service instances, connects compatible, authorized components, displays their actual UIs where safely possible, and exposes status, diagnostics and version evidence.
+- **Thought Processor is the primary human/admin control point.** It should present initial setup, Identity records, account/feature administration, permissions and runtime status. It discovers live service instances, connects compatible authorized components and exposes diagnostics and version evidence. It **does not** issue canonical grants on its own.
 - **Thought Engine determines when and how to think.** It consumes approved observations, records Sparks/Traces/Thoughts, assembles bounded context, and calls replaceable workers. It need not send every inference request through Processor or Identity.
 - **Memory may preserve selective experience and retrieve it for future reasoning.** The precise boundary between Thought Engine's historical thoughts and a future Memory service is an **open research question**.
 - **Every service enforces its own authorization.** Identity is the authority for grants; discovery, pairing and a shared feature label never themselves grant access.
@@ -55,7 +57,7 @@ The protocol, pairing credential scheme, local discovery registry location, exac
 - **Service identity scope:** Created by feature developer, installation, operator or a combination? How are multiple instances / shared services handled?
 - **Repository policy:** Does every feature identity need its own private GitHub repo, or only particular entity types? Never treat a repository as a secrets vault.
 - **Cognitive relevance:** Does identity-based purpose materially improve Thought Engine decisions beyond ordinary instructions and retrieved memory? **Not established**.
-- **Bootstrap/recovery:** How does Identity establish the first administrator and trusted counterpart while operating entirely independently?
+- **Bootstrap/recovery:** How does Processor present initial enrollment and recovery while Identity independently establishes/verifies the administrator and trusted counterpart, with no circular trust assumption?
 
 ## Research question and falsifiable hypothesis
 
@@ -70,7 +72,7 @@ See [the companion hypothesis and Grok critique](https://github.com/Arameair/Tho
 ## Recommended prototype order
 
 1. Prove create/save/restore of a local entity ID and isolate experimental test data.
-2. Introduce a minimal independently identifiable service without Project Controller.
+2. Introduce a minimal independently identifiable Identity service without Project Controller, and exercise it from **Thought Processor's UI** rather than treating Identity's diagnostic UI as the product.
 3. Demonstrate discovery **without** privileged access; then explicit pairing and one scoped grant with a real allow/deny test.
 4. Test independent restarts and bounded authorization expiry.
 5. Add Thought Engine/Memory integration only with measured context/retrieval benefits; avoid creating a universal platform before validating the small path.
