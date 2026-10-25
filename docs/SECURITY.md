@@ -4,6 +4,12 @@
 
 [Current evidence](STATUS.md) · [Prototype trial](TRY_THE_PROTOTYPE.md) · [Planned contracts](INTERFACES.md)
 
+## Processor-facing trust boundary
+
+**Human approvals and identity/account administration belong in Thought Processor**, but Processor must **not** become the authority that signs grants or a shared credential store. It must authenticate to Identity for authorized state and commands, bind each action to the real user/administrator and exact scope, and display Identity's verified outcome. Identity remains independently operational; a direct Identity browser wizard in the October 25 candidate is an experimental/debug interface only.
+
+**Not implemented:** secure Processor-to-Identity administrative protocol, initial mutual trust establishment, or destination-enforced Identity-issued grants. A Processor UI card showing Identity as found does **not** solve this security boundary.
+
 ## Trust principles
 
 - An **identity card** is a record; it does not authenticate a person or program.
