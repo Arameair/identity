@@ -27,7 +27,7 @@ import (
 
 const (
 	Product   = "identity"
-	Protocol  = "identity.home-trial/0-experimental"
+	Protocol  = "identity/0-alpha"
 	Prototype = "alpha candidate"
 	Publisher = publisher.Name
 )
