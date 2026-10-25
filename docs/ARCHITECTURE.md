@@ -15,33 +15,32 @@
 ## Three different layers
 
 ```text
-+-------------------------------------------------------------+
-| Identity: authority service, not primary human UI              |
-| Durable IDs | ownership | account references | storage      |
-| locations/policy | registered services | scoped grants       |
-+----------------------+--------------------------------------+
-                       |
-       discover, enroll, approve and verify (control plane)
-                       |
-+----------------------v--------------------------------------+
-| Thought Processor: primary user/admin control surface         |
-| service cards | connection map | real logs/flow/metrics     |
-| original feature UI | truthful status and diagnostics       |
-+-------------+---------------------+-------------------------+
-              :                     :
-       observations/status   diagnostics/status (not all data)
-              :                     :
-  +-----------v--------+   +--------v------------+
-  | TASS / ScreenBridge|-->| Thought Engine      |
-  | feature-owned logs |   | feature-owned waves |
-  +--------------------+   +----------+----------+
-                                     |
-                                     v
-                                AI worker
-   Optional Memory is an independent source of authorized recall.
+                     PERSON / ADMINISTRATOR
+                              |
+                     sees and interacts with
+                              v
+  +----------------------------------------------------------+
+  | THOUGHT PROCESSOR — primary human/admin control surface  |
+  | setup | identities | features | approvals | diagnostics   |
+  +--------------------+----------------------+--------------+
+                       |                      |
+     authenticated     |                      | status / UI
+     management        v                      v
+  +--------------------------------+   +---------------------+
+  | IDENTITY — authority service   |   | INDEPENDENT FEATURES |
+  | durable IDs | relationships    |   | Thought Engine, TASS |
+  | registrations | scoped grants  |   | Memory, others       |
+  +----------------+---------------+   +----------+----------+
+                   |                              |
+             authorization                 own execution,
+             decisions (planned)           logs and data
+                   +-------------> receiving features enforce
+                                  valid permissions locally
 ```
 
-Arrows represent *possible authorized connections*, **not already implemented APIs** and not mandatory relays. Features can send source data to each other directly once the receiving feature enforces appropriate authorization. Processor is not required for their ongoing work.
+This diagram shows **intended responsibilities**, not functioning integrations. The Processor-to-Identity authenticated management channel and enforced grant flows are **not implemented**. Data does not have to route through Processor or Identity.
+
+Features may send data directly to one another when the receiving feature enforces valid authorization. Processor is the **human control point**, not a mandatory relay for independent feature work.
 
 ## Responsibility matrix
 
