@@ -1,0 +1,63 @@
+=== IDENTITY DIAGNOSTICS — Prototype B (Claude) ===
+Paste-safe: credentials, session links, one-time codes, cookies and tokens are removed.
+Generated: 2026-10-25T11:51:36Z UTC | 2026-10-25 06:51:36 CDT -05:00 local | request req_af757d2fa4df
+
+[build]
+app=identity version=0.2.0-home-trial-b protocol=identity.home-trial/0-experimental
+repo=Arameair/identity branch=experiment/identity-home-claude-20261025
+commit=7ea0dabba74dd90980bdfc4d0f6ff66b4080f312 modified=false commit_time=2026-10-25T11:51:03Z
+go=go1.24.7 os=linux arch=amd64
+
+[process]
+status=RUNNING pid=11814 run=run_025b50f002a0c2fa bind=127.0.0.1 port=7798 uptime=17s
+started=2026-10-25T11:51:19Z UTC
+profile=/home/claude/final/idb-profile system_id=idn_45e5039899648e49f2b2d3c4 profile_created=2026-10-25T11:51:19Z
+open_windows(sessions)=1
+endpoints: GET /api/health (public, self-reported); everything else requires this run's operator session + CSRF
+setup=COMPLETED at 2026-10-25T11:51:34Z
+
+[github]
+mode=real status=NOT_CONFIGURED client_id=NOT CONFIGURED source=-
+verified_account=NONE
+publisher=Arameair (name embedded in build; not a signed release)
+
+[thought processor — read-only discovery]
+address=127.0.0.1:7860 state=DETECTED — SELF-REPORTED, UNVERIFIED freshness=CURRENT
+checked=2026-10-25T11:51:33Z elapsed_ms=2 http=200
+self_reported: app=thought-processor version=0.1.0-experiment protocol=thought-processor.diagnostic/0-experimental (UNTRUSTED CLAIMS)
+note=it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied.
+authentication=NONE (no Identity↔Processor contract exists); Identity never reads Processor's operator code
+
+[features — states only from evidence]
+Thought Processor (Arameair/Thought-Processor): availability=UNKNOWN — sign in to GitHub to check | request=NOT REQUESTED | grant=NOT GRANTED — no publisher grant service exists yet
+Thought Engine (Arameair/Thought-engine): availability=UNKNOWN — sign in to GitHub to check | request=NOT REQUESTED | grant=NOT GRANTED — no publisher grant service exists yet
+local_drafts_total=0 (all NOT SUBMITTED)
+
+[log]
+file=/home/claude/final/idb-profile/logs/identity-events.jsonl in_memory=6 loaded_at_start=0 unreadable_lines=0 write_errors=0 rotations=0 last_id=6
+
+[latest problems (warn/error), newest last]
+(none recorded)
+
+[recent activity, newest last — up to 60]
+2026-10-25 06:51:19 CDT -05:00  info  lifecycle  identity.started             result=running — Identity Prototype B is serving on loopback only {"branch":"experiment/identity-home-claude-20261025","client_id_source":"-","github_mode":"real","github_status":"not_configured","log_loaded":"0","log_unreadable_lines":"0","pid":"11814","port":"7798","processor_address":"-","profile":"/home/claude/final/idb-profile","profile_created":"true","revision":"7ea0dabba74dd90980bdfc4d0f6ff66b4080f312","system_id":"idn_45e5039899648e49f2b2d3c4","version":"0.2.0-home-trial-b"} [run_025b50f002a0c2fa]
+2026-10-25 06:51:19 CDT -05:00  info  processor  processor.state_changed      result=NOT CONFIGURED — no Thought Processor address has been chosen {"address":"","claimed_app":"","claimed_protocol":"","claimed_version":"","elapsed_ms":"0","from":"unknown"} [run_025b50f002a0c2fa]
+2026-10-25 06:51:30 CDT -05:00  info  web        session.opened               req_3d8db73157f3 result=signed_in — an Identity window was opened with this run's private link {"sessions":"1"} [run_025b50f002a0c2fa]
+2026-10-25 06:51:33 CDT -05:00  info  processor  processor.address_set        req_be389fe98365 result=saved — Thought Processor address set to 127.0.0.1:7860 (read-only public health checks only) [run_025b50f002a0c2fa]
+2026-10-25 06:51:33 CDT -05:00  info  processor  processor.state_changed      result=DETECTED — SELF-REPORTED, UNVERIFIED — it describes itself as Thought Processor. That is a self-claim: no authenticated Identity↔Processor contract exists yet, so it is not verified and no permission is implied. {"address":"127.0.0.1:7860","claimed_app":"thought-processor","claimed_protocol":"thought-processor.diagnostic/0-experimental","claimed_version":"0.1.0-experiment","elapsed_ms":"2","from":"unknown"} [run_025b50f002a0c2fa]
+2026-10-25 06:51:34 CDT -05:00  info  setup      setup.completed              req_0222e1f09efd result=monitoring — setup finished; switching to the monitoring view {"drafts":"0","github_login":"-","github_mode":"real","github_status":"not_configured","processor":"DETECTED — SELF-REPORTED, UNVERIFIED"} [run_025b50f002a0c2fa]
+
+[not implemented — never shown as working]
+- Publisher access-request submission service (drafts stay local, NOT SUBMITTED)
+- Publisher approval / feature grants (nothing is ever shown as GRANTED)
+- Verified install or start of features
+- Authenticated Identity↔Processor contract (Processor is only DETECTED, self-reported)
+- Thought Engine observation grants and receiver-side enforcement
+- Persistent GitHub sign-in (the token is memory-only; restart = sign in again)
+- Signed release / signed publisher catalog
+
+[to reproduce]
+1. Build: go build -o identity-b.exe .  (from a checkout of branch experiment/identity-home-claude-20261025, commit above)
+2. Run:   .\identity-b.exe -port 7798 -data <profile folder>
+3. Thought Processor separately on its own port; set its address in Identity > Manage > Thought Processor
+=== END ===

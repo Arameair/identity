@@ -1,0 +1,18 @@
+== 2026-10-25T06:51:44-05:00 independence check at Identity commit 7ea0dabba74dd90980bdfc4d0f6ff66b4080f312 / Processor 0ba8bd52face (developer Linux sandbox, NOT owner Windows)
+start: Identity pid 11814, Processor pid 11812
+-- stop Processor only (SIGTERM)
+11814 /home/claude/bin/identity-b -no-browser -data /home/claude/final/idb-profile
+identity log: 2026-10-25T11:51:49.270323061Z warn NOT RUNNING from DETECTED — SELF-REPORTED, UNVERIFIED
+-- restart Processor
+processor run 2: pid 11934
+identity log: 2026-10-25T11:51:59.280509826Z info DETECTED — SELF-REPORTED, UNVERIFIED from NOT RUNNING
+-- stop Identity only (SIGTERM)
+Identity stopped.
+processor health after Identity stopped: {"app":"thought-processor","note":"self-reported;notauthentication","protocol":"thought-processor.diagnostic/0-experimental","version":"0.1.0-experiment"}
+-- restart Identity on same profile
+Identity — Prototype B (Claude) 0.2.0-home-trial-b  commit 7ea0dabba74d
+  run     : run_0dd3f4e1fa45f681   pid 11955   port 7798 (loopback only)
+identity.started run_025b50f002a0c2fa pid 11814 log_loaded 0 system_id idn_45e5039899648e49f2b2d3c4
+identity.started run_0dd3f4e1fa45f681 pid 11955 log_loaded 11 system_id idn_45e5039899648e49f2b2d3c4
+11934 /home/claude/bin/thought-processor -port 7860 -data /home/claude/final/tp-profile
+11955 /home/claude/bin/identity-b -no-browser -data /home/claude/final/idb-profile

@@ -1,3 +1,5 @@
+> **Experiment branch `experiment/identity-home-claude-20261025` — Identity Prototype B (Claude).** A runnable standalone Identity for the 2026-10-26 home trial: **[start here](TRIAL_START_HERE_CLAUDE.md)** · [evidence & acceptance](docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) · [consolidation decisions](docs/CONSOLIDATION_DECISIONS.md). The blueprint text below is from `alpha` and unchanged.
+
 # Identity — reusable entity and account manager
 
 > **Status: project blueprint, not a working account manager.** No GitHub/Discord credentials, logins, Thought Controller registration, or provisioning are implemented.
