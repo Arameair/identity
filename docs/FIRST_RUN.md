@@ -1,6 +1,6 @@
 # First run — a trustworthy local foundation
 
-**Status: target user experience, not implemented.** Updated 2026-10-24. See [current evidence](STATUS.md) and [architecture](ARCHITECTURE.md).
+**Status: target secure first-run authority and recovery model, not yet implemented.** Updated 2026-10-25. A separate [October 25 experimental Go candidate](TRY_THE_PROTOTYPE.md) has a guided local welcome/GitHub/features/Processor UI, but it is **not** proof of secure administrator bootstrap, registered service identity or feature grants. See [current evidence](STATUS.md) and [architecture](ARCHITECTURE.md).
 
 ## Principle
 
