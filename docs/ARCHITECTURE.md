@@ -109,7 +109,7 @@ Different experiments use different GitHub approaches: the older local manager c
 ## Sources of direction and unresolved questions
 
 - [Decisions](DECISIONS.md) distinguishes accepted architecture from proposed lifecycle details.
-- [Independent review](REVIEW.md) preserves contrasting views, including [end-user notes](END_USER_DESIGN_NOTES.md).
+- [Independent review](REVIEW.md) preserves contrasting views, including [end-user notes](archive/END_USER_DESIGN_NOTES_20261025.md).
 - [Thought Processor connection direction](https://github.com/Arameair/Thought-Processor/blob/experiment/identity-authority-registration-20261024/docs/discussions/2026-10-24-identity-authority-registration.md).
 - [Thought-directed waves hypothesis](https://github.com/Arameair/Thought-engine/blob/experiment/thought-engine-v1-20261023/docs/THOUGHT_DIRECTED_WAVES_THEORY_2026-10-24.md).
 
