@@ -9,6 +9,7 @@
 | [Architecture](ARCHITECTURE.md) | Component responsibilities and the security boundary between Identity, Processor, and independent features. |
 | [Decisions](DECISIONS.md) | Owner-approved design choices versus unresolved questions. |
 | [Status](STATUS.md) | Tested facts, candidate branches, blockers, and release state. |
+| [Active backlog](BACKLOG.md) | The small set of open tracking issues; what was superseded and why. |
 | [First run](FIRST_RUN.md) | Intended Processor-first experience, **not yet implemented end-to-end**. |
 | [Engineering case study](PROJECT_JOURNEY.md) | Project history, tradeoffs, evidence, and portfolio narrative. |
 
