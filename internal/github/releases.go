@@ -119,15 +119,20 @@ func (c *Client) AppSeesRepo(ctx context.Context, repo string) (bool, error) {
 }
 
 type ReleaseAsset struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-	Size int64  `json:"size"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	Uploader string `json:"uploader"` // GitHub login that uploaded it
 }
 
 type Release struct {
 	Tag         string         `json:"tag"`
 	Name        string         `json:"name"`
 	PublishedAt time.Time      `json:"published_at"`
+	Draft       bool           `json:"draft"`
+	Prerelease  bool           `json:"prerelease"`
+	Author      string         `json:"author"`
+	URL         string         `json:"url"`
 	Assets      []ReleaseAsset `json:"assets"`
 }
 
@@ -145,10 +150,19 @@ func (c *Client) LatestRelease(ctx context.Context, repo string) (*Release, erro
 		TagName     string    `json:"tag_name"`
 		Name        string    `json:"name"`
 		PublishedAt time.Time `json:"published_at"`
-		Assets      []struct {
-			ID   int64  `json:"id"`
-			Name string `json:"name"`
-			Size int64  `json:"size"`
+		Draft       bool      `json:"draft"`
+		Prerelease  bool      `json:"prerelease"`
+		HTMLURL     string    `json:"html_url"`
+		Author      struct {
+			Login string `json:"login"`
+		} `json:"author"`
+		Assets []struct {
+			ID       int64  `json:"id"`
+			Name     string `json:"name"`
+			Size     int64  `json:"size"`
+			Uploader struct {
+				Login string `json:"login"`
+			} `json:"uploader"`
 		} `json:"assets"`
 	}
 	st, err := c.api(ctx, token, "/repos/"+repo+"/releases/latest", &r)
@@ -165,9 +179,10 @@ func (c *Client) LatestRelease(ctx context.Context, repo string) (*Release, erro
 	case st != 200:
 		return nil, fmt.Errorf("GitHub answered HTTP %d", st)
 	}
-	out := &Release{Tag: r.TagName, Name: r.Name, PublishedAt: r.PublishedAt}
+	out := &Release{Tag: r.TagName, Name: r.Name, PublishedAt: r.PublishedAt, Draft: r.Draft, Prerelease: r.Prerelease,
+		Author: r.Author.Login, URL: r.HTMLURL}
 	for _, a := range r.Assets {
-		out.Assets = append(out.Assets, ReleaseAsset{ID: a.ID, Name: a.Name, Size: a.Size})
+		out.Assets = append(out.Assets, ReleaseAsset{ID: a.ID, Name: a.Name, Size: a.Size, Uploader: a.Uploader.Login})
 	}
 	return out, nil
 }

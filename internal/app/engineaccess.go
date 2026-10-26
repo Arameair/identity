@@ -77,6 +77,11 @@ type accessCache struct {
 	last *Decision
 }
 
+func engineContract() features.Contract {
+	f, _ := features.Find(EngineFeature)
+	return features.ContractFor(f)
+}
+
 func engineRepo() string {
 	if f, ok := features.Find(EngineFeature); ok {
 		return f.Repo
@@ -174,25 +179,34 @@ func (a *App) LastAccess() *Decision {
 
 var platformRE = regexp.MustCompile(`^(windows|linux|darwin)-(amd64|arm64)$`)
 
-func assetName(platform string) string {
-	n := "thought-engine-" + platform
-	if strings.HasPrefix(platform, "windows-") {
-		n += ".exe"
-	}
-	return n
+// ReleaseSource is what Identity checked about where a release came from.
+type ReleaseSource struct {
+	Repo             string   `json:"repo"`
+	Tag              string   `json:"tag"`
+	URL              string   `json:"url,omitempty"`
+	Author           string   `json:"author,omitempty"`
+	AssetUploader    string   `json:"asset_uploader"`
+	ChecksumUploader string   `json:"checksum_uploader"`
+	Prerelease       bool     `json:"prerelease"`
+	Checks           []string `json:"checks"`
+	NotChecked       string   `json:"not_checked"`
 }
 
 type ReleaseInfo struct {
-	DecisionID  string    `json:"decision_id"`
-	Tag         string    `json:"tag"`
-	Name        string    `json:"name"`
-	PublishedAt time.Time `json:"published_at"`
-	Platform    string    `json:"platform"`
-	Asset       string    `json:"asset"`
-	Size        int64     `json:"size"`
-	SHA256      string    `json:"sha256"`
-	Proof       string    `json:"proof,omitempty"`
-	assetID     int64
+	Feature        string         `json:"feature"`
+	ContractSchema string         `json:"contract_schema"`
+	DecisionID     string         `json:"decision_id"`
+	Tag            string         `json:"tag"`
+	Name           string         `json:"name"`
+	PublishedAt    time.Time      `json:"published_at"`
+	Platform       string         `json:"platform"`
+	Asset          string         `json:"asset"`
+	Size           int64          `json:"size"`
+	SHA256         string         `json:"sha256"`
+	Source         *ReleaseSource `json:"source,omitempty"`
+	Proof          string         `json:"proof,omitempty"`
+	assetID        int64
+	repo           string
 }
 
 func (ri ReleaseInfo) canonical() string {
@@ -201,40 +215,71 @@ func (ri ReleaseInfo) canonical() string {
 
 var sumLine = regexp.MustCompile(`^([0-9a-fA-F]{64})\s+\*?(\S+)\s*$`)
 
-// releaseFor finds the asset for platform in the latest release and its
-// checksum from the release's SHA256SUMS file.
-func (a *App) releaseFor(ctx context.Context, platform string) (ReleaseInfo, int, string) {
-	repo := engineRepo()
-	rel, err := a.GH.LatestRelease(ctx, repo)
+// releaseFor finds the asset for platform in the feature's latest release,
+// enforces the contract's approved source, and reads the checksum from the
+// release's checksum file.
+func (a *App) releaseFor(ctx context.Context, c features.Contract, platform string) (ReleaseInfo, int, string, string) {
+	if c.Source == nil || c.Install == nil {
+		return ReleaseInfo{}, 404, "NO_INSTALL_ADAPTER", "Identity has no install rule for " + c.Name + "."
+	}
+	src := *c.Source
+	want, err := src.AssetName(platform)
+	if err != nil {
+		return ReleaseInfo{}, 400, "BAD_PLATFORM", err.Error()
+	}
+	rel, err := a.GH.LatestRelease(ctx, src.Repo)
 	switch {
 	case errors.Is(err, github.ErrNoRelease):
-		return ReleaseInfo{}, 404, "Thought Engine has no published version yet. " + strings.SplitN(repo, "/", 2)[0] + " needs to publish a release."
+		return ReleaseInfo{}, 404, "NO_RELEASE", c.Name + " has no published version yet. " + strings.SplitN(src.Repo, "/", 2)[0] + " needs to publish a release."
 	case err != nil:
-		return ReleaseInfo{}, 502, "Identity couldn't read the release from GitHub: " + err.Error()
+		return ReleaseInfo{}, 502, "GITHUB_UNREACHABLE", "Identity couldn't read the release from GitHub: " + err.Error()
 	}
-	want := assetName(platform)
-	ri := ReleaseInfo{Tag: rel.Tag, Name: rel.Name, PublishedAt: rel.PublishedAt, Platform: platform, Asset: want}
+	ri := ReleaseInfo{Feature: c.FeatureID, ContractSchema: c.Schema, Tag: rel.Tag, Name: rel.Name, PublishedAt: rel.PublishedAt,
+		Platform: platform, Asset: want, repo: src.Repo}
+	rs := &ReleaseSource{Repo: src.Repo, Tag: rel.Tag, URL: rel.URL, Author: rel.Author, Prerelease: rel.Prerelease,
+		NotChecked: "publisher signature: releases are not signed yet, so this proves where the file came from on GitHub and that it is undamaged — not that the publisher personally approved it"}
+	ri.Source = rs
 	var sumsID int64
 	for _, as := range rel.Assets {
 		if as.Name == want {
-			ri.assetID, ri.Size = as.ID, as.Size
+			ri.assetID, ri.Size, rs.AssetUploader = as.ID, as.Size, as.Uploader
 		}
-		if as.Name == "SHA256SUMS" {
-			sumsID = as.ID
+		if as.Name == src.Checksums {
+			sumsID, rs.ChecksumUploader = as.ID, as.Uploader
 		}
+	}
+	// Approved source (contract): repository, tag pattern, not a draft,
+	// prerelease only if allowed, files uploaded by a trusted account.
+	unapproved := func(why string) (ReleaseInfo, int, string, string) {
+		a.Log.Warn("access", "release.unapproved_source", "", "refused", c.FeatureID+" "+rel.Tag+": "+why, nil)
+		return ri, 422, "UNAPPROVED_SOURCE", "This release doesn't come from the approved source, so it won't be installed: " + why
+	}
+	if rel.Draft {
+		return unapproved("it is a draft")
+	}
+	if !strings.HasPrefix(rel.Tag, src.TagPrefix) || !tagRE.MatchString(rel.Tag) {
+		return unapproved(fmt.Sprintf("tag %q doesn't start with %q", rel.Tag, src.TagPrefix))
+	}
+	rs.Checks = append(rs.Checks, "repository "+src.Repo+" (approved)", "tag "+rel.Tag+" matches "+src.TagPrefix+"*", "not a draft")
+	if rel.Prerelease && !src.AllowPrerelease {
+		return unapproved("it is a pre-release")
 	}
 	if ri.assetID == 0 {
-		return ri, 404, fmt.Sprintf("Release %s has no %s file for this computer (%s).", rel.Tag, want, platform)
+		return ri, 404, "NO_ASSET_FOR_PLATFORM", fmt.Sprintf("Release %s has no %s file for this computer (%s).", rel.Tag, want, platform)
 	}
 	if sumsID == 0 {
-		return ri, 422, fmt.Sprintf("Release %s has no SHA256SUMS file, so its download can't be checked. Nothing will be installed.", rel.Tag)
+		return ri, 422, "CANNOT_VERIFY", fmt.Sprintf("Release %s has no %s file, so its download can't be checked. Nothing will be installed.", rel.Tag, src.Checksums)
 	}
-	if ri.Size <= 0 || ri.Size > MaxAssetBytes {
-		return ri, 422, fmt.Sprintf("Release file size %d is outside the allowed range.", ri.Size)
+	if !src.Trusted(rs.AssetUploader) || !src.Trusted(rs.ChecksumUploader) {
+		return unapproved(fmt.Sprintf("files were uploaded by %q / %q, not by %s", rs.AssetUploader, rs.ChecksumUploader, strings.Join(src.TrustedUploaders, ", ")))
 	}
-	body, _, err := a.GH.OpenAsset(ctx, repo, sumsID)
+	rs.Checks = append(rs.Checks, "file and "+src.Checksums+" uploaded by "+rs.AssetUploader+" (the repository's release workflow)")
+	if ri.Size <= 0 || ri.Size > c.Install.MaxBytes {
+		return ri, 422, "CANNOT_VERIFY", fmt.Sprintf("Release file size %d is outside the allowed range.", ri.Size)
+	}
+	body, _, err := a.GH.OpenAsset(ctx, src.Repo, sumsID)
 	if err != nil {
-		return ri, 502, "Identity couldn't read SHA256SUMS: " + err.Error()
+		return ri, 502, "GITHUB_UNREACHABLE", "Identity couldn't read " + src.Checksums + ": " + err.Error()
 	}
 	defer body.Close()
 	sc := bufio.NewScanner(io.LimitReader(body, 64<<10))
@@ -244,10 +289,13 @@ func (a *App) releaseFor(ctx context.Context, platform string) (ReleaseInfo, int
 		}
 	}
 	if ri.SHA256 == "" {
-		return ri, 422, fmt.Sprintf("SHA256SUMS in %s has no line for %s. Nothing will be installed.", rel.Tag, want)
+		return ri, 422, "CANNOT_VERIFY", fmt.Sprintf("%s in %s has no line for %s. Nothing will be installed.", src.Checksums, rel.Tag, want)
 	}
-	return ri, 200, ""
+	rs.Checks = append(rs.Checks, "SHA-256 taken from "+src.Checksums+" in the same release")
+	return ri, 200, "", ""
 }
+
+var tagRE = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 func clientFrom(r *http.Request) pairing.PublicClient {
 	c, _ := r.Context().Value(clientKey).(pairing.PublicClient)
@@ -286,6 +334,9 @@ func (a *App) engineRoutes(m *http.ServeMux) {
 			"identity_version": a.Build.Version, "note": "keep this token private; it is shown once"})
 	}))
 	m.HandleFunc("GET /api/v1/features/thought-engine/access", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		if !a.hiddenAs404(w, r, EngineFeature) {
+			return
+		}
 		d := a.EngineAccess(r.Context(), r.URL.Query().Get("fresh") == "1")
 		d.Proof = pairing.Proof(bearer(r), d.canonical())
 		a.Log.Info("access", "engine.access_answered", reqID(r), d.State, "answered Thought Processor "+clientFrom(r).ProcessorID, map[string]string{"decision_id": d.DecisionID})
@@ -342,9 +393,12 @@ func (a *App) pairingState() map[string]any {
 // Reached from the Engine-specific route and from the generic
 // /api/v1/features/{id}/release route (the Engine is the only adapter so far).
 func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
+	if !a.hiddenAs404(w, r, EngineFeature) {
+		return
+	}
 	platform := r.URL.Query().Get("platform")
 	if !platformRE.MatchString(platform) {
-		a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
+		a.signedFail(w, r, 400, "engine.release_bad_platform", "platform must look like windows-amd64")
 		return
 	}
 	d := a.EngineAccess(r.Context(), false)
@@ -353,9 +407,10 @@ func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
 		a.signed(w, r, 403, map[string]any{"error": "not_allowed", "decision": d})
 		return
 	}
-	ri, code, msg := a.releaseFor(r.Context(), platform)
+	ri, code, ecode, msg := a.releaseFor(r.Context(), engineContract(), platform)
 	if code != 200 {
-		a.fail(w, r, code, "access", "engine.release_unavailable", msg)
+		a.Log.Warn("access", "engine.release_unavailable", reqID(r), ecode, msg, nil)
+		a.signed(w, r, code, map[string]any{"error": ecode, "message": msg, "source": ri.Source, "request_id": reqID(r)})
 		return
 	}
 	ri.DecisionID = d.DecisionID
@@ -367,6 +422,9 @@ func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
 // engineDownload streams the Engine release asset. Identity downloads it with
 // its own GitHub token, which never leaves Identity.
 func (a *App) engineDownload(w http.ResponseWriter, r *http.Request) {
+	if !a.hiddenAs404(w, r, EngineFeature) {
+		return
+	}
 	platform := r.URL.Query().Get("platform")
 	if !platformRE.MatchString(platform) {
 		a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
@@ -377,16 +435,16 @@ func (a *App) engineDownload(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, 403, "access", "engine.download_refused", d.Reason)
 		return
 	}
-	ri, code, msg := a.releaseFor(r.Context(), platform)
+	ri, code, ecode, msg := a.releaseFor(r.Context(), engineContract(), platform)
 	if code != 200 {
-		a.fail(w, r, code, "access", "engine.release_unavailable", msg)
+		a.fail(w, r, code, "access", "engine.release_unavailable", ecode+": "+msg)
 		return
 	}
 	if want := r.URL.Query().Get("tag"); want != "" && want != ri.Tag {
 		a.fail(w, r, 409, "access", "engine.release_changed", "the latest release changed from "+clip(want, 40)+" to "+ri.Tag+"; check again")
 		return
 	}
-	body, _, err := a.GH.OpenAsset(r.Context(), engineRepo(), ri.assetID)
+	body, _, err := a.GH.OpenAsset(r.Context(), ri.repo, ri.assetID)
 	if err != nil {
 		a.fail(w, r, 502, "access", "engine.download_failed", err.Error())
 		return
@@ -404,4 +462,14 @@ func (a *App) engineDownload(w http.ResponseWriter, r *http.Request) {
 		res, lvl = "incomplete", "warn"
 	}
 	a.Log.Add(lvl, "access", "engine.download_streamed", reqID(r), res, fmt.Sprintf("%s %s: %d of %d bytes in %s to %s", ri.Tag, ri.Asset, n, ri.Size, time.Since(t0).Round(time.Millisecond), clientFrom(r).ProcessorID), map[string]string{"decision_id": d.DecisionID})
+}
+
+// hiddenAs404 answers exactly like an unknown feature when the account may
+// not see this (private) feature. Returns true when the caller may go on.
+func (a *App) hiddenAs404(w http.ResponseWriter, r *http.Request, id string) bool {
+	if _, ok := a.findVisible(r.Context(), id); !ok {
+		a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(id, 40))
+		return false
+	}
+	return true
 }

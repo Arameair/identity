@@ -28,14 +28,15 @@ type Feature struct {
 	Description string `json:"description"`
 	Repo        string `json:"repo"`
 	InstallRule bool   `json:"install_rule"` // installable through Processor under an access rule
+	Visibility  string `json:"visibility"`   // public | private (see contract.go)
 }
 
 // Catalog is embedded in this experimental build. It is not a signed
 // publisher catalog.
 var Catalog = []Feature{
-	{ID: "thought-processor", Name: "Thought Processor", Repo: "Arameair/Thought-Processor",
+	{ID: "thought-processor", Name: "Thought Processor", Repo: "Arameair/Thought-Processor", Visibility: Public,
 		Description: "Connection and diagnostic workspace: shows services, their truthful state, logs and flow."},
-	{ID: "thought-engine", Name: "Thought Engine", Repo: "Arameair/Thought-engine", InstallRule: true,
+	{ID: "thought-engine", Name: "Thought Engine", Repo: "Arameair/Thought-engine", InstallRule: true, Visibility: Private,
 		Description: "Spark → Trace → Thought processing. Thought Processor can install it if your Identity allows it."},
 }
 

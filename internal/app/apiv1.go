@@ -197,7 +197,7 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 
 	// ---- features ----
 	m.HandleFunc("GET /api/v1/features", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
-		a.signed(w, r, 200, map[string]any{"features": a.featureStates(r.Context(), nil, clientFrom(r)), "legend": featureLegend})
+		a.signed(w, r, 200, map[string]any{"features": a.featureStates(r.Context(), nil, clientFrom(r)), "legend": featureLegend, "catalog_note": a.catalogNote()})
 	}))
 	m.HandleFunc("GET /api/v1/identities/{id}/features", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		e, ok := a.Ents.Get(r.PathValue("id"))
@@ -205,7 +205,7 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 			a.signedFail(w, r, 404, "identities.not_found", entities.ErrNotFound.Error())
 			return
 		}
-		a.signed(w, r, 200, map[string]any{"identity": e, "features": a.featureStates(r.Context(), &e, clientFrom(r)), "legend": featureLegend})
+		a.signed(w, r, 200, map[string]any{"identity": e, "features": a.featureStates(r.Context(), &e, clientFrom(r)), "legend": featureLegend, "catalog_note": a.catalogNote()})
 	}))
 
 	// Generic per-feature install routes. Processor should use these rather
@@ -214,7 +214,7 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 	// install adapter so far; other features answer NO_INSTALL_ADAPTER.
 	m.HandleFunc("GET /api/v1/features/{id}/eligibility", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		if _, ok := features.Find(id); !ok {
+		if _, ok := a.findVisible(r.Context(), id); !ok {
 			a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(id, 40))
 			return
 		}
@@ -224,6 +224,16 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 				return
 			}
 		}
+	}))
+	// The feature contract (thought.feature/1): everything Processor needs to
+	// install the feature without feature-specific code.
+	m.HandleFunc("GET /api/v1/features/{id}/contract", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		f, ok := a.findVisible(r.Context(), r.PathValue("id"))
+		if !ok {
+			a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(r.PathValue("id"), 40))
+			return
+		}
+		a.signed(w, r, 200, features.ContractFor(f))
 	}))
 	m.HandleFunc("GET /api/v1/features/{id}/release", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		if a.needAdapter(w, r) {
@@ -396,7 +406,7 @@ func (a *App) githubV1() map[string]any {
 }
 
 var featureLegend = map[string]string{
-	"eligible_to_install":  "may this installation download/install the feature (rule repo-visibility-v0 for Thought Engine). Install only — NOT permission to run it or read any data",
+	"eligible_to_install":  "may this installation download/install the feature (the feature's access rule, e.g. repo-visibility-v0). Install only — NOT permission to run it or read any data",
 	"installed":            "UNKNOWN_TO_IDENTITY — Thought Processor knows what it installed; Identity does not track installs in this alpha",
 	"service_registered":   "NOT_REGISTERED — feature services do not register with Identity yet",
 	"enabled_for_identity": "NOT_GRANTED until a grant exists; grants are not implemented in this alpha",
@@ -407,7 +417,11 @@ var featureLegend = map[string]string{
 func (a *App) featureStates(ctx context.Context, e *entities.Entity, c pairing.PublicClient) []map[string]any {
 	out := []map[string]any{}
 	for _, f := range features.Catalog {
+		if !a.canSee(ctx, f) {
+			continue // private and this account isn't allowed to see it: leave no trace
+		}
 		st := map[string]any{"feature": f.ID, "name": f.Name, "repo": f.Repo, "description": f.Description,
+			"visibility": f.Visibility, "contract_schema": features.ContractSchema,
 			"installed": notTrackedByIdty, "running": notTrackedByIdty, "service_registered": "NOT_REGISTERED"}
 		switch {
 		case f.ID == "thought-processor":
@@ -439,7 +453,7 @@ func (a *App) authorize(r *http.Request, identityID, feature, operation, source 
 		"cache": "none", "valid_for_seconds": 0,
 		"policy": "default deny (C03); ask again before every protected action; if Identity can't be reached, treat as AUTHORITY UNAVAILABLE and block (C06)"}
 	e, ok := a.Ents.Get(identityID)
-	_, known := features.Find(feature)
+	_, known := a.findVisible(r.Context(), feature)
 	switch {
 	case !ok:
 		d["state"], d["reason"] = "UNKNOWN_IDENTITY", "Identity has no identity with that ID."
@@ -465,7 +479,7 @@ func installAdapter(id string) string {
 // needAdapter answers for features that have no install adapter yet.
 func (a *App) needAdapter(w http.ResponseWriter, r *http.Request) bool {
 	id := r.PathValue("id")
-	if _, ok := features.Find(id); !ok {
+	if _, ok := a.findVisible(r.Context(), id); !ok {
 		a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(id, 40))
 		return false
 	}
@@ -475,4 +489,34 @@ func (a *App) needAdapter(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+// canSee: public features are shown to everyone; a private feature only when
+// this installation's verified GitHub account passes the feature's access
+// rule (repo-visibility-v0 for Thought Engine). Anyone else gets exactly the
+// same answers as for a feature that doesn't exist.
+func (a *App) canSee(ctx context.Context, f features.Feature) bool {
+	if f.Visibility != features.Private {
+		return true
+	}
+	if !f.InstallRule {
+		return false
+	}
+	return a.EngineAccess(ctx, false).State == Allowed
+}
+
+func (a *App) findVisible(ctx context.Context, id string) (features.Feature, bool) {
+	f, ok := features.Find(id)
+	if !ok || !a.canSee(ctx, f) {
+		return features.Feature{}, false
+	}
+	return f, true
+}
+
+// catalogNote tells the person how to see more, without naming hidden features.
+func (a *App) catalogNote() string {
+	if a.GH.View().Status != github.Verified {
+		return "Some features are only shown to approved accounts. Sign in to GitHub to see everything available to you."
+	}
+	return "Showing every feature your account is approved to see."
 }

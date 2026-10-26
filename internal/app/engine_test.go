@@ -4,6 +4,7 @@ package app
 // in as different accounts and serves a fake Thought-engine release.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -29,11 +30,12 @@ type engFixture struct {
 	installed bool            // app installed on Thought-engine (for owner hint)
 	asset     []byte
 	sums      string
+	uploader  string // who uploaded the asset (approved: github-actions[bot])
 	polls     int
 }
 
 func newEngFixture(t *testing.T) *engFixture {
-	f := &engFixture{login: "Arameair", visible: map[string]bool{"Arameair": true}, installed: true,
+	f := &engFixture{login: "Arameair", visible: map[string]bool{"Arameair": true}, installed: true, uploader: "github-actions[bot]",
 		asset: []byte("FAKE THOUGHT ENGINE BINARY — test fixture only\n")}
 	sum := sha256.Sum256(f.asset)
 	f.sums = hex.EncodeToString(sum[:]) + "  thought-engine-windows-amd64.exe\n" + strings.Repeat("0", 64) + "  thought-engine-linux-amd64\n"
@@ -95,7 +97,9 @@ func newEngFixture(t *testing.T) *engFixture {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"tag_name": "engine-v0.1.0-fixture", "name": "fixture", "published_at": time.Now().UTC(),
-			"assets": []map[string]any{{"id": 11, "name": "thought-engine-windows-amd64.exe", "size": len(f.asset)}, {"id": 12, "name": "SHA256SUMS", "size": len(f.sums)}}})
+			"html_url": "https://github.com/Arameair/Thought-engine/releases/tag/engine-v0.1.0-fixture", "author": map[string]string{"login": "github-actions[bot]"},
+			"assets": []map[string]any{{"id": 11, "name": "thought-engine-windows-amd64.exe", "size": len(f.asset), "uploader": map[string]string{"login": f.uploader}},
+				{"id": 12, "name": "SHA256SUMS", "size": len(f.sums), "uploader": map[string]string{"login": "github-actions[bot]"}}}})
 	})
 	mux.HandleFunc("GET /repos/Arameair/Thought-engine/releases/assets/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !canSee(r) || r.Header.Get("Accept") != "application/octet-stream" {
@@ -201,14 +205,14 @@ func TestEngineAccessPairingAllowDenyDownload(t *testing.T) {
 	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/access", "", strings.Repeat("b", 64)); st != 401 {
 		t.Fatal("access with wrong token")
 	}
-	_, _, b := h.machine("GET", "/api/v1/features/thought-engine/access", "", token)
-	if d := decision(t, b, token); d.State != NotSignedIn || d.Allowed {
-		t.Fatalf("before sign-in: %+v", d)
+	// Private feature: before sign-in it is hidden (same 404 as an unknown feature).
+	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/access", "", token); st != 404 {
+		t.Fatalf("before sign-in: %d", st)
 	}
 
 	// Owner with the app installed on the repo: ALLOWED, release + download verify.
 	h.githubSignIn()
-	_, _, b = h.machine("GET", "/api/v1/features/thought-engine/access?fresh=1", "", token)
+	_, _, b := h.machine("GET", "/api/v1/features/thought-engine/access?fresh=1", "", token)
 	if d := decision(t, b, token); d.State != Allowed || d.Account.Login != "Arameair" {
 		t.Fatalf("owner: %+v", d)
 	}
@@ -226,14 +230,40 @@ func TestEngineAccessPairingAllowDenyDownload(t *testing.T) {
 	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64;rm", "", token); st != 400 {
 		t.Fatal("bad platform accepted")
 	}
+	// Generic route and contract give the same release, with its source checks.
+	st, _, b = h.machine("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token)
+	var gri ReleaseInfo
+	json.Unmarshal(b, &gri)
+	if st != 200 || gri.SHA256 != ri.SHA256 || gri.Source == nil || gri.Source.AssetUploader != "github-actions[bot]" || len(gri.Source.Checks) < 4 {
+		t.Fatalf("generic release %d %s", st, b)
+	}
+	if st, _, b := h.machine("GET", "/api/v1/features/thought-engine/contract", "", token); st != 200 || !strings.Contains(string(b), `"tag_prefix":"engine-v"`) {
+		t.Fatalf("contract %d %s", st, b)
+	}
+	// Approved source: a file uploaded by a person (not the release workflow) is refused.
+	f.mu.Lock()
+	f.uploader = "someone-else"
+	f.mu.Unlock()
+	if st, _, b := h.machine("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token); st != 422 || !strings.Contains(string(b), "UNAPPROVED_SOURCE") {
+		t.Fatalf("unapproved uploader %d %s", st, b)
+	}
+	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/release/download?platform=windows-amd64", "", token); st != 422 {
+		t.Fatalf("download from unapproved source: %d", st)
+	}
+	f.mu.Lock()
+	f.uploader = "github-actions[bot]"
+	f.mu.Unlock()
 
 	// Owner, app NOT installed on the repo: specific hint.
 	f.mu.Lock()
 	f.visible["Arameair"], f.installed = false, false
 	f.mu.Unlock()
-	_, _, b = h.machine("GET", "/api/v1/features/thought-engine/access?fresh=1", "", token)
-	if d := decision(t, b, token); d.State != NotAllowed || d.Hint != "owner_app_not_installed" {
+	h.a.EngineAccess(context.Background(), true)
+	if d := h.a.LastAccess(); d.State != NotAllowed || d.Hint != "owner_app_not_installed" {
 		t.Fatalf("owner without app install: %+v", d)
+	}
+	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/access", "", token); st != 404 {
+		t.Fatalf("not-allowed account still sees the private feature: %d", st)
 	}
 
 	// A second account that can't see the repo: NOT_ALLOWED, no release, no download.
@@ -242,16 +272,14 @@ func TestEngineAccessPairingAllowDenyDownload(t *testing.T) {
 	f.login = "brother-account"
 	f.mu.Unlock()
 	h.githubSignIn()
-	_, _, b = h.machine("GET", "/api/v1/features/thought-engine/access?fresh=1", "", token)
-	d := decision(t, b, token)
-	if d.State != NotAllowed || !strings.Contains(d.Reason, "brother-account") || d.Hint != "" {
+	h.a.EngineAccess(context.Background(), true)
+	if d := h.a.LastAccess(); d.State != NotAllowed || !strings.Contains(d.Reason, "brother-account") || d.Hint != "" {
 		t.Fatalf("second account: %+v", d)
 	}
-	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token); st != 403 {
-		t.Fatal("release described to a denied account")
-	}
-	if st, _, _ := h.machine("GET", "/api/v1/features/thought-engine/release/download?platform=windows-amd64", "", token); st != 403 {
-		t.Fatal("download streamed to a denied account")
+	for _, path := range []string{"/api/v1/features/thought-engine/release?platform=windows-amd64", "/api/v1/features/thought-engine/release/download?platform=windows-amd64", "/api/v1/features/thought-engine/contract"} {
+		if st, _, _ := h.machine("GET", path, "", token); st != 404 {
+			t.Fatalf("%s answered a not-allowed account: %d", path, st)
+		}
 	}
 
 	// Diagnostics never contain the token or a pairing code.
@@ -266,9 +294,8 @@ func TestEngineAccessPairingAllowDenyDownload(t *testing.T) {
 	h.stop()
 	h2 := startApp(t, dir, cfg)
 	defer h2.stop()
-	_, _, b = h2.machine("GET", "/api/v1/features/thought-engine/access", "", token)
-	if d := decision(t, b, token); d.State != NotSignedIn {
-		t.Fatalf("after restart: %+v", d)
+	if st, _, _ := h2.machine("GET", "/api/v1/features/thought-engine/access", "", token); st != 404 {
+		t.Fatalf("after restart (signed out → hidden): %d", st)
 	}
 	// Unpair from Identity's window: token stops working.
 	h2.signIn()

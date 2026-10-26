@@ -6,6 +6,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -184,7 +185,9 @@ func TestV1IdentitiesDefaultDenyAndRestartReconnect(t *testing.T) {
 
 	// Every authorization is DENIED, with a reason, and never cacheable.
 	for _, c := range []struct{ body, state string }{
-		{`{"identity_id":"` + id + `","feature":"thought-engine","operation":"observe","source":"discord"}`, "NO_GRANT"},
+		{`{"identity_id":"` + id + `","feature":"thought-processor","operation":"observe","source":"discord"}`, "NO_GRANT"},
+		// Private feature while not signed in: same answer as a feature that doesn't exist.
+		{`{"identity_id":"` + id + `","feature":"thought-engine","operation":"observe","source":"discord"}`, "UNKNOWN_FEATURE"},
 		{`{"identity_id":"ent_00000000000000000000","feature":"thought-engine","operation":"observe"}`, "UNKNOWN_IDENTITY"},
 		{`{"identity_id":"` + id + `","feature":"nope","operation":"x"}`, "UNKNOWN_FEATURE"},
 	} {
@@ -199,15 +202,22 @@ func TestV1IdentitiesDefaultDenyAndRestartReconnect(t *testing.T) {
 	if st != 200 {
 		t.Fatalf("features %d", st)
 	}
-	var eng map[string]any
+	// Private features stay hidden until the account is allowed to see them.
+	var tp map[string]any
 	for _, f := range fs["features"].([]any) {
-		if m := f.(map[string]any); m["feature"] == "thought-engine" {
-			eng = m
+		m := f.(map[string]any)
+		if m["feature"] == "thought-engine" {
+			t.Fatalf("private feature shown to a signed-out installation: %v", m)
+		}
+		if m["feature"] == "thought-processor" {
+			tp = m
 		}
 	}
-	el := eng["eligible_to_install"].(map[string]any)
-	if el["state"] != NotSignedIn || eng["enabled_for_identity"] != "NOT_GRANTED" || eng["installed"] != notTrackedByIdty || !strings.Contains(el["meaning"].(string), "install only") {
-		t.Fatalf("engine feature state %v", eng)
+	if tp == nil || tp["enabled_for_identity"] != "NOT_GRANTED" || tp["visibility"] != "public" || !strings.Contains(fs["catalog_note"].(string), "Sign in to GitHub") {
+		t.Fatalf("feature states %v", fs)
+	}
+	if strings.Contains(fmt.Sprint(fs), "Thought-engine") || strings.Contains(fmt.Sprint(fs), "Thought Engine") {
+		t.Fatal("hidden feature leaked in the catalog answer")
 	}
 
 	// Archive / restore / rename.
@@ -330,8 +340,17 @@ func TestV1LocatorAndGenericFeatureRoutes(t *testing.T) {
 		t.Fatalf("locator wrong: %v %s", err, b)
 	}
 
-	if st, e := h.v1("GET", "/api/v1/features/thought-engine/eligibility", "", token); st != 200 || e["eligible_to_install"].(map[string]any)["state"] != NotSignedIn || e["install_adapter"] == "NONE" {
-		t.Fatalf("engine eligibility %d %v", st, e)
+	// Hidden private feature: every route answers exactly like an unknown one.
+	for _, path := range []string{"/api/v1/features/thought-engine/eligibility", "/api/v1/features/thought-engine/contract",
+		"/api/v1/features/thought-engine/release?platform=windows-amd64", "/api/v1/features/thought-engine/release/download?platform=windows-amd64"} {
+		st, e := h.v1("GET", path, "", token)
+		_, u := h.v1("GET", strings.Replace(path, "thought-engine", "no-such-feature", 1), "", token)
+		if st != 404 || !strings.Contains(fmt.Sprint(e["error"]), "doesn't know") || strings.Replace(fmt.Sprint(u["error"]), "no-such-feature", "thought-engine", 1) != fmt.Sprint(e["error"]) {
+			t.Fatalf("hidden %s: %d %v vs %v", path, st, e, u)
+		}
+	}
+	if st, c := h.v1("GET", "/api/v1/features/thought-processor/contract", "", token); st != 200 || c["schema"] != "thought.feature/1" || c["kind"] != "interface" {
+		t.Fatalf("processor contract %d %v", st, c)
 	}
 	if st, e := h.v1("GET", "/api/v1/features/thought-processor/eligibility", "", token); st != 200 || e["install_adapter"] != "NONE" {
 		t.Fatalf("processor eligibility %d %v", st, e)
@@ -341,10 +360,6 @@ func TestV1LocatorAndGenericFeatureRoutes(t *testing.T) {
 	}
 	if st, _ := h.v1("GET", "/api/v1/features/nope/eligibility", "", token); st != 404 {
 		t.Fatalf("unknown feature %d", st)
-	}
-	// Generic route reaches the Engine adapter (refused here: not signed in to GitHub).
-	if st, e := h.v1("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token); st != 403 || e["error"] != "not_allowed" {
-		t.Fatalf("generic engine release %d %v", st, e)
 	}
 	h.stop()
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
