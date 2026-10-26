@@ -42,7 +42,7 @@ func (a *App) Diagnostics(requestID string) string {
 	p("started=%s UTC", a.Started.UTC().Format(time.RFC3339))
 	p("profile=%s system_id=%s profile_created=%s", profile.DisplayPath(a.Store.Root), a.Store.Profile.SystemID, a.Store.Profile.CreatedAt.Format(time.RFC3339))
 	p("open_windows(sessions)=%d", a.Sess.Count())
-	p("endpoints: GET /api/health (public, self-reported); /api/v1/* for paired programs (bearer token, signed answers); everything else requires this run's operator session + CSRF")
+	p("endpoints: GET /api/health (public, self-reported); /api/v1/* for paired programs (signed requests, identity/2; the secret is never sent; signed answers); everything else requires this run's operator session + CSRF")
 	if set.SetupCompletedAt != nil {
 		p("setup=COMPLETED at %s", set.SetupCompletedAt.Format(time.RFC3339))
 	} else if set.WizardRequested {
@@ -91,7 +91,7 @@ func (a *App) Diagnostics(requestID string) string {
 		p("self_reported: app=%s version=%s protocol=%s (UNTRUSTED CLAIMS)", pr.ClaimedApp, pr.ClaimedVersion, pr.ClaimedProtocol)
 	}
 	p("note=%s", pr.Note)
-	p("authentication: this discovery is unauthenticated (public health only); paired Processors authenticate with a token — see [pairing]. Identity never reads Processor's operator code")
+	p("authentication: this discovery is unauthenticated (public health only); paired Processors authenticate with signed requests — see [pairing]. Identity never reads Processor's operator code")
 	p("")
 	p("[service role and lifecycle]")
 	p("role=independent authority service; Thought Processor is the normal human interface (C01). Troubleshooting page is not the normal way in")

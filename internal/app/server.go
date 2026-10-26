@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -220,13 +221,21 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			if level == paired {
-				tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-				c, ok := a.Pair.Authenticate(tok)
-				if !ok {
-					a.fail(w, r, 401, "pairing", "pairing.token_refused", "this program is not paired with this Identity (or the pairing was removed)")
+				// API v2: the pairing secret is never sent. The request is
+				// signed (see pairing.RequestMAC); the answer will be too.
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					a.fail(w, r, 413, "pairing", "pairing.body_refused", "request body too large")
 					return
 				}
-				r = r.WithContext(context.WithValue(r.Context(), clientKey, c))
+				r.Body = io.NopCloser(bytes.NewReader(body))
+				c, rk, err := a.Pair.Verify(r.Header.Get(ProcessorIDHeader), r.Method, r.URL.RequestURI(),
+					r.Header.Get(TimeHeader), r.Header.Get(NonceHeader), r.Header.Get(AuthHeader), body)
+				if err != nil {
+					a.fail(w, r, 401, "pairing", "pairing.request_refused", err.Error())
+					return
+				}
+				r = r.WithContext(context.WithValue(r.Context(), clientKey, authed{c, rk, r.Header.Get(NonceHeader)}))
 			}
 			h(w, r)
 			return

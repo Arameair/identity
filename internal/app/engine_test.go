@@ -133,7 +133,7 @@ func (h *harness) machine(method, path, body, token string) (int, http.Header, [
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		signTest(req, token, body)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -154,7 +154,8 @@ func (h *harness) pairProcessor(id string) string {
 	}
 	var r map[string]string
 	json.Unmarshal(b, &r)
-	return r["token"]
+	testPIDs.Store(r["secret"], id)
+	return r["secret"]
 }
 
 func (h *harness) githubSignIn() {
@@ -174,7 +175,7 @@ func decision(t *testing.T, b []byte, token string) Decision {
 	if err := json.Unmarshal(b, &d); err != nil {
 		t.Fatalf("decision: %v %s", err, b)
 	}
-	if d.Proof != pairing.Proof(token, d.canonical()) {
+	if d.Proof != pairing.Proof(respKeyOf(token), d.canonical()) {
 		t.Fatalf("decision proof does not verify: %+v", d)
 	}
 	return d
@@ -219,7 +220,7 @@ func TestEngineAccessPairingAllowDenyDownload(t *testing.T) {
 	st, _, b := h.machine("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token)
 	var ri ReleaseInfo
 	json.Unmarshal(b, &ri)
-	if st != 200 || ri.Tag != "engine-v0.1.0-fixture" || ri.Proof != pairing.Proof(token, ri.canonical()) {
+	if st != 200 || ri.Tag != "engine-v0.1.0-fixture" || ri.Proof != pairing.Proof(respKeyOf(token), ri.canonical()) {
 		t.Fatalf("release %d %s", st, b)
 	}
 	st, hdr, body := h.machine("GET", "/api/v1/features/thought-engine/release/download?platform=windows-amd64&tag="+ri.Tag, "", token)

@@ -1,6 +1,8 @@
 # Identity API v1 — contract for Thought Processor
 
-**Branch:** `alpha-candidate-20261026` · **API label:** `identity/1-alpha` · **Status:** alpha candidate, not promoted. Examples below are real responses captured from this build (tokens removed).
+**Branch:** `experiment/feature-contract-20261026` · **API label:** `identity/2-alpha` · **Status:** experiment, not promoted. Examples below are real responses captured from an earlier build (secrets removed).
+
+> **Security fix (2026-10-26):** `identity/1` sent the pairing secret on every request (`Authorization: Bearer`) and also signed answers with it. A program that took Identity's port while Identity was stopped could collect the secret, then sign believable answers and reuse it against the real Identity. **`identity/2` never sends the secret after pairing:** requests are signed, and answers are signed with a separate derived key. `identity/1` pairings must pair again. The `alpha-candidate-20261026` branch still speaks `identity/1`; don't build on it.
 
 Thought Processor is the normal human interface (decision **C01**). Identity runs in the background, and Processor uses this API to show and manage it. A working reference client is in [`cmd/identity-probe`](../cmd/identity-probe/main.go). Copy its `call()` function: it does the proof and wrong-service checks described below.
 
@@ -10,14 +12,15 @@ Thought Processor is the normal human interface (decision **C01**). Identity run
 | --- | --- |
 | Address is `127.0.0.1:<port>`; the default port is **7790**. Each running Identity writes a **per-user locator** at `%LOCALAPPDATA%\Arameair\Identity\instances\<identity_system_id>.json` (Linux/macOS: `<user config dir>/arameair-identity/instances/`). It holds `base_url`, `port`, `pid`, `run_id`, `identity_system_id` and `profile`. `<profile>/runtime/service.json` holds the same data minus the ID. Both are removed on a clean stop; a crash leaves a stale file, which you can spot because it doesn't answer. | Lets Processor find **the installation it paired with** (match `identity_system_id`) whichever program started first, and on whatever port, without knowing the profile folder. A locator only says where to look; it proves nothing. |
 | Never send a browser `Origin` header. | Identity refuses requests that carry an `Origin`, so web pages can't call this API. |
-| Apart from the two pairing calls, send `Authorization: Bearer <token>`. | Proves this caller is the program the person paired. |
-| Send a fresh random `X-Processor-Nonce` on each call. Check `X-Identity-Proof` = hex(HMAC-SHA256(token, `"identity-v1\n" + nonce + "\n" + <exact body bytes>`)). | Proves the answer came from the Identity you paired with, and that it isn't an old answer replayed. |
+| Derive two keys from the pairing secret: `request_key = HMAC-SHA256(secret, "identity/2 request key")` and `response_key = HMAC-SHA256(secret, "identity/2 response key")`. **Never send the secret.** | A program impersonating Identity learns nothing reusable. |
+| Apart from the two pairing calls, sign each request. Send these headers: `X-Processor-ID`, `X-Identity-Time` (unix seconds), `X-Identity-Nonce` (16–64 hex, fresh every time), and `X-Identity-Auth` = hex(HMAC-SHA256(request_key, `"identity/2 request\n" + METHOD + "\n" + path?query + "\n" + time + "\n" + nonce + "\n" + hex(sha256(body))`)). | Proves this caller is the program the person paired. Identity refuses a time more than 60 s off and any reused nonce. |
+| Check `X-Identity-Proof` = hex(HMAC-SHA256(response_key, `"identity/2 response\n" + nonce + "\n" + status + "\n" + <exact body bytes>`)). | Proves the answer came from the Identity you paired with, belongs to *this* request, and has the status it claims. |
 | Check that `X-Identity-System-ID` equals the `identity_system_id` you saved when pairing. | If it differs, a **different Identity installation** answered. Show WRONG SERVICE. |
-| A `401` means "this Identity doesn't know your token". | You were unpaired, or this is a different profile. Pair again. |
+| A `401` means "this Identity doesn't accept your signed request". Its `error` says which: not paired, older pairing, stale time, replay or bad signature. | You were unpaired, this is a different profile, or the clock is wrong. |
 | No answer means **AUTHORITY UNAVAILABLE**. Block protected actions; do not use earlier answers instead. | C06: fail closed, no cached allow. |
-| Never show, log or copy the token. Show the GitHub `user_code` only to the person who is signing in. | — |
+| Never show, log or copy the secret. Show the GitHub `user_code` only to the person who is signing in. | — |
 
-**Which answers are signed:** every `/api/v1/*` answer that Identity's handlers produce, including refusals such as 400, 404 and 409. **Not signed:** `GET /api/health`, the two pairing calls, and refusals made *before* the token is accepted. Those are 401 (token refused), 403 (browser `Origin`), 421 (wrong `Host`), 429 (pairing too fast) and transport errors. Map 401 to "connection removed", not "wrong service". Treat any *other* unsigned or badly signed answer as wrong service.
+**Which answers are signed:** every `/api/v1/*` answer that Identity's handlers produce, including refusals such as 400, 404 and 409. **Not signed:** `GET /api/health`, the two pairing calls, and refusals made *before* the request is authenticated. Those are 401 (request refused), 403 (browser `Origin`), 421 (wrong `Host`), 429 (pairing too fast) and transport errors. Map 401 to "connection removed", not "wrong service". Treat any *other* unsigned or badly signed answer as wrong service.
 
 `GET /api/health` is public and unsigned (`app`, `version`, `protocol`, `api`). Use it only to see that *something* is answering. It is not trust.
 
@@ -29,11 +32,11 @@ Thought Processor is the normal human interface (decision **C01**). Identity run
    - Processor's screen should say: *"Look at the Identity window and type the code shown there."*
    - Requests less than 3 seconds apart get `429` with a `Retry-After` header.
 2. **The person types the code into Processor.** Processor sends `POST /api/v1/pair` `{"code":"ABCD-EFGH","processor_id":"tp_7f3a","processor_label":"Thought Processor"}`
-   → `200 {"token":"<64 hex>","identity_system_id":"idn_…","identity_version":"0.4.0-alpha"}`
+   → `200 {"secret":"<64 hex>","identity_system_id":"idn_…","identity_version":"0.4.0-alpha","api":"identity/2-alpha"}` (`token` is the same value, kept for older readers)
    - The code works once and expires after 5 minutes.
    - After 5 wrong codes, pairing locks for 1 minute and the current code is burned.
-3. **Save** `token` and `identity_system_id` in Processor's profile with file mode 0600. After a restart of either program, reconnect with them. No new code is needed.
-4. **Disconnect:** `POST /api/v1/unpair` `{}` → `200 {"unpaired":true}`. This answer is still signed, and the token stops working immediately after it. The person can also unpair from Identity's troubleshooting page.
+3. **Save** the `secret` and `identity_system_id` in Processor's profile (DPAPI on Windows, 0600 elsewhere). After a restart of either program, reconnect with them. No new code is needed.
+4. **Disconnect:** `POST /api/v1/unpair` `{}` → `200 {"unpaired":true}`. This answer is still signed, and the pairing stops working immediately after it. The person can also unpair from Identity's troubleshooting page.
 
 Pairing grants **no** feature or data access.
 
@@ -138,7 +141,7 @@ The older Engine-only paths (`/api/v1/features/thought-engine/access`, `…/rele
 
 ## Storing the pairing on Windows
 
-Identity itself stores **no secrets**: `paired-clients.json` keeps only SHA-256 hashes of tokens. Processor holds the token. Keep it inside the user's profile folder (`%USERPROFILE%` or `%LOCALAPPDATA%`), which Windows already restricts to that user. "0600" in these notes means "readable only by this user". **Better [not built]:** protect the token with DPAPI (`CryptProtectData`, current-user scope). That stops other Windows users and offline copies from reading it, though not other programs running as the same user.
+Identity stores each pairing's two **derived keys** in `paired-clients.json` (0600) to verify requests and sign answers. It doesn't store the secret itself. Processor holds the secret. Keep it inside the user's profile folder (`%USERPROFILE%` or `%LOCALAPPDATA%`), which Windows already restricts to that user. "0600" in these notes means "readable only by this user". **Better [not built]:** protect the token with DPAPI (`CryptProtectData`, current-user scope). That stops other Windows users and offline copies from reading it, though not other programs running as the same user.
 
 ## Not in this API yet
 

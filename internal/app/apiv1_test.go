@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/Arameair/identity/internal/github"
-	"github.com/Arameair/identity/internal/pairing"
 )
 
 var codeRE = regexp.MustCompile(`\b([A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4})\b`)
@@ -57,8 +56,7 @@ func (h *harness) v1(method, path, body, token string) (int, map[string]any) {
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set(NonceHeader, "nonce-123")
+	nonce := signTest(req, token, body)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		h.t.Fatal(err)
@@ -75,8 +73,8 @@ func (h *harness) v1(method, path, body, token string) (int, map[string]any) {
 	}
 	var m map[string]any
 	json.Unmarshal(raw, &m)
-	if resp.StatusCode != 401 { // a refused token can't be signed with
-		if got, want := resp.Header.Get(ProofHeader), pairing.Proof(token, ProofCanonical("nonce-123", raw)); got != want {
+	if resp.StatusCode != 401 { // a refused request can't be signed for
+		if got := resp.Header.Get(ProofHeader); !proofOK(token, nonce, resp.StatusCode, raw, got) {
 			h.t.Fatalf("%s %s: proof does not verify (%q)", method, path, got)
 		}
 		if resp.Header.Get(SystemIDHeader) != h.a.Store.Profile.SystemID {
@@ -102,7 +100,8 @@ func (h *harness) pairV1(con *console, id string) (string, map[string]any) {
 	}
 	var r map[string]any
 	json.Unmarshal(b, &r)
-	return r["token"].(string), r
+	testPIDs.Store(r["secret"].(string), id)
+	return r["secret"].(string), r
 }
 
 func TestV1PairStatusAndBoundaries(t *testing.T) {
@@ -132,7 +131,7 @@ func TestV1PairStatusAndBoundaries(t *testing.T) {
 		t.Fatal("pair answer lacks system id")
 	}
 	req, _ := http.NewRequest("GET", h.base+"/api/v1/status", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	signTest(req, token, "")
 	req.Header.Set("Origin", "http://evil.example")
 	if resp, _ := http.DefaultClient.Do(req); resp.StatusCode != 403 {
 		t.Fatalf("browser origin accepted: %d", resp.StatusCode)
@@ -216,8 +215,11 @@ func TestV1IdentitiesDefaultDenyAndRestartReconnect(t *testing.T) {
 	if tp == nil || tp["enabled_for_identity"] != "NOT_GRANTED" || tp["visibility"] != "public" || !strings.Contains(fs["catalog_note"].(string), "Sign in to GitHub") {
 		t.Fatalf("feature states %v", fs)
 	}
-	if strings.Contains(fmt.Sprint(fs), "Thought-engine") || strings.Contains(fmt.Sprint(fs), "Thought Engine") {
-		t.Fatal("hidden feature leaked in the catalog answer")
+	_, st2 := h.v1("GET", "/api/v1/status", "", token)
+	for what, v := range map[string]any{"catalog": fs, "status": st2} {
+		if s := strings.ToLower(fmt.Sprint(v)); strings.Contains(s, "thought-engine") || strings.Contains(s, "thought engine") {
+			t.Fatalf("hidden feature named in the %s answer", what)
+		}
 	}
 
 	// Archive / restore / rename.

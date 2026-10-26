@@ -5,15 +5,22 @@ package app
 //
 // Every route here is program-to-program: a request carrying a browser
 // Origin is refused. Apart from /api/v1/pair/request and /api/v1/pair, every
-// route needs the pairing bearer token, and every answer is signed:
+// route needs a SIGNED request (API identity/2 — the pairing secret itself is
+// never sent; see internal/pairing):
 //
-//	X-Identity-Proof: hex(HMAC-SHA256(token, "identity-v1\n" + nonce + "\n" + body))
+//	X-Processor-ID   the paired processor_id
+//	X-Identity-Time  unix seconds (±60 s of Identity's clock)
+//	X-Identity-Nonce 16–64 hex, never reused
+//	X-Identity-Auth  hex(HMAC(request_key, "identity/2 request\n" + METHOD + "\n" +
+//	                     path?query + "\n" + time + "\n" + nonce + "\n" + hex(sha256(body))))
 //
-// where body is the exact response bytes and nonce is the caller's optional
-// X-Processor-Nonce header (send a fresh one to rule out replayed answers).
-// Processor checks the proof and that X-Identity-System-ID equals the ID it
-// saved when pairing; a different value means a different Identity
-// installation answered (wrong service).
+// and every answer is signed with the separate response key:
+//
+//	X-Identity-Proof     == hex(HMAC(response_key, "identity/2 response\n" + nonce + "\n" + status + "\n" + raw body))
+//	X-Identity-System-ID == the installation ID saved when pairing
+//
+// request_key and response_key are DeriveKeys(secret). A program that takes
+// Identity's port therefore learns nothing reusable and can't sign answers.
 //
 // What this API decides and what it doesn't (be honest in the UI):
 //   - Pairing proves Processor talks to the Identity the operator approved.
@@ -42,20 +49,18 @@ import (
 )
 
 const (
-	APIVersion       = "identity/1-alpha"
-	pairRequestGap   = 3 * time.Second
-	ProofHeader      = "X-Identity-Proof"
-	SystemIDHeader   = "X-Identity-System-ID"
-	NonceHeader      = "X-Processor-Nonce"
-	ShutdownConfirm  = "shut-down-identity"
-	DecisionDenied   = "DENIED"
-	notTrackedByIdty = "UNKNOWN_TO_IDENTITY"
+	APIVersion        = "identity/2-alpha"
+	ProcessorIDHeader = "X-Processor-ID"
+	TimeHeader        = "X-Identity-Time"
+	AuthHeader        = "X-Identity-Auth"
+	pairRequestGap    = 3 * time.Second
+	ProofHeader       = "X-Identity-Proof"
+	SystemIDHeader    = "X-Identity-System-ID"
+	NonceHeader       = "X-Identity-Nonce"
+	ShutdownConfirm   = "shut-down-identity"
+	DecisionDenied    = "DENIED"
+	notTrackedByIdty  = "UNKNOWN_TO_IDENTITY"
 )
-
-// ProofCanonical is what the HMAC in X-Identity-Proof covers.
-func ProofCanonical(nonce string, body []byte) string {
-	return "identity-v1\n" + nonce + "\n" + string(body)
-}
 
 type pairThrottle struct {
 	mu   sync.Mutex
@@ -69,11 +74,11 @@ func (a *App) signed(w http.ResponseWriter, r *http.Request, code int, v any) {
 		a.fail(w, r, 500, "api", "api.encode_failed", err.Error())
 		return
 	}
-	nonce := clip(r.Header.Get(NonceHeader), 128)
+	c, _ := r.Context().Value(clientKey).(authed)
 	h := w.Header()
 	h.Set("Content-Type", "application/json; charset=utf-8")
 	h.Set(SystemIDHeader, a.Store.Profile.SystemID)
-	h.Set(ProofHeader, pairing.Proof(bearer(r), ProofCanonical(nonce, b)))
+	h.Set(ProofHeader, pairing.ResponseProof(c.respKey, c.nonce, code, b))
 	w.WriteHeader(code)
 	w.Write(b)
 }
@@ -350,9 +355,11 @@ func (a *App) statusV1(r *http.Request) map[string]any {
 		lifecycle["started_by"] = "external (a person or another tool started it)"
 		lifecycle["ownership"] = "EXTERNAL"
 	}
+	// Only mention the last install check when its feature is visible to this
+	// account; a private feature's name must not appear otherwise.
 	var last any
-	if d := a.LastAccess(); d != nil {
-		last = map[string]any{"state": d.State, "rule": d.Rule, "checked_at": d.CheckedAt, "decision_id": d.DecisionID}
+	if d := a.LastAccess(); d != nil && d.State == Allowed {
+		last = map[string]any{"feature": d.Feature, "state": d.State, "rule": d.Rule, "checked_at": d.CheckedAt, "decision_id": d.DecisionID}
 	}
 	return map[string]any{
 		"app": Product, "api": APIVersion, "protocol": Protocol,
@@ -370,7 +377,7 @@ func (a *App) statusV1(r *http.Request) map[string]any {
 			"grants":        "NONE — grants are not implemented in this alpha; every /api/v1/authorize answer is DENIED",
 			"default":       "deny (identities start with no access)",
 			"cache_policy":  "do not cache decisions; if Identity can't be reached, block protected actions and show AUTHORITY UNAVAILABLE",
-			"engine_access": last,
+			"last_install_check": last,
 		},
 		"not_implemented": NotImplemented,
 		"checked_at":      time.Now().UTC(),

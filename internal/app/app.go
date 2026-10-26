@@ -40,7 +40,7 @@ const (
 // mistaken for something working.
 var NotImplemented = []string{
 	"Feature/source grants: every authorization answer is DENIED (identities start with no access)",
-	"Receiver-side enforcement in Thought Engine or other features",
+	"Receiver-side enforcement in features",
 	"Feature service registration with Identity (only Thought Processor pairs)",
 	"Secure administrator bootstrap / per-person admin sign-in (a paired Processor acts for the operator who approved the pairing)",
 	"Publisher access-request submission service (drafts stay local, NOT SUBMITTED)",

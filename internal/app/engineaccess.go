@@ -297,13 +297,21 @@ func (a *App) releaseFor(ctx context.Context, c features.Contract, platform stri
 
 var tagRE = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
-func clientFrom(r *http.Request) pairing.PublicClient {
-	c, _ := r.Context().Value(clientKey).(pairing.PublicClient)
-	return c
+// authed is what a verified paired request carries.
+type authed struct {
+	pairing.PublicClient
+	respKey []byte
+	nonce   string
 }
 
-func bearer(r *http.Request) string {
-	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+func clientFrom(r *http.Request) pairing.PublicClient {
+	c, _ := r.Context().Value(clientKey).(authed)
+	return c.PublicClient
+}
+
+func respKey(r *http.Request) []byte {
+	c, _ := r.Context().Value(clientKey).(authed)
+	return c.respKey
 }
 
 func (a *App) engineRoutes(m *http.ServeMux) {
@@ -329,16 +337,17 @@ func (a *App) engineRoutes(m *http.ServeMux) {
 			a.fail(w, r, code, "pairing", "pairing.refused", err.Error())
 			return
 		}
-		a.Log.Info("pairing", "pairing.paired", reqID(r), "paired", "Thought Processor "+clip(b.ProcessorID, 64)+" paired with this Identity (token kept only as a hash)", map[string]string{"label": clip(b.Label, 80)})
-		writeJSON(w, 200, map[string]any{"token": token, "identity_system_id": a.Store.Profile.SystemID,
-			"identity_version": a.Build.Version, "note": "keep this token private; it is shown once"})
+		a.Log.Info("pairing", "pairing.paired", reqID(r), "paired", "Thought Processor "+clip(b.ProcessorID, 64)+" paired with this Identity (keys derived; the secret is never sent again)", map[string]string{"label": clip(b.Label, 80)})
+		writeJSON(w, 200, map[string]any{"secret": token, "token": token, "identity_system_id": a.Store.Profile.SystemID,
+			"identity_version": a.Build.Version, "api": APIVersion,
+			"note": "keep this secret private; it is shown once and must never be sent again — sign requests with keys derived from it (API identity/2)"})
 	}))
 	m.HandleFunc("GET /api/v1/features/thought-engine/access", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		if !a.hiddenAs404(w, r, EngineFeature) {
 			return
 		}
 		d := a.EngineAccess(r.Context(), r.URL.Query().Get("fresh") == "1")
-		d.Proof = pairing.Proof(bearer(r), d.canonical())
+		d.Proof = pairing.Proof(respKey(r), d.canonical())
 		a.Log.Info("access", "engine.access_answered", reqID(r), d.State, "answered Thought Processor "+clientFrom(r).ProcessorID, map[string]string{"decision_id": d.DecisionID})
 		writeJSON(w, 200, d)
 	}))
@@ -403,7 +412,7 @@ func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	d := a.EngineAccess(r.Context(), false)
 	if !d.Allowed {
-		d.Proof = pairing.Proof(bearer(r), d.canonical())
+		d.Proof = pairing.Proof(respKey(r), d.canonical())
 		a.signed(w, r, 403, map[string]any{"error": "not_allowed", "decision": d})
 		return
 	}
@@ -414,7 +423,7 @@ func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ri.DecisionID = d.DecisionID
-	ri.Proof = pairing.Proof(bearer(r), ri.canonical())
+	ri.Proof = pairing.Proof(respKey(r), ri.canonical())
 	a.Log.Info("access", "engine.release_described", reqID(r), "ok", "release "+ri.Tag+" "+ri.Asset+" described to "+clientFrom(r).ProcessorID, map[string]string{"sha256": ri.SHA256, "size": strconv.FormatInt(ri.Size, 10), "decision_id": d.DecisionID})
 	a.signed(w, r, 200, ri)
 }

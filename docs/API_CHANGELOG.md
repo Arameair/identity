@@ -40,3 +40,17 @@ Experiment for Thought Processor P0 (reusable feature onboarding). It does not c
   Anything else returns **422 `UNAPPROVED_SOURCE`**. `release` now includes `source` (the repo, tag, URL, uploaders and the checks performed) and `not_checked`, which says honestly that there is no publisher signature yet.
 - **Machine-readable release errors**, all signed: `NO_RELEASE`, `NO_ASSET_FOR_PLATFORM`, `UNAPPROVED_SOURCE`, `CANNOT_VERIFY`, `GITHUB_UNREACHABLE`, `BAD_PLATFORM`, `NO_INSTALL_ADAPTER`.
 - **Behaviour change.** Before sign-in, Thought Engine no longer appears as `NOT_SIGNED_IN`; it is hidden. Processor should show `catalog_note` instead.
+
+## identity/2-alpha — 2026-10-26 (branch `experiment/feature-contract-20261026`) — **security fix, breaking**
+
+Found by the independent verification of Thought Processor P0. In `identity/1`, the pairing secret travelled as `Authorization: Bearer` on every request, and the same secret signed the answers. A program that grabbed Identity's port while Identity was down could therefore do two things:
+- collect the secret, then reuse it against the real Identity;
+- sign believable answers, including a fake release and SHA-256.
+
+The verifier demonstrated this with a 40-line impostor.
+
+- **Requests are now signed.** The headers are `X-Processor-ID`, `X-Identity-Time`, `X-Identity-Nonce` and `X-Identity-Auth`. Identity refuses times more than ±60 s off and any reused nonce. The secret is never sent after pairing.
+- **Answers are signed with a separate response key.** The signature covers the request nonce, the status and the exact body.
+- **Pairing returns `secret`.** Identity now stores the two derived keys, not a hash of the token. `identity/1` pairings get a 401 saying to pair again.
+- **`identity-probe` and the smoke test use the new scheme.**
+- **`/api/v1/status` no longer names a private feature** in `not_implemented` or in the last install check, unless the account may see it.

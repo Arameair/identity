@@ -8,7 +8,7 @@
 //	<root>/github-app.json   optional public GitHub App Client ID (not a secret)
 //	<root>/logs/             persistent activity log
 //	<root>/identities.json   identities this installation is the authority for (no access by default)
-//	<root>/paired-clients.json  paired programs (token hashes only)
+//	<root>/paired-clients.json  paired programs (derived request/response keys, 0600)
 //	<root>/runtime/          lock, this run's private open link, service.json (all deleted on exit)
 //
 // Nothing secret is ever written here: GitHub access tokens live in memory only.

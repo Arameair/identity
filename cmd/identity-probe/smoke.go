@@ -181,7 +181,7 @@ func cmdSmoke(args []string) {
 	}
 	s.record(err == nil && st == 202 && code != "" && !strings.Contains(fmt.Sprint(r), code), "2 pair request shows code only in Identity window", fmt.Sprintf("HTTP %d", st))
 	st, r, err = plain("POST", "/api/v1/pair", map[string]string{"code": code, "processor_id": "smoke_probe", "processor_label": "identity-probe smoke"})
-	pf := pairingFile{BaseURL: baseURL, ProcessorID: "smoke_probe", Token: str(r, "token"), IdentitySystemID: str(r, "identity_system_id"), PairedAt: time.Now().UTC()}
+	pf := pairingFile{BaseURL: baseURL, ProcessorID: "smoke_probe", Token: str(r, "secret"), IdentitySystemID: str(r, "identity_system_id"), PairedAt: time.Now().UTC()}
 	s.record(err == nil && st == 200 && len(pf.Token) == 64, "2 pairing completes", "installation "+pf.IdentitySystemID)
 	save(pf)
 	evlog := filepath.Join(s.data, "logs", "identity-events.jsonl")

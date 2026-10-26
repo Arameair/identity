@@ -35,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -187,22 +188,45 @@ func plain(method, path string, body any) (int, map[string]any, error) {
 var errProof = errors.New("answer is NOT signed by the paired Identity")
 var errWrongIdentity = errors.New("a DIFFERENT Identity installation answered (wrong service)")
 
-// call is a paired request. It verifies Identity's HMAC proof over the exact
-// body bytes with a fresh nonce, and that the installation ID is the one we
-// paired with. This is the check Thought Processor should do too.
-func call(p pairingFile, method, path string, body any) (int, map[string]any, error) {
-	var rd io.Reader
-	if body != nil {
-		b, _ := json.Marshal(body)
-		rd = bytes.NewReader(b)
+// hm is HMAC-SHA256 as hex.
+func hm(key []byte, parts ...string) string {
+	m := hmac.New(sha256.New, key)
+	for _, x := range parts {
+		m.Write([]byte(x))
 	}
-	req, _ := http.NewRequest(method, baseURL+path, rd)
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// keys derives the request and response keys from the pairing secret
+// (API identity/2). The secret itself is never sent.
+func keys(secret string) (req, resp []byte) {
+	r, _ := hex.DecodeString(hm([]byte(secret), "identity/2 request key"))
+	s, _ := hex.DecodeString(hm([]byte(secret), "identity/2 response key"))
+	return r, s
+}
+
+// call is a paired request (API identity/2). The request is signed with the
+// request key (method, path, time, nonce, body hash); the answer must carry a
+// proof made with the separate response key over our nonce, the status and
+// the exact body, plus the installation ID we paired with. This is the check
+// Thought Processor does too.
+func call(p pairingFile, method, path string, body any) (int, map[string]any, error) {
+	var b []byte
+	if body != nil {
+		b, _ = json.Marshal(body)
+	}
+	req, _ := http.NewRequest(method, baseURL+path, bytes.NewReader(b))
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	rk, sk := keys(p.Token)
 	nonce := randHex(12)
-	req.Header.Set("Authorization", "Bearer "+p.Token)
-	req.Header.Set("X-Processor-Nonce", nonce)
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	sum := sha256.Sum256(b)
+	req.Header.Set("X-Processor-ID", p.ProcessorID)
+	req.Header.Set("X-Identity-Time", ts)
+	req.Header.Set("X-Identity-Nonce", nonce)
+	req.Header.Set("X-Identity-Auth", hm(rk, "identity/2 request\n"+method+"\n"+req.URL.RequestURI()+"\n"+ts+"\n"+nonce+"\n"+hex.EncodeToString(sum[:])))
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -212,11 +236,10 @@ func call(p pairingFile, method, path string, body any) (int, map[string]any, er
 	var m map[string]any
 	json.Unmarshal(raw, &m)
 	if resp.StatusCode == 401 {
-		return 401, m, nil // token refused: not paired with this Identity (or unpaired)
+		return 401, m, nil // not paired with this Identity (or unpaired)
 	}
-	mac := hmac.New(sha256.New, []byte(p.Token))
-	mac.Write([]byte("identity-v1\n" + nonce + "\n" + string(raw)))
-	if !hmac.Equal([]byte(hex.EncodeToString(mac.Sum(nil))), []byte(resp.Header.Get("X-Identity-Proof"))) {
+	want := hm(sk, "identity/2 response\n"+nonce+"\n"+strconv.Itoa(resp.StatusCode)+"\n", string(raw))
+	if !hmac.Equal([]byte(want), []byte(resp.Header.Get("X-Identity-Proof"))) {
 		return resp.StatusCode, m, errProof
 	}
 	if resp.Header.Get("X-Identity-System-ID") != p.IdentitySystemID {
@@ -288,7 +311,7 @@ func cmdPair(args []string) {
 	if err != nil || st != 200 {
 		die("pairing failed: %d %s", st, str(r, "error"))
 	}
-	p := pairingFile{BaseURL: baseURL, ProcessorID: id, Token: str(r, "token"), IdentitySystemID: str(r, "identity_system_id"), PairedAt: time.Now().UTC()}
+	p := pairingFile{BaseURL: baseURL, ProcessorID: id, Token: str(r, "secret"), IdentitySystemID: str(r, "identity_system_id"), PairedAt: time.Now().UTC()}
 	save(p)
 	fmt.Printf("PAIRED  as %s with Identity installation %s (pairing saved to %s; token not shown)\n", id, p.IdentitySystemID, statePath)
 }

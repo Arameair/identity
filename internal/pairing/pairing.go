@@ -5,12 +5,21 @@
 //     Pair in Identity's troubleshooting page. Identity shows a one-time code
 //     (8 characters, 5 minutes, single use) only in its own window.
 //  2. They type it into Processor; Processor sends it to POST /api/v1/pair.
-//  3. Identity answers with a random 256-bit client token. Identity keeps
-//     only its SHA-256; Processor keeps the token in its own profile.
+//  3. Identity answers with a random 256-bit pairing secret, once. Both sides
+//     derive two keys from it (DeriveKeys): a request key and a response key.
+//     Processor keeps the secret (DPAPI-sealed on Windows); Identity keeps
+//     only the two derived keys (0600 file in its profile).
 //
-// Later requests carry the token as a bearer header; Identity also signs its
-// answers with an HMAC keyed by that token, so Processor can check the answer
-// came from the Identity it paired with (see Proof).
+// API v2 (identity/2): THE SECRET NEVER TRAVELS AGAIN. Each request carries
+// X-Processor-ID, a fresh nonce, the time, and an HMAC over method, path,
+// time, nonce and body (RequestMAC). Identity refuses stale times and reused
+// nonces. Each answer carries an HMAC with the response key over the request
+// nonce, the status and the exact body (ResponseProof).
+//
+// So a program that grabs Identity's port can neither learn anything it
+// could replay against the real Identity, nor sign an answer Processor would
+// believe. (v1 sent the secret as a bearer token and signed with it, which
+// let such a program do both — fixed here.)
 package pairing
 
 import (
@@ -24,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -47,7 +57,9 @@ func ValidProcessorID(id string) bool { return idRE.MatchString(id) }
 type Client struct {
 	ProcessorID string    `json:"processor_id"`
 	Label       string    `json:"label"`
-	TokenSHA256 string    `json:"token_sha256"`
+	TokenSHA256 string    `json:"token_sha256,omitempty"` // v1 pairings (no longer accepted: pair again)
+	RequestKey  string    `json:"request_key,omitempty"`  // v2: hex HMAC key, derived from the secret
+	ResponseKey string    `json:"response_key,omitempty"` // v2
 	PairedAt    time.Time `json:"paired_at"`
 	LastUsed    time.Time `json:"last_used,omitempty"`
 }
@@ -62,6 +74,7 @@ type PublicClient struct {
 
 type Store struct {
 	mu       sync.Mutex
+	seen     map[string]time.Time // processor_id|nonce → when (replay protection)
 	path     string
 	clients  []Client
 	loadErr  string
@@ -152,8 +165,6 @@ func normalize(code string) string {
 	return code
 }
 
-func hashToken(t string) string { h := sha256.Sum256([]byte(t)); return hex.EncodeToString(h[:]) }
-
 // Pair consumes the pending code and returns a new client token.
 func (s *Store) Pair(code, processorID, label string) (string, error) {
 	if !idRE.MatchString(processorID) {
@@ -189,13 +200,15 @@ func (s *Store) Pair(code, processorID, label string) (string, error) {
 		return "", err
 	}
 	token := hex.EncodeToString(tb)
+	rk, sk := DeriveKeys(token)
 	keep := []Client{}
 	for _, c := range s.clients {
 		if c.ProcessorID != processorID {
 			keep = append(keep, c)
 		}
 	}
-	keep = append(keep, Client{ProcessorID: processorID, Label: label, TokenSHA256: hashToken(token), PairedAt: now.UTC()})
+	keep = append(keep, Client{ProcessorID: processorID, Label: label, RequestKey: hex.EncodeToString(rk),
+		ResponseKey: hex.EncodeToString(sk), PairedAt: now.UTC()})
 	if err := profile.WriteJSON(s.path, keep); err != nil {
 		return "", errors.New("pairing could not be saved: " + err.Error())
 	}
@@ -204,22 +217,101 @@ func (s *Store) Pair(code, processorID, label string) (string, error) {
 	return token, nil
 }
 
-// Authenticate checks a bearer token and returns the paired client.
-func (s *Store) Authenticate(token string) (PublicClient, bool) {
-	if len(token) != 64 {
-		return PublicClient{}, false
+// ---- API v2 request authentication ----
+
+const (
+	MaxClockSkew = 60 * time.Second
+	nonceTTL     = 3 * MaxClockSkew
+)
+
+var (
+	ErrUnknownClient = errors.New("this program is not paired with this Identity (or the pairing was removed)")
+	ErrOldPairing    = errors.New("this pairing was made with an older Identity that sent its secret over the wire; pair again")
+	ErrStale         = errors.New("request time is too far from Identity's clock (check the computer's clock)")
+	ErrReplay        = errors.New("request was already used (replayed)")
+	ErrBadMAC        = errors.New("request signature is wrong")
+	nonceRE          = regexp.MustCompile(`^[0-9a-f]{16,64}$`)
+)
+
+// DeriveKeys turns the pairing secret into the request and response keys.
+func DeriveKeys(secret string) (req, resp []byte) {
+	m := hmac.New(sha256.New, []byte(secret))
+	m.Write([]byte("identity/2 request key"))
+	req = m.Sum(nil)
+	m = hmac.New(sha256.New, []byte(secret))
+	m.Write([]byte("identity/2 response key"))
+	resp = m.Sum(nil)
+	return
+}
+
+// RequestMAC is what X-Identity-Auth must contain.
+func RequestMAC(reqKey []byte, method, pathAndQuery, unixTime, nonce string, body []byte) string {
+	h := sha256.Sum256(body)
+	m := hmac.New(sha256.New, reqKey)
+	m.Write([]byte("identity/2 request\n" + method + "\n" + pathAndQuery + "\n" + unixTime + "\n" + nonce + "\n" + hex.EncodeToString(h[:])))
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// ResponseProof is what X-Identity-Proof contains.
+func ResponseProof(respKey []byte, nonce string, status int, body []byte) string {
+	m := hmac.New(sha256.New, respKey)
+	m.Write([]byte("identity/2 response\n" + nonce + "\n" + strconv.Itoa(status) + "\n"))
+	m.Write(body)
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// Verify authenticates one request. On success it returns the client and its
+// response key (used to sign the answer).
+func (s *Store) Verify(processorID, method, pathAndQuery, unixTime, nonce, mac string, body []byte) (PublicClient, []byte, error) {
+	if !idRE.MatchString(processorID) || !nonceRE.MatchString(nonce) || len(mac) != 64 {
+		return PublicClient{}, nil, ErrUnknownClient
 	}
-	h := hashToken(token)
+	ts, err := strconv.ParseInt(unixTime, 10, 64)
+	now := s.now()
+	if err != nil {
+		return PublicClient{}, nil, ErrStale
+	}
+	if d := now.Sub(time.Unix(ts, 0)); d > MaxClockSkew || d < -MaxClockSkew {
+		return PublicClient{}, nil, ErrStale
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	idx := -1
 	for i, c := range s.clients {
-		if subtle.ConstantTimeCompare([]byte(h), []byte(c.TokenSHA256)) == 1 {
-			s.clients[i].LastUsed = s.now().UTC()
-			redact.Register("pairing_token", token)
-			return public(s.clients[i]), true
+		if c.ProcessorID == processorID {
+			idx = i
 		}
 	}
-	return PublicClient{}, false
+	if idx < 0 {
+		return PublicClient{}, nil, ErrUnknownClient
+	}
+	c := s.clients[idx]
+	if c.RequestKey == "" {
+		return PublicClient{}, nil, ErrOldPairing
+	}
+	rk, err1 := hex.DecodeString(c.RequestKey)
+	sk, err2 := hex.DecodeString(c.ResponseKey)
+	if err1 != nil || err2 != nil {
+		return PublicClient{}, nil, ErrUnknownClient
+	}
+	if subtle.ConstantTimeCompare([]byte(RequestMAC(rk, method, pathAndQuery, unixTime, nonce, body)), []byte(mac)) != 1 {
+		return PublicClient{}, nil, ErrBadMAC
+	}
+	if s.seen == nil {
+		s.seen = map[string]time.Time{}
+	}
+	for k, t := range s.seen {
+		if now.Sub(t) > nonceTTL {
+			delete(s.seen, k)
+		}
+	}
+	key := processorID + "|" + nonce
+	if _, dup := s.seen[key]; dup {
+		return PublicClient{}, nil, ErrReplay
+	}
+	s.seen[key] = now
+	s.clients[idx].LastUsed = now.UTC()
+	return public(s.clients[idx]), sk, nil
 }
 
 func public(c Client) PublicClient {
@@ -258,11 +350,10 @@ func (s *Store) Unpair(processorID string) (bool, error) {
 	return true, nil
 }
 
-// Proof is the HMAC-SHA256, keyed by the client token, of the canonical
-// string. Processor recomputes it to check the answer came from the Identity
-// that issued its token.
-func Proof(token, canonical string) string {
-	m := hmac.New(sha256.New, []byte(token))
+// Proof is an HMAC-SHA256 of a canonical string, keyed by the client's
+// response key (older Engine-install answers carry it in a "proof" field).
+func Proof(respKey []byte, canonical string) string {
+	m := hmac.New(sha256.New, respKey)
 	m.Write([]byte(canonical))
 	return hex.EncodeToString(m.Sum(nil))
 }

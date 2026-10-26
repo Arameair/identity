@@ -162,7 +162,7 @@ func Probe(ctx context.Context, addr string) Result {
 	}
 	r.State = Detected
 	r.OpenURL = "http://" + addr + "/"
-	r.Note = "it describes itself as Thought Processor. That is only a self-claim; what Identity trusts is the pairing below — requests carrying the pairing token, not this address."
+	r.Note = "it describes itself as Thought Processor. That is only a self-claim; what Identity trusts is the pairing below — signed requests from a paired program, not this address."
 	return r
 }
 
