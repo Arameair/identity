@@ -5,11 +5,13 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -67,6 +69,10 @@ type Options struct {
 	ManagedBy string
 	// Announce shows lines in Identity's own console window (pairing codes).
 	Announce func(lines []string)
+	// LocatorDir is a per-user folder where each running Identity writes
+	// <identity_system_id>.json, so Thought Processor can find the right
+	// installation without knowing its profile folder. Empty = off.
+	LocatorDir string
 }
 
 type BuildInfo struct {
@@ -217,6 +223,8 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 	if err := a.Store.SaveService(a.serviceRecord()); err != nil {
 		a.Log.Warn("lifecycle", "identity.service_file_not_saved", "", "warn", err.Error(), nil)
 	}
+	a.writeLocator()
+	defer a.removeLocator()
 
 	wctx, wcancel := context.WithCancel(ctx)
 	defer wcancel()
@@ -260,6 +268,43 @@ func (a *App) RequestShutdown() {
 
 func (a *App) requestShutdownBecause(why string) {
 	a.once.Do(func() { a.stopWhy = why; close(a.shutdown) })
+}
+
+// LocatorPath is this installation's per-user locator file (or "").
+func (a *App) LocatorPath() string {
+	if a.opt.LocatorDir == "" {
+		return ""
+	}
+	return filepath.Join(a.opt.LocatorDir, a.Store.Profile.SystemID+".json")
+}
+
+func (a *App) writeLocator() {
+	p := a.LocatorPath()
+	if p == "" {
+		return
+	}
+	rec := a.serviceRecord()
+	rec["identity_system_id"] = a.Store.Profile.SystemID
+	rec["profile"] = profile.DisplayPath(a.Store.Root)
+	err := os.MkdirAll(a.opt.LocatorDir, 0o700)
+	if err == nil {
+		err = profile.WriteJSON(p, rec)
+	}
+	if err != nil {
+		a.Log.Warn("lifecycle", "identity.locator_not_saved", "", "warn", err.Error(), nil)
+	}
+}
+
+// removeLocator deletes the locator only if it still describes this run.
+func (a *App) removeLocator() {
+	p := a.LocatorPath()
+	if p == "" {
+		return
+	}
+	var cur map[string]any
+	if b, err := os.ReadFile(p); err == nil && json.Unmarshal(b, &cur) == nil && cur["run_id"] == a.RunID {
+		os.Remove(p)
+	}
 }
 
 // serviceRecord is written to runtime/service.json so Thought Processor can

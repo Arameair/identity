@@ -49,6 +49,27 @@ func defaultData() string {
 	return filepath.Join(home, ".identity", "default")
 }
 
+// defaultLocatorDir is the per-user folder of running-Identity locators:
+// %LOCALAPPDATA%\Arameair\Identity\instances on Windows. IDENTITY_LOCATOR_DIR
+// overrides it; "-" turns it off.
+func defaultLocatorDir() string {
+	if v := os.Getenv("IDENTITY_LOCATOR_DIR"); v != "" {
+		if v == "-" {
+			return ""
+		}
+		return v
+	}
+	if runtime.GOOS == "windows" {
+		if v := os.Getenv("LOCALAPPDATA"); v != "" {
+			return filepath.Join(v, "Arameair", "Identity", "instances")
+		}
+	}
+	if d, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(d, "arameair-identity", "instances")
+	}
+	return ""
+}
+
 func defaultPort() int {
 	if v, err := strconv.Atoi(os.Getenv("IDENTITY_PORT")); err == nil && v > 0 {
 		return v
@@ -175,7 +196,7 @@ func main() {
 		fmt.Println(strings.Join(lines, "\n"))
 	}
 	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch,
-		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce})
+		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce, LocatorDir: defaultLocatorDir()})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
 		os.Exit(1)
@@ -191,6 +212,9 @@ func main() {
 		fmt.Println()
 		fmt.Printf("  profile : %s\n", *data)
 		fmt.Printf("  run     : %s   pid %d   port %d (loopback only)   api %s\n", a.RunID, os.Getpid(), a.Port, app.APIVersion)
+		if p := a.LocatorPath(); p != "" {
+			fmt.Printf("  locator : %s\n", p)
+		}
 		if *managedBy != "" {
 			fmt.Printf("  started : by %s (it may stop Identity when you choose Shut down)\n", *managedBy)
 		}

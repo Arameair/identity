@@ -81,6 +81,7 @@ cd $HOME\identity-1026
 - `Identity 0.4.0-alpha  branch alpha-candidate-20261026  commit <first 12 characters of the Step 1 commit>`
 - `Identity is running in the background. Use it through Thought Processor —`
 - `github  : built into this build (Arameair's GitHub App)`. If it says *no publisher GitHub App built in*, you have the wrong build: stop.
+- `locator : …\AppData\Local\Arameair\Identity\instances\idn_….json` (how Processor finds this installation)
 - `paired  : none yet — … a code will appear HERE`
 - **No browser opens.** The `troubleshooting page` link is private (rule 1) and not needed.
 

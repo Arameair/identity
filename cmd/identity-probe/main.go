@@ -34,6 +34,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -84,6 +85,50 @@ func die(format string, a ...any) {
 	os.Exit(1)
 }
 
+// locatorDir mirrors identity's per-user locator folder.
+func locatorDir() string {
+	if v := os.Getenv("IDENTITY_LOCATOR_DIR"); v != "" {
+		if v == "-" {
+			return ""
+		}
+		return v
+	}
+	if runtime.GOOS == "windows" {
+		if v := os.Getenv("LOCALAPPDATA"); v != "" {
+			return filepath.Join(v, "Arameair", "Identity", "instances")
+		}
+	}
+	if d, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(d, "arameair-identity", "instances")
+	}
+	return ""
+}
+
+type locator struct {
+	BaseURL  string `json:"base_url"`
+	SystemID string `json:"identity_system_id"`
+	PID      int    `json:"pid"`
+	Profile  string `json:"profile"`
+}
+
+// locators lists running-Identity locator files. They only say where to
+// look; trust still comes from the pairing proof.
+func locators() []locator {
+	dir := locatorDir()
+	if dir == "" {
+		return nil
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "idn_*.json"))
+	var out []locator
+	for _, f := range files {
+		var l locator
+		if b, err := os.ReadFile(f); err == nil && json.Unmarshal(b, &l) == nil && l.BaseURL != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
 func load() pairingFile {
 	baseURL = strings.TrimRight(baseURL, "/")
 	b, err := os.ReadFile(statePath)
@@ -94,8 +139,18 @@ func load() pairingFile {
 	if json.Unmarshal(b, &p) != nil || len(p.Token) != 64 {
 		die("%s is damaged; delete it and pair again", statePath)
 	}
-	if baseURL == "" {
+	explicit := baseURL != ""
+	if !explicit {
 		baseURL = p.BaseURL
+		// Identity may have moved port: find THIS installation by its ID.
+		if _, _, err := plain("GET", "/api/health", nil); err != nil {
+			for _, l := range locators() {
+				if l.SystemID == p.IdentitySystemID && l.BaseURL != p.BaseURL {
+					info("locator", "paired Identity "+l.SystemID+" is now at "+l.BaseURL)
+					baseURL = l.BaseURL
+				}
+			}
+		}
 	}
 	return p
 }
@@ -192,7 +247,27 @@ func cmdPair(args []string) {
 	fs.Parse(args)
 	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {
-		baseURL = "http://127.0.0.1:7790"
+		var live []locator
+		for _, l := range locators() {
+			baseURL = l.BaseURL
+			if st, h, err := plain("GET", "/api/health", nil); err == nil && st == 200 && h["app"] == "identity" {
+				live = append(live, l)
+			}
+		}
+		baseURL = ""
+		switch len(live) {
+		case 1:
+			baseURL = live[0].BaseURL
+			fmt.Printf("Found Identity %s at %s (profile %s)\n", live[0].SystemID, live[0].BaseURL, live[0].Profile)
+		case 0:
+			baseURL = "http://127.0.0.1:7790"
+		default:
+			fmt.Println("More than one Identity is running on this computer:")
+			for _, l := range live {
+				fmt.Printf("  %s  %s  profile %s\n", l.SystemID, l.BaseURL, l.Profile)
+			}
+			die("choose one with -url")
+		}
 	}
 	st, h, err := plain("GET", "/api/health", nil)
 	if err != nil || st != 200 || h["app"] != "identity" {

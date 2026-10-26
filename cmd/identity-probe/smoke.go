@@ -57,6 +57,8 @@ func (s *smokeRun) start(name, data string, port int) (*proc, error) {
 	}
 	cmd := exec.Command(s.exe, "-port", strconv.Itoa(port), "-data", data, "-managed-by", "identity-probe-smoke")
 	cmd.Stdout, cmd.Stderr = f, f
+	// Keep test locators out of the person's real locator folder.
+	cmd.Env = append(os.Environ(), "IDENTITY_LOCATOR_DIR="+filepath.Join(s.work, "locators"))
 	if err := cmd.Start(); err != nil {
 		f.Close()
 		return nil, err

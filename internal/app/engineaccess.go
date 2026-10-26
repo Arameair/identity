@@ -291,67 +291,8 @@ func (a *App) engineRoutes(m *http.ServeMux) {
 		a.Log.Info("access", "engine.access_answered", reqID(r), d.State, "answered Thought Processor "+clientFrom(r).ProcessorID, map[string]string{"decision_id": d.DecisionID})
 		writeJSON(w, 200, d)
 	}))
-	m.HandleFunc("GET /api/v1/features/thought-engine/release", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
-		platform := r.URL.Query().Get("platform")
-		if !platformRE.MatchString(platform) {
-			a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
-			return
-		}
-		d := a.EngineAccess(r.Context(), false)
-		if !d.Allowed {
-			d.Proof = pairing.Proof(bearer(r), d.canonical())
-			writeJSON(w, 403, map[string]any{"error": "not_allowed", "decision": d})
-			return
-		}
-		ri, code, msg := a.releaseFor(r.Context(), platform)
-		if code != 200 {
-			a.fail(w, r, code, "access", "engine.release_unavailable", msg)
-			return
-		}
-		ri.DecisionID = d.DecisionID
-		ri.Proof = pairing.Proof(bearer(r), ri.canonical())
-		a.Log.Info("access", "engine.release_described", reqID(r), "ok", "release "+ri.Tag+" "+ri.Asset+" described to "+clientFrom(r).ProcessorID, map[string]string{"sha256": ri.SHA256, "size": strconv.FormatInt(ri.Size, 10), "decision_id": d.DecisionID})
-		writeJSON(w, 200, ri)
-	}))
-	m.HandleFunc("GET /api/v1/features/thought-engine/release/download", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
-		platform := r.URL.Query().Get("platform")
-		if !platformRE.MatchString(platform) {
-			a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
-			return
-		}
-		d := a.EngineAccess(r.Context(), false)
-		if !d.Allowed {
-			a.fail(w, r, 403, "access", "engine.download_refused", d.Reason)
-			return
-		}
-		ri, code, msg := a.releaseFor(r.Context(), platform)
-		if code != 200 {
-			a.fail(w, r, code, "access", "engine.release_unavailable", msg)
-			return
-		}
-		if want := r.URL.Query().Get("tag"); want != "" && want != ri.Tag {
-			a.fail(w, r, 409, "access", "engine.release_changed", "the latest release changed from "+clip(want, 40)+" to "+ri.Tag+"; check again")
-			return
-		}
-		body, _, err := a.GH.OpenAsset(r.Context(), engineRepo(), ri.assetID)
-		if err != nil {
-			a.fail(w, r, 502, "access", "engine.download_failed", err.Error())
-			return
-		}
-		defer body.Close()
-		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(15 * time.Minute))
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", strconv.FormatInt(ri.Size, 10))
-		w.Header().Set("X-Release-Tag", ri.Tag)
-		w.Header().Set("X-Asset-Name", ri.Asset)
-		t0 := time.Now()
-		n, err := io.Copy(w, io.LimitReader(body, ri.Size+1))
-		res, lvl := "streamed", "info"
-		if err != nil || n != ri.Size {
-			res, lvl = "incomplete", "warn"
-		}
-		a.Log.Add(lvl, "access", "engine.download_streamed", reqID(r), res, fmt.Sprintf("%s %s: %d of %d bytes in %s to %s", ri.Tag, ri.Asset, n, ri.Size, time.Since(t0).Round(time.Millisecond), clientFrom(r).ProcessorID), map[string]string{"decision_id": d.DecisionID})
-	}))
+	m.HandleFunc("GET /api/v1/features/thought-engine/release", a.wrap(paired, a.engineRelease))
+	m.HandleFunc("GET /api/v1/features/thought-engine/release/download", a.wrap(paired, a.engineDownload))
 
 	// ---- for the person, in Identity's own window ----
 	m.HandleFunc("POST /api/pairing/code", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
@@ -395,4 +336,72 @@ func (a *App) pairingState() map[string]any {
 		st["pending_code"], st["expires_at"] = code, exp
 	}
 	return st
+}
+
+// engineRelease describes the latest Thought Engine release for a platform.
+// Reached from the Engine-specific route and from the generic
+// /api/v1/features/{id}/release route (the Engine is the only adapter so far).
+func (a *App) engineRelease(w http.ResponseWriter, r *http.Request) {
+	platform := r.URL.Query().Get("platform")
+	if !platformRE.MatchString(platform) {
+		a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
+		return
+	}
+	d := a.EngineAccess(r.Context(), false)
+	if !d.Allowed {
+		d.Proof = pairing.Proof(bearer(r), d.canonical())
+		a.signed(w, r, 403, map[string]any{"error": "not_allowed", "decision": d})
+		return
+	}
+	ri, code, msg := a.releaseFor(r.Context(), platform)
+	if code != 200 {
+		a.fail(w, r, code, "access", "engine.release_unavailable", msg)
+		return
+	}
+	ri.DecisionID = d.DecisionID
+	ri.Proof = pairing.Proof(bearer(r), ri.canonical())
+	a.Log.Info("access", "engine.release_described", reqID(r), "ok", "release "+ri.Tag+" "+ri.Asset+" described to "+clientFrom(r).ProcessorID, map[string]string{"sha256": ri.SHA256, "size": strconv.FormatInt(ri.Size, 10), "decision_id": d.DecisionID})
+	a.signed(w, r, 200, ri)
+}
+
+// engineDownload streams the Engine release asset. Identity downloads it with
+// its own GitHub token, which never leaves Identity.
+func (a *App) engineDownload(w http.ResponseWriter, r *http.Request) {
+	platform := r.URL.Query().Get("platform")
+	if !platformRE.MatchString(platform) {
+		a.fail(w, r, 400, "access", "engine.release_bad_platform", "platform must look like windows-amd64")
+		return
+	}
+	d := a.EngineAccess(r.Context(), false)
+	if !d.Allowed {
+		a.fail(w, r, 403, "access", "engine.download_refused", d.Reason)
+		return
+	}
+	ri, code, msg := a.releaseFor(r.Context(), platform)
+	if code != 200 {
+		a.fail(w, r, code, "access", "engine.release_unavailable", msg)
+		return
+	}
+	if want := r.URL.Query().Get("tag"); want != "" && want != ri.Tag {
+		a.fail(w, r, 409, "access", "engine.release_changed", "the latest release changed from "+clip(want, 40)+" to "+ri.Tag+"; check again")
+		return
+	}
+	body, _, err := a.GH.OpenAsset(r.Context(), engineRepo(), ri.assetID)
+	if err != nil {
+		a.fail(w, r, 502, "access", "engine.download_failed", err.Error())
+		return
+	}
+	defer body.Close()
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(15 * time.Minute))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", strconv.FormatInt(ri.Size, 10))
+	w.Header().Set("X-Release-Tag", ri.Tag)
+	w.Header().Set("X-Asset-Name", ri.Asset)
+	t0 := time.Now()
+	n, err := io.Copy(w, io.LimitReader(body, ri.Size+1))
+	res, lvl := "streamed", "info"
+	if err != nil || n != ri.Size {
+		res, lvl = "incomplete", "warn"
+	}
+	a.Log.Add(lvl, "access", "engine.download_streamed", reqID(r), res, fmt.Sprintf("%s %s: %d of %d bytes in %s to %s", ri.Tag, ri.Asset, n, ri.Size, time.Since(t0).Round(time.Millisecond), clientFrom(r).ProcessorID), map[string]string{"decision_id": d.DecisionID})
 }

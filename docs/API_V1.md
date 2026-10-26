@@ -8,7 +8,7 @@ Thought Processor is the normal human interface (decision **C01**). Identity run
 
 | Rule | Why |
 | --- | --- |
-| Address is `127.0.0.1:<port>`; the default port is **7790**. If Processor can read the profile folder, `<profile>/runtime/service.json` gives the current `base_url`, `pid` and `run_id`. | Lets Processor find Identity whichever program starts first. The file only says where to look; it proves nothing. |
+| Address is `127.0.0.1:<port>`; the default port is **7790**. Each running Identity writes a **per-user locator** at `%LOCALAPPDATA%\Arameair\Identity\instances\<identity_system_id>.json` (Linux/macOS: `<user config dir>/arameair-identity/instances/`). It holds `base_url`, `port`, `pid`, `run_id`, `identity_system_id` and `profile`. `<profile>/runtime/service.json` holds the same data minus the ID. Both are removed on a clean stop; a crash leaves a stale file, which you can spot because it doesn't answer. | Lets Processor find **the installation it paired with** (match `identity_system_id`) whichever program started first, and on whatever port, without knowing the profile folder. A locator only says where to look; it proves nothing. |
 | Never send a browser `Origin` header. | Identity refuses requests that carry an `Origin`, so web pages can't call this API. |
 | Apart from the two pairing calls, send `Authorization: Bearer <token>`. | Proves this caller is the program the person paired. |
 | Send a fresh random `X-Processor-Nonce` on each call. Check `X-Identity-Proof` = hex(HMAC-SHA256(token, `"identity-v1\n" + nonce + "\n" + <exact body bytes>`)). | Proves the answer came from the Identity you paired with, and that it isn't an old answer replayed. |
@@ -16,6 +16,8 @@ Thought Processor is the normal human interface (decision **C01**). Identity run
 | A `401` means "this Identity doesn't know your token". | You were unpaired, or this is a different profile. Pair again. |
 | No answer means **AUTHORITY UNAVAILABLE**. Block protected actions; do not use earlier answers instead. | C06: fail closed, no cached allow. |
 | Never show, log or copy the token. Show the GitHub `user_code` only to the person who is signing in. | — |
+
+**Which answers are signed:** every `/api/v1/*` answer that Identity's handlers produce, including refusals such as 400, 404 and 409. **Not signed:** `GET /api/health`, the two pairing calls, and refusals made *before* the token is accepted. Those are 401 (token refused), 403 (browser `Origin`), 421 (wrong `Host`), 429 (pairing too fast) and transport errors. Map 401 to "connection removed", not "wrong service". Treat any *other* unsigned or badly signed answer as wrong service.
 
 `GET /api/health` is public and unsigned (`app`, `version`, `protocol`, `api`). Use it only to see that *something* is answering. It is not trust.
 
@@ -120,9 +122,23 @@ Request: `{"confirm":"shut-down-identity","reason":"person chose Shut down on ex
 
 Identity never starts or stops any other program.
 
-## Older routes kept for the Engine-install experiment
+## Installing a feature — generic routes (use these)
 
-`GET /api/v1/features/thought-engine/access`, `…/release` and `…/release/download` are still here, unchanged from `experiment/engine-access-pairing-20261026`. That experiment's Processor branch keeps working with them.
+| Call | Result |
+| --- | --- |
+| `GET /api/v1/features/{id}/eligibility` | `{feature, eligible_to_install{state, rule, reason, next_step, …}, install_adapter}`. `install_adapter` is `"NONE"` when Identity has no install rule for that feature. |
+| `GET /api/v1/features/{id}/release?platform=windows-amd64` | `{tag, asset, size, sha256, decision_id, …}`. Returns 403 `not_allowed` (with the decision) when not eligible, and 404 `NO_INSTALL_ADAPTER` for features without a rule. |
+| `GET /api/v1/features/{id}/release/download?platform=…&tag=…` | The asset bytes, streamed by Identity. Its GitHub token never leaves Identity. Check the SHA-256 from `release` yourself. A 409 means a newer release appeared since you asked. |
+
+Thought Engine is the **only adapter** so far (rule `repo-visibility-v0`). A future feature gets an adapter in Identity, and Processor's code stays the same.
+
+**Honest limit:** the checksum comes from the same GitHub release as the file. It proves the download wasn't damaged; it does **not** prove the publisher made it. Publisher-signed release metadata is not built yet.
+
+The older Engine-only paths (`/api/v1/features/thought-engine/access`, `…/release`, `…/release/download`) still work for `experiment/install-thought-engine-20261026`. New code should use the generic routes.
+
+## Storing the pairing on Windows
+
+Identity itself stores **no secrets**: `paired-clients.json` keeps only SHA-256 hashes of tokens. Processor holds the token. Keep it inside the user's profile folder (`%USERPROFILE%` or `%LOCALAPPDATA%`), which Windows already restricts to that user. "0600" in these notes means "readable only by this user". **Better [not built]:** protect the token with DPAPI (`CryptProtectData`, current-user scope). That stops other Windows users and offline copies from reading it, though not other programs running as the same user.
 
 ## Not in this API yet
 

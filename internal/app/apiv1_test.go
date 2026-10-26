@@ -314,3 +314,40 @@ func TestV1ShutdownNeedsConfirmAndCleansUp(t *testing.T) {
 		t.Fatal("stop reason not logged")
 	}
 }
+
+func TestV1LocatorAndGenericFeatureRoutes(t *testing.T) {
+	dir, loc := t.TempDir(), t.TempDir()
+	con := &console{}
+	h := startAppWith(t, dir, realGH, func(o *Options) { o.Announce = con.announce; o.LocatorDir = loc })
+	token, _ := h.pairV1(con, "tp_test")
+
+	// The per-user locator names this installation, so Processor can find the
+	// right Identity without knowing its profile folder.
+	p := filepath.Join(loc, h.a.Store.Profile.SystemID+".json")
+	var rec map[string]any
+	b, err := os.ReadFile(p)
+	if err != nil || json.Unmarshal(b, &rec) != nil || int(rec["port"].(float64)) != h.a.Port || rec["identity_system_id"] != h.a.Store.Profile.SystemID {
+		t.Fatalf("locator wrong: %v %s", err, b)
+	}
+
+	if st, e := h.v1("GET", "/api/v1/features/thought-engine/eligibility", "", token); st != 200 || e["eligible_to_install"].(map[string]any)["state"] != NotSignedIn || e["install_adapter"] == "NONE" {
+		t.Fatalf("engine eligibility %d %v", st, e)
+	}
+	if st, e := h.v1("GET", "/api/v1/features/thought-processor/eligibility", "", token); st != 200 || e["install_adapter"] != "NONE" {
+		t.Fatalf("processor eligibility %d %v", st, e)
+	}
+	if st, e := h.v1("GET", "/api/v1/features/thought-processor/release?platform=windows-amd64", "", token); st != 404 || e["error"] != "NO_INSTALL_ADAPTER" {
+		t.Fatalf("no-adapter release %d %v", st, e)
+	}
+	if st, _ := h.v1("GET", "/api/v1/features/nope/eligibility", "", token); st != 404 {
+		t.Fatalf("unknown feature %d", st)
+	}
+	// Generic route reaches the Engine adapter (refused here: not signed in to GitHub).
+	if st, e := h.v1("GET", "/api/v1/features/thought-engine/release?platform=windows-amd64", "", token); st != 403 || e["error"] != "not_allowed" {
+		t.Fatalf("generic engine release %d %v", st, e)
+	}
+	h.stop()
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Fatal("locator left behind after clean stop")
+	}
+}

@@ -208,6 +208,34 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 		a.signed(w, r, 200, map[string]any{"identity": e, "features": a.featureStates(r.Context(), &e, clientFrom(r)), "legend": featureLegend})
 	}))
 
+	// Generic per-feature install routes. Processor should use these rather
+	// than the older Engine-specific paths, so a second feature needs no
+	// Processor change. Thought Engine (rule repo-visibility-v0) is the only
+	// install adapter so far; other features answer NO_INSTALL_ADAPTER.
+	m.HandleFunc("GET /api/v1/features/{id}/eligibility", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if _, ok := features.Find(id); !ok {
+			a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(id, 40))
+			return
+		}
+		for _, f := range a.featureStates(r.Context(), nil, clientFrom(r)) {
+			if f["feature"] == id {
+				a.signed(w, r, 200, map[string]any{"feature": id, "eligible_to_install": f["eligible_to_install"], "install_adapter": installAdapter(id)})
+				return
+			}
+		}
+	}))
+	m.HandleFunc("GET /api/v1/features/{id}/release", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		if a.needAdapter(w, r) {
+			a.engineRelease(w, r)
+		}
+	}))
+	m.HandleFunc("GET /api/v1/features/{id}/release/download", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		if a.needAdapter(w, r) {
+			a.engineDownload(w, r)
+		}
+	}))
+
 	// ---- authorization (default deny, never cached) ----
 	m.HandleFunc("POST /api/v1/authorize", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
@@ -425,4 +453,26 @@ func (a *App) authorize(r *http.Request, identityID, feature, operation, source 
 	a.Log.Info("authority", "authorize.decided", reqID(r), DecisionDenied, d["state"].(string)+" for "+clip(feature, 40)+"/"+clip(operation, 40),
 		map[string]string{"decision_id": d["decision_id"].(string), "identity_id": clip(identityID, 40), "processor": clientFrom(r).ProcessorID})
 	return d
+}
+
+func installAdapter(id string) string {
+	if id == EngineFeature {
+		return "thought-engine: rule " + AccessRule + "; release + SHA256SUMS from the feature's GitHub releases, streamed by Identity"
+	}
+	return "NONE"
+}
+
+// needAdapter answers for features that have no install adapter yet.
+func (a *App) needAdapter(w http.ResponseWriter, r *http.Request) bool {
+	id := r.PathValue("id")
+	if _, ok := features.Find(id); !ok {
+		a.signedFail(w, r, 404, "features.unknown", "Identity doesn't know a feature called "+clip(id, 40))
+		return false
+	}
+	if id != EngineFeature {
+		a.signed(w, r, 404, map[string]any{"error": "NO_INSTALL_ADAPTER", "feature": id,
+			"message": "Identity has no install rule for this feature yet", "request_id": reqID(r)})
+		return false
+	}
+	return true
 }
