@@ -105,8 +105,12 @@
     else setChip("#chip-github", "", s.last_account ? "NOT SIGNED IN · last " + s.last_account.login : "NOT SIGNED IN");
 
     const pcls = p.state.startsWith("DETECTED") ? (p.freshness === "STALE" ? "warn" : "info") : p.state === "NOT CONFIGURED" || p.state === "NOT CHECKED YET" ? "" : p.state === "WRONG SERVICE" ? "bad" : "warn";
-    const plabel = p.state.startsWith("DETECTED") ? (s.pairing.clients.length ? "DETECTED · PAIRED" : "DETECTED · NOT PAIRED") : p.state;
-    setChip("#chip-processor", pcls, plabel + (p.freshness === "STALE" ? " · STALE" : ""), (p.address || "no address") + " — " + (p.note || ""));
+    const npaired = s.pairing.clients.length;
+    let plabel = p.state.startsWith("DETECTED") ? (npaired ? "DETECTED · PAIRED" : "DETECTED · NOT PAIRED") : p.state;
+    let pc = pcls;
+    if (!p.state.startsWith("DETECTED") && npaired) { plabel = "PAIRED · " + npaired; pc = "info"; }
+    else if (p.state === "NOT CONFIGURED") plabel = "NOT PAIRED YET";
+    setChip("#chip-processor", pc, plabel + (p.freshness === "STALE" ? " · STALE" : ""), npaired ? npaired + " paired program(s); they connect to Identity, Identity doesn't watch them" : (p.address || "no address") + " — " + (p.note || ""));
     const open = $("#open-tp");
     if (p.open_url && p.freshness === "CURRENT") { open.href = p.open_url; open.hidden = false; open.title = "Opens Thought Processor's own page. It will ask for its own operator code — Identity does not sign you in."; }
     else open.hidden = true;
