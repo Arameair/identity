@@ -9,7 +9,7 @@ Our architecture is being developed collaboratively with human direction and mul
 ## Review material and discussion
 
 - [Open architecture review issue #14](https://github.com/Arameair/identity/issues/14) — questions about first-run authority, independent feature storage, auto-registration and background operation.
-- [End-user design notes](END_USER_DESIGN_NOTES.md) — preserved external perspective supplied by the owner. Helpful advice, **not** a binding implementation requirement.
+- [End-user design notes](archive/END_USER_DESIGN_NOTES_20261025.md) — preserved external perspective supplied by the owner. Helpful advice, **not** a binding implementation requirement.
 - [Core principle and boundaries](ARCHITECTURE.md), [First-run proposal](FIRST_RUN.md), [Storage](STORAGE.md).
 - [Decision record](DECISIONS.md) — what is owner-selected versus still unresolved.
 - [AI collaboration and verification](AI_COLLABORATION.md) — attribution and test-evidence rules.
@@ -37,6 +37,6 @@ If the owner brings feedback from Grok or another assistant, record the originat
 
 ## Example: a live disagreement
 
-[End-user design notes](END_USER_DESIGN_NOTES.md) recommend *one folder, one process* and *no background services* for cleanliness. The owner-approved cross-feature architecture calls for **centrally organized, independently owned feature storage** and startup self-registration. The **background service lifecycle remains OPEN**. A minimal single-process experiment is useful; it should not silently forbid a later, opt-in secure system service.
+[End-user design notes](archive/END_USER_DESIGN_NOTES_20261025.md) recommend *one folder, one process* and *no background services* for cleanliness. The owner-approved cross-feature architecture calls for **centrally organized, independently owned feature storage** and startup self-registration. The **background service lifecycle remains OPEN**. A minimal single-process experiment is useful; it should not silently forbid a later, opt-in secure system service.
 
 **Decision authority:** Human owner. **Evidence authority:** Reproducible real tests. See [Workflow](WORKFLOW.md).
