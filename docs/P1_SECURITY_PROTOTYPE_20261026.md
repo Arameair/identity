@@ -1,5 +1,7 @@
 # Identity P1 — bounded security-hardening prototype
 
+> **Subsequent audit:** [P1 Reality Audit — Implemented vs fixtures vs missing decisions](P1_REALITY_AUDIT_20261026.md). The experiment is not P1 feature-complete; this earlier plan lists corrections but does not demonstrate a real worker, installation, Admin approval or grant. See that audit for the latest decision inventory and remaining blockers.
+
 Date: 2026-10-26  
 Base: `alpha` @ `c8c0a54ab333077ccbfbd86c5952fb8a00b55dc1`  
 Experiment: `experiment/identity-p1-security-hardening-20261026`  
