@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/Arameair/identity/internal/features"
 	"github.com/Arameair/identity/internal/github"
 	"github.com/Arameair/identity/internal/logbook"
+	"github.com/Arameair/identity/internal/pairing"
 	"github.com/Arameair/identity/internal/profile"
 )
 
@@ -232,6 +234,10 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 				c, rk, err := a.Pair.Verify(r.Header.Get(ProcessorIDHeader), r.Method, r.URL.RequestURI(),
 					r.Header.Get(TimeHeader), r.Header.Get(NonceHeader), r.Header.Get(AuthHeader), body)
 				if err != nil {
+					if errors.Is(err, pairing.ErrReplayStore) {
+						a.fail(w, r, 503, "pairing", "pairing.replay_storage_unavailable", "replay protection unavailable; protected operation blocked")
+						return
+					}
 					a.fail(w, r, 401, "pairing", "pairing.request_refused", err.Error())
 					return
 				}
