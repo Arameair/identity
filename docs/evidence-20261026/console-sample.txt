@@ -1,0 +1,22 @@
+Identity 0.4.0-alpha  branch alpha-candidate-20261026  commit df983cea58b0
+  Identity is running in the background. Use it through Thought Processor —
+  you don't need to open anything here. Keep this window open (minimise it is fine).
+
+  profile : C:\Users\you\.identity\alpha-20261026
+  run     : run_57ac3f14208bafa2   pid 13438   port 7896 (loopback only)   api identity/1-alpha
+  github  : built into this build (Arameair's GitHub App)
+  paired  : none yet — in Thought Processor choose Connect Identity; a code will appear HERE
+  stop    : Ctrl+C here, or Shut down from Thought Processor. Only Identity stops.
+
+  troubleshooting page (developers / support only — private, do not share):
+    http://127.0.0.1:7896/#key=<private>
+
+  +-- PAIRING REQUEST from Thought Processor (tp_shot)
+  |   If you just pressed Connect in Thought Processor, type this code there:
+  |
+  |          XXXX-XXXX
+  |
+  |   Valid until 05:50:18. If you didn't ask for this, ignore it.
+  +--
+
+Identity stopped.

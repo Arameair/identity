@@ -1,0 +1,26 @@
+IDENTITY SMOKE REPORT  2026-10-26T05:45:11-05:00
+identity: identity 0.4.0-alpha alpha candidate alpha-candidate-20261026 commit df983cea58b01ebcf29d9dc7d1f3a2a49313f6c7
+os/arch: linux/amd64
+GitHub: not used (fixture-free; real sign-in is a separate, human step)
+
+PASS  1 starts as a background service                 console tells the person to use Thought Processor; no browser opened
+PASS  1 runtime/service.json names this process        locator for either start order (not trust)
+PASS  2 pair request shows code only in Identity window HTTP 202
+PASS  2 pairing completes                              installation idn_43dd084ed93793330339d5bc
+PASS  2 code and token never logged                    
+PASS  3 create identity (starts with no access)        ent_f2a6efc34036cfc25dbb
+PASS  3 signed status / identities / features / authorize=DENIED see output above
+PASS  4 confirmed shutdown → process exits cleanly     pid 13377
+PASS  4 service.json removed on clean stop             
+PASS  4 stop reason in Identity's log                  
+PASS  5 restart: reconnects without new code, identity kept 
+PASS  5 console shows existing pairing                 
+PASS  6 Processor-first: waits, then verified connection client started first; Identity 5 s later
+PASS  7 Identity down → AUTHORITY UNAVAILABLE          a real Processor must block protected actions
+PASS  8 other installation refuses our pairing         HTTP 401
+PASS  9 second Identity on same profile refused        
+PASS  10 unpair → old token refused                    
+PASS  11 starts again after a crash-style stop         stale service.json present before restart: true (replaced on start)
+PASS  11 service.json now names the new process        
+
+SMOKE RESULT: PASS
