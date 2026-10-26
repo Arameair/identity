@@ -286,6 +286,25 @@ func (s *smokeRun) report(ver string) {
 	for _, r := range s.results {
 		b.WriteString(r + "\n")
 	}
+	// Leave nothing private in the work folder: mask the troubleshooting
+	// link and pairing codes in console captures, delete the probe pairing.
+	key := regexp.MustCompile(`#key=[0-9a-f]+`)
+	if caps, _ := filepath.Glob(filepath.Join(s.work, "*.console.txt")); caps != nil {
+		for _, c := range caps {
+			if b, err := os.ReadFile(c); err == nil {
+				b = key.ReplaceAll(b, []byte("#key=<removed>"))
+				b = smokeCode.ReplaceAll(b, []byte("XXXX-XXXX"))
+				os.WriteFile(c, b, 0o600)
+			}
+		}
+	}
+	os.Remove(statePath)
+	// Killed (crash-style) runs leave their private link behind; remove it.
+	if links, _ := filepath.Glob(filepath.Join(s.work, "*", "runtime", "open-link.txt")); links != nil {
+		for _, l := range links {
+			os.Remove(l)
+		}
+	}
 	result := "PASS"
 	if s.failed > 0 {
 		result = fmt.Sprintf("FAIL (%d)", s.failed)

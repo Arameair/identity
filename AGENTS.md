@@ -69,7 +69,7 @@ This starts real `identity.exe` processes on throwaway profiles and runs 11 scen
 - unpair
 - restart after a crash
 
-**Expected:** `SMOKE RESULT: PASS`. The last line gives the path of `smoke-report.txt`; **attach that file** to the report. It contains no codes or tokens.
+**Expected:** `SMOKE RESULT: PASS` (the 11 scenarios are checked with 19 PASS lines). The last line gives the path of `smoke-report.txt`; **attach only that file**. It contains no codes or tokens. The other files in that folder are working files; private links and codes in them are masked, but don't attach them.
 
 ## Step 3 — start Identity for real (window 1)
 
@@ -78,7 +78,7 @@ cd $HOME\identity-1026
 .\identity.exe -data "$env:USERPROFILE\.identity\alpha-20261026"
 ```
 **Expected console:**
-- `Identity 0.4.0-alpha  branch alpha-candidate-20261026  commit <sha>`
+- `Identity 0.4.0-alpha  branch alpha-candidate-20261026  commit <first 12 characters of the Step 1 commit>`
 - `Identity is running in the background. Use it through Thought Processor —`
 - `github  : built into this build (Arameair's GitHub App)`. If it says *no publisher GitHub App built in*, you have the wrong build: stop.
 - `paired  : none yet — … a code will appear HERE`
@@ -138,7 +138,7 @@ It prints a GitHub link and a code. **Owner:** open the link, enter the code, pr
 1. Window 1: press **Ctrl+C**.
 2. Window 2: run `.\identity-probe.exe check`.
 
-**Expected:** `FAIL Identity reachable AUTHORITY UNAVAILABLE …` with exit code 2. This is the **correct** behaviour: the test passes when you see this. Then start Identity again in window 1.
+**Expected:** `FAIL Identity reachable (expected when Identity is stopped) AUTHORITY UNAVAILABLE …` with exit code 2. This FAIL line is the **correct** behaviour: report Step 9 as PASS when you see it. Then start Identity again in window 1.
 
 ## Step 10 — shutdown as Processor's "Shut down" choice (C04)
 
@@ -163,7 +163,7 @@ Optional, for deeper troubleshooting: open the troubleshooting link from window 
 
 | You see | Meaning / fix |
 | --- | --- |
-| `cannot listen on 127.0.0.1:7790` | An older Identity (or something else) is using the port. Close it, or add `-port 7792` and give the probe `-url http://127.0.0.1:7792`. |
+| `cannot listen on 127.0.0.1:7790` | An older Identity (or something else) is using the port. Close it, or start Identity with `-port 7792` and run the probe as `.\identity-probe.exe -url http://127.0.0.1:7792 check` (same for other commands). |
 | `profile in use` | Another Identity already uses that `-data` folder. Close it first. |
 | `smoke` says `something already answers on port 7891` | Run `.\identity-probe.exe smoke -port 7893`. |
 | `pair` says `pairing failed: … wrong or expired` | Run `pair` again and use the **newest** code in window 1. After 5 wrong codes, wait 1 minute. |

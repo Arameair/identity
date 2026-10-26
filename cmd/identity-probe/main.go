@@ -61,6 +61,14 @@ func defaultState() string {
 	return filepath.Join(home, ".identity-probe", "pairing.json")
 }
 
+// newFlags lets -url and -state go before or after the command.
+func newFlags(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	fs.StringVar(&baseURL, "url", baseURL, "Identity address")
+	fs.StringVar(&statePath, "state", statePath, "pairing file")
+	return fs
+}
+
 func randHex(n int) string {
 	b := make([]byte, n)
 	rand.Read(b)
@@ -77,6 +85,7 @@ func die(format string, a ...any) {
 }
 
 func load() pairingFile {
+	baseURL = strings.TrimRight(baseURL, "/")
 	b, err := os.ReadFile(statePath)
 	if err != nil {
 		die("not paired yet (no %s). Run:  identity-probe pair", statePath)
@@ -177,10 +186,11 @@ func str(m map[string]any, keys ...string) string {
 }
 
 func cmdPair(args []string) {
-	fs := flag.NewFlagSet("pair", flag.ExitOnError)
+	fs := newFlags("pair")
 	code := fs.String("code", "", "the code shown in Identity's window (asked for if empty)")
 	label := fs.String("label", "identity-probe (test client — not Thought Processor)", "name Identity shows for this client")
 	fs.Parse(args)
+	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {
 		baseURL = "http://127.0.0.1:7790"
 	}
@@ -209,7 +219,7 @@ func cmdPair(args []string) {
 }
 
 func cmdCheck(args []string) {
-	fs := flag.NewFlagSet("check", flag.ExitOnError)
+	fs := newFlags("check")
 	wait := fs.Duration("wait", 0, "keep trying this long if Identity isn't running yet (tests Processor-first start)")
 	fs.Parse(args)
 	p := load()
@@ -234,7 +244,7 @@ func runCheck(p pairingFile, wait time.Duration) int {
 		time.Sleep(3 * time.Second)
 	}
 	if err != nil {
-		fail("Identity reachable", "AUTHORITY UNAVAILABLE — no answer at "+baseURL+"; a real Processor must block protected actions now")
+		fail("Identity reachable", "(expected when Identity is stopped) AUTHORITY UNAVAILABLE — no answer at "+baseURL+"; a real Processor must block protected actions now")
 		return 2
 	}
 	if hst == 200 && h["app"] == "identity" {
@@ -319,7 +329,7 @@ func runCheck(p pairingFile, wait time.Duration) int {
 }
 
 func cmdCreate(args []string) {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+	fs := newFlags("create")
 	name := fs.String("name", "", "identity name")
 	kind := fs.String("kind", "person", "person | companion | business | project")
 	fs.Parse(args)
@@ -332,7 +342,7 @@ func cmdCreate(args []string) {
 }
 
 func cmdGitHub(args []string) {
-	fs := flag.NewFlagSet("github", flag.ExitOnError)
+	fs := newFlags("github")
 	timeout := fs.Duration("timeout", 10*time.Minute, "how long to wait for the person to approve")
 	fs.Parse(args)
 	p := load()
@@ -373,6 +383,7 @@ func cmdGitHub(args []string) {
 }
 
 func cmdShutdown(args []string) {
+	newFlags("shutdown").Parse(args)
 	p := load()
 	st, r, err := call(p, "POST", "/api/v1/shutdown", map[string]string{"confirm": "shut-down-identity", "reason": "identity-probe shutdown test"})
 	if err != nil || st != 202 {
@@ -390,6 +401,7 @@ func cmdShutdown(args []string) {
 }
 
 func cmdUnpair(args []string) {
+	newFlags("unpair").Parse(args)
 	p := load()
 	st, _, err := call(p, "POST", "/api/v1/unpair", map[string]string{})
 	if err != nil || st != 200 {
@@ -416,7 +428,6 @@ func main() {
 	if len(rest) == 0 {
 		die("missing command")
 	}
-	baseURL = strings.TrimRight(baseURL, "/")
 	switch rest[0] {
 	case "pair":
 		cmdPair(rest[1:])
