@@ -137,12 +137,14 @@ func (a *App) apiV1Routes(m *http.ServeMux) {
 		c := clientFrom(r)
 		resp := map[string]any{"unpaired": true, "processor_id": c.ProcessorID,
 			"note": "this token no longer works; pairing again needs a new code from Identity's window"}
-		a.signed(w, r, 200, resp) // sign with the token while it is still valid
+		// Commit revocation before returning success. The verified request's
+		// response key remains in r.Context(), so even the last reply is signed.
 		if _, err := a.Pair.Unpair(c.ProcessorID); err != nil {
-			a.Log.Error("pairing", "pairing.unpair_failed", reqID(r), "error", err.Error(), nil)
+			a.signedFail(w, r, 503, "pairing.unpair_failed", "revocation was not saved; pairing may still be active")
 			return
 		}
 		a.Log.Info("pairing", "pairing.unpaired", reqID(r), "removed", "Thought Processor "+c.ProcessorID+" unpaired itself; its token no longer works", nil)
+		a.signed(w, r, 200, resp)
 	}))
 
 	m.HandleFunc("GET /api/v1/status", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
