@@ -1,5 +1,7 @@
 # AGENTS.md — Identity alpha candidate 2026-10-26 runbook (owner + AI operators, e.g. a Grok bot)
 
+> **This is a historical P0 runbook, not the current P1 experiment test plan.** Some steps refer to another candidate branch, fixture-based demos, and/or a Processor stand-in. Read [P1 Reality Audit](docs/P1_REALITY_AUDIT_20261026.md) and [P1 Security Prototype](docs/P1_SECURITY_PROTOTYPE_20261026.md) before making any claim of real P1 installation or grant enforcement. No feature-authorization ALLOW path exists yet.
+
 **Goal:** on the owner's **Windows** computer, install this Identity candidate, prove it works as a **background service** that a program pairs with, and report PASS/FAIL with evidence.
 
 Thought Processor does not speak this API yet; the Processor team is building that now. Until then, **`identity-probe.exe` plays Processor's part**. It is a test client with no UI.
