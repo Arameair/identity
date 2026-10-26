@@ -29,7 +29,10 @@ type sessionRec struct {
 	created time.Time
 }
 
-const CookieName = "identity_session"
+const (
+	CookieName = "identity_session"
+	SessionTTL = 30 * time.Minute // local operator session is not Admin authentication
+)
 
 func NewSessions() *Sessions {
 	return &Sessions{key: profile.RandHex(24), sess: map[string]sessionRec{}}
@@ -66,11 +69,23 @@ func (s *Sessions) Lookup(r *http.Request) (sessionRec, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rec, ok := s.sess[c.Value]
-	return rec, ok
+	if !ok {
+		return sessionRec{}, false
+	}
+	if time.Since(rec.created) >= SessionTTL || time.Since(rec.created) < 0 {
+		delete(s.sess, c.Value)
+		return sessionRec{}, false
+	}
+	return rec, true
 }
 
 func (s *Sessions) Count() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for id, rec := range s.sess {
+		if age := time.Since(rec.created); age >= SessionTTL || age < 0 {
+			delete(s.sess, id)
+		}
+	}
 	return len(s.sess)
 }
