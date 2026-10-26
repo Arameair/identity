@@ -73,17 +73,17 @@ type PublicClient struct {
 }
 
 type Store struct {
-	mu       sync.Mutex
-	seen     map[string]time.Time // processor_id|nonce → when (replay protection)
-	noncePath string // durable replay guard for state-changing signed requests
-	path     string
-	clients  []Client
-	loadErr  string
-	code     string
-	codeExp  time.Time
-	failures int
-	lockedTo time.Time
-	now      func() time.Time
+	mu        sync.Mutex
+	seen      map[string]time.Time // processor_id|nonce → when (replay protection)
+	noncePath string               // durable replay guard for state-changing signed requests
+	path      string
+	clients   []Client
+	loadErr   string
+	code      string
+	codeExp   time.Time
+	failures  int
+	lockedTo  time.Time
+	now       func() time.Time
 }
 
 func Open(root string) *Store {
