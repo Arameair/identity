@@ -1,14 +1,24 @@
-# First run — Thought Processor is the front door
+# First run — Thought Processor is the normal interface (launch order flexible)
 
-**Status:** intended user experience and security acceptance criteria; **not fully implemented**. Reviewed 2026-10-25. Existing experimental Identity candidates still open their *own* setup/monitor browser UI. That behavior is a prototype/debug path, **not the target experience**. See [current status](STATUS.md) and [test instructions](TRY_THE_PROTOTYPE.md).
+**Status:** intended user experience and security acceptance criteria; **not fully implemented**. Reviewed 2026-10-26. Existing experimental Identity candidates still open their *own* setup/monitor browser UI. That behavior is a prototype/debug path, **not the target experience**. See [current status](STATUS.md) and [test instructions](TRY_THE_PROTOTYPE.md).
 
 ## One human-facing application
 
 > **People and administrators open and interact with Thought Processor. Identity provides identity, relationships, registration, and authorization behind it. Independent features own their own execution and data.**
 
-**Identity-first describes the authority model, not the user-facing launch order.** A user should not need to visit an Identity dashboard to configure accounts, inspect identities, approve features, view service health, or diagnose normal problems. These tasks should be available in **Thought Processor**, which invokes Identity's authenticated interfaces when it needs authoritative operations.
+**Identity-first describes the authority model, not the executable startup order. The owner confirmed that Identity or Thought Processor can start first; the requirement is a clean, genuinely authenticated state with both available for full system administration.** A user should not need to visit an Identity dashboard to configure accounts, inspect identities, approve features, view service health, or diagnose normal problems. These tasks should be available in **Thought Processor**, which invokes Identity's authenticated interfaces when it needs authoritative operations.
 
 Identity must remain a usable, independently running **service** even when Thought Processor is offline. It is not a mandatory screen, and its startup should not silently launch or terminate Processor. Developer-only direct Identity diagnostics or emergency recovery tools can exist, but they must not become the primary administrative product.
+
+## Process startup and system exit — owner choice
+
+- **Either Identity-first or Processor-first startup is acceptable.** Thought Processor remains the normal human-facing UI when the full system is ready; the underlying launch mechanism is not decided. Missing/untrusted services are accurately blocked, not labelled READY.
+- First operator-approved **service pairing** establishes peer authenticity; subsequent restarts reconnect automatically using securely stored scoped credentials. Pairing does not imply permission to access information sources.
+- An **explicit Processor application exit** should ask **Shut down managed workspace (selected by default)** or **Keep services running**. A controlled shutdown verifies owned process and child-process exit, reports leftovers, and never kills unrelated services without separate permission. Closing a browser tab is not necessarily a Processor application exit.
+- When Identity is unreachable, **new protected actions and queued protected dispatch fail closed**; no offline grace/cached allowance in v1. Independent processes can remain running for safe status and diagnostics.
+- These are design requirements; no reliable process-supervisor, secure pairing, or receiver-enforced grant implementation is proven by this page.
+
+See [cross-repository decisions](CROSS_REPO_DECISIONS_2026-10-26.md).
 
 ## Proposed first-use journey in Thought Processor
 
@@ -22,7 +32,7 @@ Identity must remain a usable, independently running **service** even when Thoug
 | 6. Request or approve access | Review the requested operation and scope; accept/deny only where supported | Identity validates authority and records the decision; **each receiving feature enforces it** |
 | 7. Monitoring and recovery | One Processor dashboard shows meaningful status, logs and safe diagnostics | No false green states; Identity/feature outages and pending access are accurate and actionable |
 
-These steps are **acceptance targets**, not a claim that the current Processor and Identity prototypes support them end-to-end. The intended empty state is: **Processor available, Identity unavailable or ready as verified, zero optional features**—not an error that forces Thought Engine/Memory installation.
+The steps may be reached after **either service startup order**. They are **acceptance targets**, not a claim that the current Processor and Identity prototypes support them end-to-end. The intended empty state is: **Processor available, Identity unavailable or ready as verified, zero optional features**—not an error that forces Thought Engine/Memory installation.
 
 ## Distinct identity records
 
@@ -36,16 +46,16 @@ Processor **displays** these authorized records; Identity remains their authorit
 
 ## Restart, absence and recovery
 
-1. A user normally opens **Thought Processor**. It should make an authenticated attempt to connect to the existing Identity service and show **verified / unavailable / unverified / needs setup** precisely.
+1. A user interacts through **Thought Processor** in normal use, regardless of which service process started first. It should make an authenticated attempt to connect to the existing Identity service and show **verified / unavailable / unverified / needs setup** precisely.
 2. Identity independently reopens its authorized data profile and validates integrity. Neither component silently rewrites another feature's storage.
 3. Processor queries appropriate status, presents persistent identities, feature availability, and any approved permission changes; cached display state must not be confused with current authorization.
 4. If Identity is unavailable, Processor displays the problem and offers documented recovery paths. It does **not** grant new permissions, call a claimed endpoint trusted, or require deleting identity records.
-5. If Processor is stopped, Identity and independent features continue only within their own previously valid, bounded policies. No new grants are created merely because a service restarted.
+5. On **explicit Processor exit**, the person chooses **Shut down managed workspace (default)** or **Keep services running**. For shutdown, the approved process manager must verify that owned services and child processes stop cleanly and report failures. For Keep Running, other independent processes may remain alive; neither choice grants data access. If Identity is down, block new protected work rather than rely on past cached grants.
 6. If a developer opens Identity directly, that is an explicit troubleshooting/testing route and must be labelled as such.
 
 ## Lifecycle decision remains open
 
-The owner selected **Thought Processor as the human interface**, **not** how Identity is kept available. An opt-in lightweight background service, manual launch, and a hybrid local activation flow still need comparison and acceptance testing. A first-run implementation must not silently install a privileged startup task or turn Processor into an unauthorized process supervisor.
+The owner selected **Thought Processor as the human interface** and explicitly allowed **either service startup order**; the safe mechanism for keeping Identity available is still open. An opt-in lightweight background service, manual launch, and a hybrid local activation flow still need comparison and acceptance testing. A first-run implementation must not silently install a privileged startup task or turn Processor into an unauthorized process supervisor.
 
 Service discovery is not trust. Before Processor administers Identity, the two programs need an authenticated, replay-resistant, least-privilege protocol with recovery and offline behavior.
 
@@ -57,6 +67,6 @@ The next integration acceptance gate should explicitly demonstrate a **Thought P
 
 ## Minimum acceptance evidence
 
-On a clean OS profile record: exact source branches/SHAs; independent process IDs and ports; opening Thought Processor as the first human-facing application; Identity unavailable/detected/authenticated distinctions; first-run/admin state provenance; reconnect and restart; rejected/expired/unauthorized calls; no credential leakage in Processor or Identity diagnostics; and an explicit owner decision.
+On a clean OS profile record: exact source branches/SHAs; independent process IDs and ports; reaching the same verified end state using **either startup order**, while using Thought Processor as the normal human interface; Identity unavailable/detected/authenticated distinctions; first-run/admin state provenance; reconnect and restart; rejected/expired/unauthorized calls; no credential leakage in Processor or Identity diagnostics; and an explicit owner decision.
 
 See [Architecture](ARCHITECTURE.md), [Security](SECURITY.md), [Roadmap](ROADMAP.md), [Status](STATUS.md).
