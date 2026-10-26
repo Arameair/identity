@@ -56,15 +56,22 @@ func (c *Client) CheckRepo(ctx context.Context, repo string) (RepoCheck, *Accoun
 	}
 	c.mu.Lock()
 	if c.publisher != nil {
+		// Copy-on-write: View() hands out the Repos slice, so never modify it
+		// in place (data race with JSON encoding / log summaries).
+		repos := make([]RepoCheck, 0, len(c.publisher.Repos)+1)
 		found := false
-		for i := range c.publisher.Repos {
-			if strings.EqualFold(c.publisher.Repos[i].Repo, repo) {
-				c.publisher.Repos[i], found = rc, true
+		for _, r := range c.publisher.Repos {
+			if strings.EqualFold(r.Repo, repo) {
+				r, found = rc, true
 			}
+			repos = append(repos, r)
 		}
 		if !found {
-			c.publisher.Repos = append(c.publisher.Repos, rc)
+			repos = append(repos, rc)
 		}
+		p := *c.publisher
+		p.Repos = repos
+		c.publisher = &p
 	}
 	c.mu.Unlock()
 	return rc, acct, nil

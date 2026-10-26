@@ -464,9 +464,10 @@ func (c *Client) finish(token string, expiresIn int) {
 	if expiresIn > 0 {
 		c.tokenExpiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
 	}
+	summary := publisherSummary(pub)
 	c.mu.Unlock()
 	c.onEvent("info", "github.verified", "verified", fmt.Sprintf("GitHub (%s) confirmed account %s (id %d); token kept in memory only", c.cfg.Mode(), acct.Login, acct.ID))
-	c.onEvent("info", "github.publisher_read", pub.InstallationsResult, publisherSummary(pub))
+	c.onEvent("info", "github.publisher_read", pub.InstallationsResult, summary)
 }
 
 func publisherSummary(p *Publisher) string {
