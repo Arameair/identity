@@ -1,6 +1,6 @@
-> **P1 experiment branch `experiment/p1-feature-foundation-claude-20261026` (not promoted):** original Admin Identity, Admin approvals in Identity's own page, per-copy feature installation identities, scoped grants, tickets and a live decision check that the receiving feature enforces. Read [docs/P1_FEATURE_FOUNDATION_20261026.md](docs/P1_FEATURE_FOUNDATION_20261026.md); run it with Thought-Processor's `docs/P1/START_HERE.md` (same branch name). The runbook below (AGENTS.md) describes the earlier P0 alpha candidate.
-
 # Identity — alpha candidate 2026-10-26
+
+> **P1 experiment branch `experiment/p1-feature-foundation-claude-20261026` (not promoted):** original Admin Identity, Admin approvals in Identity's own page, per-copy feature installation identities, scoped grants, tickets and a live decision check that the receiving feature enforces. Read [docs/P1_FEATURE_FOUNDATION_20261026.md](docs/P1_FEATURE_FOUNDATION_20261026.md); run it with Thought-Processor's `docs/P1/START_HERE.md` (same branch name). The runbook below (AGENTS.md) describes the earlier P0 alpha candidate.
 
 **Identity is the independent identity and permission service behind Thought Processor.** It runs in the background, holds the identities this installation is the authority for, signs in to GitHub on the person's behalf, and answers a paired Thought Processor. People use it **through Thought Processor**. Its own web page is now a troubleshooting view only.
 
