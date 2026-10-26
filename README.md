@@ -1,5 +1,7 @@
 # Identity — alpha candidate 2026-10-26
 
+> **P1 audit notice (2026-10-26):** This experimental branch is **not** a feature-complete or security-complete P1 build. The hardening fixes are real, but automated tests include explicitly labeled fixtures and the original Admin authentication, grants, feature installs and runtime integration remain unimplemented. Read [the evidence-based reality audit](docs/P1_REALITY_AUDIT_20261026.md) before testing or reusing claims from this README.
+
 **Identity is the independent identity and permission service behind Thought Processor.** It runs in the background, holds the identities this installation is the authority for, signs in to GitHub on the person's behalf, and answers a paired Thought Processor. People use it **through Thought Processor**. Its own web page is now a troubleshooting view only.
 
 > **Branch `alpha-candidate-20261026`.** This is a candidate and has not been promoted: only the owner decides whether it becomes `alpha`. It is built from `experiment/engine-access-pairing-20261026` (`884e386`), which itself builds on `alpha-candidate-20261025` (`7addeee`). It applies the owner decisions of 2026-10-26 (C01–C09).
