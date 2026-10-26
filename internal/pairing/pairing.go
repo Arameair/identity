@@ -60,6 +60,7 @@ type Client struct {
 	TokenSHA256 string    `json:"token_sha256,omitempty"` // v1 pairings (no longer accepted: pair again)
 	RequestKey  string    `json:"request_key,omitempty"`  // v2: hex HMAC key, derived from the secret
 	ResponseKey string    `json:"response_key,omitempty"` // v2
+	TicketKey   string    `json:"ticket_key,omitempty"`   // feature installations only: signs tickets addressed to it
 	PairedAt    time.Time `json:"paired_at"`
 	LastUsed    time.Time `json:"last_used,omitempty"`
 }
@@ -87,7 +88,14 @@ type Store struct {
 }
 
 func Open(root string) *Store {
-	s := &Store{path: filepath.Join(root, "paired-clients.json"), noncePath: filepath.Join(root, "paired-nonces.json"), now: time.Now}
+	return OpenFiles(root, "paired-clients.json", "paired-nonces.json")
+}
+
+// OpenFiles opens a signer registry kept in its own files. Identity keeps
+// paired Processors and registered feature installations in SEPARATE
+// registries, so a key from one can never authenticate as the other.
+func OpenFiles(root, clientsFile, noncesFile string) *Store {
+	s := &Store{path: filepath.Join(root, clientsFile), noncePath: filepath.Join(root, noncesFile), now: time.Now}
 	b, err := os.ReadFile(s.path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -225,6 +233,97 @@ func (s *Store) Pair(code, processorID, label string) (string, error) {
 	s.clients = keep
 	redact.Register("pairing_token", token)
 	return token, nil
+}
+
+// Enroll mints a new 256-bit secret for id (no pairing code: the caller has
+// already authorized this, e.g. an Admin-approved feature installation).
+// An existing entry for id is replaced, so the old secret stops working.
+// The secret is returned once; only the derived keys are stored.
+func (s *Store) Enroll(id, label string) (string, error) {
+	if !idRE.MatchString(id) {
+		return "", ErrBadRequest
+	}
+	if len(label) > 80 {
+		label = label[:80]
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.loadErr != "" {
+		return "", errors.New(s.loadErr)
+	}
+	tb := make([]byte, 32)
+	if _, err := rand.Read(tb); err != nil {
+		return "", err
+	}
+	secret := hex.EncodeToString(tb)
+	rk, sk := DeriveKeys(secret)
+	keep := []Client{}
+	for _, c := range s.clients {
+		if c.ProcessorID != id {
+			keep = append(keep, c)
+		}
+	}
+	keep = append(keep, Client{ProcessorID: id, Label: label, RequestKey: hex.EncodeToString(rk),
+		ResponseKey: hex.EncodeToString(sk), PairedAt: s.now().UTC()})
+	if err := profile.WriteJSON(s.path, keep); err != nil {
+		return "", errors.New("credential could not be saved: " + err.Error())
+	}
+	s.clients = keep
+	redact.Register("installation_secret", secret)
+	return secret, nil
+}
+
+// TicketKey derives the key Identity uses to sign request tickets addressed
+// to the holder of secret (a feature installation). Requesters never learn it.
+func TicketKey(secret string) []byte {
+	m := hmac.New(sha256.New, []byte(secret))
+	m.Write([]byte("identity/2 ticket key"))
+	return m.Sum(nil)
+}
+
+// TicketKeyFor returns the stored ticket key for a registered id. Only
+// installations enrolled with EnrollWithTicketKey have one.
+func (s *Store) TicketKeyFor(id string) ([]byte, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.clients {
+		if c.ProcessorID == id && c.TicketKey != "" {
+			k, err := hex.DecodeString(c.TicketKey)
+			return k, err == nil
+		}
+	}
+	return nil, false
+}
+
+// EnrollWithTicketKey is Enroll plus a stored ticket key (feature installations).
+func (s *Store) EnrollWithTicketKey(id, label string) (string, error) {
+	secret, err := s.Enroll(id, label)
+	if err != nil {
+		return "", err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.clients {
+		if s.clients[i].ProcessorID == id {
+			s.clients[i].TicketKey = hex.EncodeToString(TicketKey(secret))
+		}
+	}
+	if err := profile.WriteJSON(s.path, s.clients); err != nil {
+		return "", errors.New("credential could not be saved: " + err.Error())
+	}
+	return secret, nil
+}
+
+// Has reports whether id is registered.
+func (s *Store) Has(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.clients {
+		if c.ProcessorID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- API v2 request authentication ----
