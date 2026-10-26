@@ -1,0 +1,2 @@
+# Keep Go source identical across Windows and Linux; gofmt emits LF.
+*.go text eol=lf
