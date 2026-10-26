@@ -75,6 +75,7 @@ type PublicClient struct {
 type Store struct {
 	mu       sync.Mutex
 	seen     map[string]time.Time // processor_id|nonce → when (replay protection)
+	noncePath string // durable replay guard for state-changing signed requests
 	path     string
 	clients  []Client
 	loadErr  string
@@ -86,7 +87,7 @@ type Store struct {
 }
 
 func Open(root string) *Store {
-	s := &Store{path: filepath.Join(root, "paired-clients.json"), now: time.Now}
+	s := &Store{path: filepath.Join(root, "paired-clients.json"), noncePath: filepath.Join(root, "paired-nonces.json"), now: time.Now}
 	b, err := os.ReadFile(s.path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -97,6 +98,15 @@ func Open(root string) *Store {
 			s.loadErr = "paired-clients.json is damaged; it was left untouched and pairing is disabled until it is fixed or moved"
 			s.clients = nil
 		}
+	}
+	// A corrupt/unreadable replay ledger is not a fresh installation:
+	// deny all signed operations instead of forgetting used nonces.
+	if b, err := os.ReadFile(s.noncePath); err == nil {
+		if err := json.Unmarshal(b, &s.seen); err != nil || s.seen == nil {
+			s.loadErr = "paired-nonces.json is damaged; signed operations are disabled until repaired"
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		s.loadErr = "paired-nonces.json could not be read: " + err.Error()
 	}
 	return s
 }
@@ -230,6 +240,7 @@ var (
 	ErrStale         = errors.New("request time is too far from Identity's clock (check the computer's clock)")
 	ErrReplay        = errors.New("request was already used (replayed)")
 	ErrBadMAC        = errors.New("request signature is wrong")
+	ErrReplayStore   = errors.New("replay protection unavailable; signed operation denied")
 	nonceRE          = regexp.MustCompile(`^[0-9a-f]{16,64}$`)
 )
 
@@ -276,6 +287,9 @@ func (s *Store) Verify(processorID, method, pathAndQuery, unixTime, nonce, mac s
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.loadErr != "" {
+		return PublicClient{}, nil, ErrReplayStore
+	}
 	idx := -1
 	for i, c := range s.clients {
 		if c.ProcessorID == processorID {
@@ -308,6 +322,23 @@ func (s *Store) Verify(processorID, method, pathAndQuery, unixTime, nonce, mac s
 	key := processorID + "|" + nonce
 	if _, dup := s.seen[key]; dup {
 		return PublicClient{}, nil, ErrReplay
+	}
+	// Persist mutation replay protection BEFORE permitting the operation.
+	// GETs remain in-memory only: they do not modify protected Identity
+	// state, and the signed response proof still binds response to request.
+	if method == "POST" {
+		// Bound disk work and refuse excessive mutation traffic safely.
+		if len(s.seen) >= 4096 {
+			return PublicClient{}, nil, ErrReplayStore
+		}
+		pending := make(map[string]time.Time, len(s.seen)+1)
+		for k, t := range s.seen {
+			pending[k] = t
+		}
+		pending[key] = now
+		if err := profile.WriteJSON(s.noncePath, pending); err != nil {
+			return PublicClient{}, nil, ErrReplayStore
+		}
 	}
 	s.seen[key] = now
 	s.clients[idx].LastUsed = now.UTC()
