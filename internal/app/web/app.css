@@ -162,3 +162,22 @@ dialog::backdrop { background: rgba(0,0,0,0.35); }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
 
 .trouble-banner { padding: 8px 16px; background: var(--info-bg); color: var(--info); border-bottom: 1px solid var(--line); font-size: 13px; }
+
+/* ---- Admin approval page (P1) ---- */
+.ap-body { min-height: 100%; }
+.ap { max-width: 640px; margin: 0 auto; padding: 28px 18px 48px; }
+.ap-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.ap-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; }
+.ap-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--info); font-weight: 650; margin-bottom: 6px; }
+.ap-summary { margin: 10px 0 14px; padding-left: 18px; }
+.ap-summary li { margin: 4px 0; }
+.ap-facts { display: grid; grid-template-columns: 170px 1fr; gap: 4px 12px; margin: 0 0 16px; font-size: 12.5px; }
+.ap-facts dt { color: var(--muted); }
+.ap-facts dd { margin: 0; font-family: var(--mono); word-break: break-all; }
+.ap-note { background: var(--info-bg); color: var(--ink); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.ap-field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-weight: 600; font-size: 13px; }
+.ap-field input { font: inherit; font-weight: 400; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.ap-check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; }
+.ap-err { color: var(--bad); background: var(--bad-bg); padding: 8px 12px; border-radius: 8px; }
+.ap-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+@media (max-width: 520px) { .ap-facts { grid-template-columns: 1fr; } }

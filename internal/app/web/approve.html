@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity — Admin approval</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/approve.js" defer></script>
+</head>
+<body class="ap-body">
+<main class="ap">
+  <header class="ap-head">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <div class="name">Identity</div>
+      <div class="sub">Admin approval — this page belongs to Identity, not Thought Processor</div>
+    </div>
+  </header>
+
+  <section id="ap-gate" class="ap-card" hidden>
+    <h1>This approval link can't be used</h1>
+    <p id="ap-gate-msg" class="muted"></p>
+    <p class="small muted">Approval links work once and expire after 10 minutes. Ask again from Thought Processor; a fresh link also appears in Identity's own console window.</p>
+  </section>
+
+  <section id="ap-main" class="ap-card" hidden>
+    <div class="ap-kind" id="ap-kind"></div>
+    <h1 id="ap-title"></h1>
+    <ul class="ap-summary" id="ap-summary"></ul>
+    <dl class="ap-facts" id="ap-facts"></dl>
+
+    <div id="ap-enroll" hidden>
+      <div class="ap-note">
+        <strong>What this does.</strong> It makes a durable, local <em>Admin Identity</em> for this Identity installation, once.
+        Your GitHub account is bound to it as a sign-in alias only. Signing in later with a different GitHub account
+        does <strong>not</strong> transfer it. Elevated actions — installing features, granting capabilities, uninstalling —
+        will need the passphrase you choose here, typed in this page. It also works without internet.
+      </div>
+      <p class="warn-text small"><strong>Test profile notice:</strong> recovery is not built yet (deferred by the owner). If you forget this passphrase, this profile's Admin cannot be recovered; no fallback owner is ever created.</p>
+      <label class="ap-field">Choose an Admin passphrase (12+ characters)<input type="password" id="ap-pass1" autocomplete="new-password" minlength="12"></label>
+      <label class="ap-field">Type it again<input type="password" id="ap-pass2" autocomplete="new-password"></label>
+      <label class="ap-check"><input type="checkbox" id="ap-ack"> I am the owner of this installation and I want to establish its Admin Identity now.</label>
+    </div>
+
+    <div id="ap-auth" hidden>
+      <label class="ap-field">Admin passphrase<input type="password" id="ap-pass" autocomplete="current-password"></label>
+      <p class="small muted">Checked by Identity on this computer. Thought Processor never sees it. A wrong passphrase five times locks approvals for a while.</p>
+    </div>
+
+    <p id="ap-err" class="ap-err" role="alert" hidden></p>
+    <div class="ap-row">
+      <button class="btn danger" id="ap-deny" type="button">Deny</button>
+      <button class="btn primary" id="ap-ok" type="button">Approve</button>
+    </div>
+  </section>
+
+  <section id="ap-done" class="ap-card" hidden>
+    <div class="ap-kind" id="ap-done-kind"></div>
+    <h1 id="ap-done-title"></h1>
+    <p id="ap-done-msg"></p>
+    <p class="small muted">You can close this tab and return to Thought Processor.</p>
+  </section>
+</main>
+</body>
+</html>

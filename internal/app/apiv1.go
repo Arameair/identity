@@ -90,7 +90,7 @@ func (a *App) signedFail(w http.ResponseWriter, r *http.Request, code int, event
 	a.signed(w, r, code, map[string]string{"error": msg, "request_id": reqID(r)})
 }
 
-func (a *App) apiV1Routes(m *http.ServeMux) {
+func (a *App) apiV1Routes(m *routeMux) {
 	// Step 1 of pairing, started from Thought Processor: Identity shows a
 	// one-time code in ITS OWN console window (and troubleshooting page).
 	// The person types it into Processor. Nothing secret is returned here.
@@ -376,9 +376,11 @@ func (a *App) statusV1(r *http.Request) map[string]any {
 		"github":     a.githubV1(),
 		"identities": map[string]int{"active": active, "archived": archived},
 		"authority": map[string]any{
-			"grants":             "NONE — grants are not implemented in this alpha; every /api/v1/authorize answer is DENIED",
-			"default":            "deny (identities start with no access)",
+			"grants":             "P1: scoped capability grants, created only from an Admin approval; checked live by the receiving feature (POST /api/v1/authz/check). The legacy /api/v1/authorize stays DENIED.",
+			"default":            "deny (identities and installations start with no access)",
 			"cache_policy":       "do not cache decisions; if Identity can't be reached, block protected actions and show AUTHORITY UNAVAILABLE",
+			"admin":              a.adminView(),
+			"p1":                 P1Features,
 			"last_install_check": last,
 		},
 		"not_implemented": NotImplemented,

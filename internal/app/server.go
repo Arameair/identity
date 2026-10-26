@@ -61,13 +61,16 @@ const (
 	bootstrap
 	private
 	mutate
-	machine // program-to-program: no browser Origin allowed, JSON, no session
-	paired  // machine + valid pairing bearer token
+	machine      // program-to-program: no browser Origin allowed, JSON, no session
+	paired       // machine + valid identity/2 signature from a paired Processor
+	installation // machine + valid identity/2 signature from a registered feature installation (separate key registry)
+	approvalPage // Identity's own approval page: Origin + JSON + approval-scoped cookie + CSRF
 )
 
 // Handler returns the full HTTP handler with host, origin, session and CSRF checks.
 func (a *App) Handler() http.Handler {
-	m := http.NewServeMux()
+	a.routes = nil
+	m := &routeMux{http.NewServeMux(), a}
 	static := func(name, ctype string) http.HandlerFunc {
 		b, err := webFS.ReadFile("web/" + name)
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +182,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /api/drafts/withdraw", a.wrap(mutate, a.handleWithdraw))
 	a.engineRoutes(m)
 	a.apiV1Routes(m)
+	a.p1Routes(m)
 	m.HandleFunc("POST /api/shutdown", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
 		a.Log.Info("lifecycle", "identity.stop_requested", reqID(r), "stopping", "Stop Identity pressed", nil)
 		writeJSON(w, 200, map[string]string{"stopping": "identity only"})
@@ -216,13 +220,13 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 			h(w, r)
 			return
 		}
-		if level == machine || level == paired {
+		if level == machine || level == paired || level == installation {
 			// These routes are for Thought Processor (a program), never for a web page.
 			if r.Header.Get("Origin") != "" {
 				a.fail(w, r, 403, "pairing", "pairing.browser_refused", "this endpoint is for a paired program, not a web page")
 				return
 			}
-			if level == paired {
+			if level == paired || level == installation {
 				// API v2: the pairing secret is never sent. The request is
 				// signed (see pairing.RequestMAC); the answer will be too.
 				body, err := io.ReadAll(r.Body)
@@ -231,7 +235,13 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 					return
 				}
 				r.Body = io.NopCloser(bytes.NewReader(body))
-				c, rk, err := a.Pair.Verify(r.Header.Get(ProcessorIDHeader), r.Method, r.URL.RequestURI(),
+				// Processors and feature installations are verified against
+				// SEPARATE registries: one can never pass as the other.
+				store, idHeader, kind := a.Pair, ProcessorIDHeader, "processor"
+				if level == installation {
+					store, idHeader, kind = a.InstKeys, InstallationIDHeader, "installation"
+				}
+				c, rk, err := store.Verify(r.Header.Get(idHeader), r.Method, r.URL.RequestURI(),
 					r.Header.Get(TimeHeader), r.Header.Get(NonceHeader), r.Header.Get(AuthHeader), body)
 				if err != nil {
 					if errors.Is(err, pairing.ErrReplayStore) {
@@ -241,7 +251,15 @@ func (a *App) wrap(level access, h http.HandlerFunc) http.HandlerFunc {
 					a.fail(w, r, 401, "pairing", "pairing.request_refused", err.Error())
 					return
 				}
-				r = r.WithContext(context.WithValue(r.Context(), clientKey, authed{c, rk, r.Header.Get(NonceHeader)}))
+				r = r.WithContext(context.WithValue(r.Context(), clientKey, authed{c, rk, r.Header.Get(NonceHeader), kind}))
+			}
+			h(w, r)
+			return
+		}
+		if level == approvalPage {
+			if r.Method == "POST" && (r.Header.Get("Origin") != "http://"+r.Host || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")) {
+				a.fail(w, r, 403, "approval", "approval.origin_refused", "request did not come from Identity's approval page")
+				return
 			}
 			h(w, r)
 			return

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Arameair/identity/internal/authority"
 	"github.com/Arameair/identity/internal/discovery"
 	"github.com/Arameair/identity/internal/entities"
 	"github.com/Arameair/identity/internal/features"
@@ -39,14 +40,14 @@ const (
 // NotImplemented is shown in the UI and diagnostics so nothing missing is
 // mistaken for something working.
 var NotImplemented = []string{
-	"Feature/source grants: every authorization answer is DENIED (identities start with no access)",
-	"Receiver-side enforcement in features",
-	"Feature service registration with Identity (only Thought Processor pairs)",
-	"Secure administrator bootstrap / per-person admin sign-in (a paired Processor acts for the operator who approved the pairing)",
-	"Publisher access-request submission service (drafts stay local, NOT SUBMITTED)",
-	"Persistent GitHub sign-in (the token is memory-only; restart = sign in again)",
-	"Signed releases / signed publisher catalog / OS-protected token storage",
-	"Process supervision: Identity stops itself on request; it never starts or stops other programs",
+	"Information-source grants: P1 grants one synthetic capability with source scope \"none\"; no data source can be granted",
+	"Platform Admin authenticators (Windows Hello / passkeys): BLOCKED — P1 uses a local passphrase verified only in Identity's own page",
+	"Admin recovery (lost passphrase / device / GitHub account): DEFERRED by the owner — a disposable test profile may become unrecoverable; no fallback owner exists",
+	"Publisher-signed releases / provenance: NOT IMPLEMENTED — only trusted local test fixtures can be registered; third-party executables stay BLOCKED",
+	"OS sandboxing of feature processes: NOT IMPLEMENTED — a feature runs with the same OS user's rights; grants bind cooperating processes, not hostile ones",
+	"Feature invitations / publisher submission service: NOT IMPLEMENTED (drafts stay local, NOT SUBMITTED)",
+	"Persistent GitHub sign-in (the token is memory-only; restart = sign in again — the Admin Identity does not need it)",
+	"Process supervision by Identity: Identity never starts or stops other programs (Thought Processor does)",
 }
 
 // AppChoice is one GitHub App sign-in can use (public Client ID only).
@@ -105,24 +106,34 @@ func readBuild(version, branch string) BuildInfo {
 }
 
 type App struct {
-	opt      Options
-	Store    *profile.Store
-	Log      *logbook.Book
-	GH       *github.Client
-	Feats    *features.Store
-	Pair     *pairing.Store
-	Ents     *entities.Store
-	pairGap  pairThrottle
-	access   accessCache
-	Watch    *discovery.Watcher
-	Sess     *Sessions
-	Build    BuildInfo
-	RunID    string
-	Started  time.Time
-	Port     int
-	shutdown chan struct{}
-	once     sync.Once
-	stopWhy  string
+	opt   Options
+	Store *profile.Store
+	Log   *logbook.Book
+	GH    *github.Client
+	Feats *features.Store
+	Pair  *pairing.Store
+	Ents  *entities.Store
+	// P1 authority: original Admin Identity, approvals, installation
+	// identities (+ their separate credential registry) and grants.
+	Admin     *authority.AdminStore
+	Approvals *authority.Approvals
+	Installs  *authority.Installations
+	InstKeys  *pairing.Store
+	Grants    *authority.Grants
+	apSess    approvalSessions
+	decisions decisionLog
+	routes    []routeEntry
+	pairGap   pairThrottle
+	access    accessCache
+	Watch     *discovery.Watcher
+	Sess      *Sessions
+	Build     BuildInfo
+	RunID     string
+	Started   time.Time
+	Port      int
+	shutdown  chan struct{}
+	once      sync.Once
+	stopWhy   string
 }
 
 // New opens the profile (taking its lock) and the activity log.
@@ -145,6 +156,12 @@ func New(opt Options) (*App, error) {
 	a.Feats = features.Open(st.Root)
 	a.Pair = pairing.Open(st.Root)
 	a.Ents = entities.Open(st.Root)
+	a.Admin = authority.OpenAdmin(st.Root)
+	a.Approvals = authority.OpenApprovals(st.Root)
+	a.Installs = authority.OpenInstallations(st.Root)
+	a.InstKeys = pairing.OpenFiles(st.Root, "installation-keys.json", "installation-nonces.json")
+	a.Grants = authority.OpenGrants(st.Root)
+	a.apSess.m = map[string]approvalSess{}
 
 	addr := st.Settings().ProcessorAddress
 	if opt.ProcessorAddr != "" {

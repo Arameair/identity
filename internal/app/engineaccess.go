@@ -302,6 +302,17 @@ type authed struct {
 	pairing.PublicClient
 	respKey []byte
 	nonce   string
+	kind    string // "processor" | "installation"
+}
+
+// principalOf names the authenticated caller, e.g. "processor:tp_ab12" or
+// "installation:ins_…". It comes from the verified signature, never the body.
+func principalOf(r *http.Request) string {
+	c, ok := r.Context().Value(clientKey).(authed)
+	if !ok || c.kind == "" || c.ProcessorID == "" {
+		return ""
+	}
+	return c.kind + ":" + c.ProcessorID
 }
 
 func clientFrom(r *http.Request) pairing.PublicClient {
@@ -314,7 +325,7 @@ func respKey(r *http.Request) []byte {
 	return c.respKey
 }
 
-func (a *App) engineRoutes(m *http.ServeMux) {
+func (a *App) engineRoutes(m *routeMux) {
 	// ---- for Thought Processor (program to program) ----
 	m.HandleFunc("POST /api/v1/pair", a.wrap(machine, func(w http.ResponseWriter, r *http.Request) {
 		var b struct {

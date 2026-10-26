@@ -1,0 +1,83 @@
+"use strict";
+(() => {
+  const $ = (q) => document.querySelector(q);
+  let csrf = "", ap = null;
+  const kinds = {
+    enroll_admin: ["Establish Admin Identity", "Admin Identity — once per installation"],
+    install_feature: ["Install a feature", "Elevated action — registers a new installation identity"],
+    grant_capability: ["Grant one capability", "Elevated action — allows one narrow request type"],
+    uninstall_feature: ["Uninstall a feature", "Elevated action — revokes its grants and credential"],
+  };
+  function show(id) { for (const s of ["#ap-gate", "#ap-main", "#ap-done"]) $(s).hidden = s !== id; }
+  function gate(msg) { $("#ap-gate-msg").textContent = msg || ""; show("#ap-gate"); }
+  function fact(dl, k, v) {
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v; dl.append(dt, dd);
+  }
+  function render(j) {
+    ap = j.approval;
+    const [title, kind] = kinds[ap.kind] || [ap.kind, ""];
+    if (ap.state !== "PENDING") return done(j);
+    $("#ap-kind").textContent = kind;
+    $("#ap-title").textContent = title + "?";
+    const ul = $("#ap-summary"); ul.textContent = "";
+    for (const s of ap.summary || []) { const li = document.createElement("li"); li.textContent = s; ul.append(li); }
+    const dl = $("#ap-facts"); dl.textContent = "";
+    fact(dl, "Requested by", ap.requested_by);
+    fact(dl, "Identity installation", j.system_id || "");
+    fact(dl, "Approval", ap.id);
+    fact(dl, "Exact action SHA-256", ap.action_sha256);
+    fact(dl, "Expires", new Date(ap.expires_at).toLocaleTimeString());
+    if (j.admin && j.admin.admin) fact(dl, "Admin Identity", j.admin.admin.admin_id + " (GitHub alias " + j.admin.admin.github_binding.login_label + ")");
+    const enroll = ap.kind === "enroll_admin";
+    $("#ap-enroll").hidden = !enroll; $("#ap-auth").hidden = enroll;
+    $("#ap-ok").textContent = enroll ? "Establish Admin Identity" : "Approve with Admin passphrase";
+    show("#ap-main");
+  }
+  function done(j) {
+    const a = j.approval;
+    const [title] = kinds[a.kind] || [a.kind];
+    $("#ap-done-kind").textContent = title;
+    const words = { APPROVED: "Approved", CONSUMED: "Approved and carried out", DENIED: "Denied", EXPIRED: "Expired" };
+    $("#ap-done-title").textContent = words[a.state] || a.state;
+    $("#ap-done-msg").textContent = a.state === "DENIED" ? "Nothing was changed." :
+      a.kind === "enroll_admin" && a.state === "CONSUMED" ? "The Admin Identity is established: " + (j.admin && j.admin.admin ? j.admin.admin.admin_id : "") :
+      a.state === "APPROVED" ? "Thought Processor can now carry out exactly this action, once, within the time limit." : "";
+    show("#ap-done");
+  }
+  async function post(path, body) {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Identity-CSRF": csrf }, body: JSON.stringify(body) });
+    let j = {}; try { j = await r.json(); } catch (_) {}
+    if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+    return j;
+  }
+  async function decide(decision) {
+    const body = { decision };
+    if (decision === "approve") {
+      if (ap.kind === "enroll_admin") {
+        body.passphrase = $("#ap-pass1").value; body.passphrase_confirm = $("#ap-pass2").value; body.acknowledge = $("#ap-ack").checked;
+      } else body.passphrase = $("#ap-pass").value;
+    }
+    $("#ap-ok").disabled = $("#ap-deny").disabled = true; $("#ap-err").hidden = true;
+    try { done(await post("/api/approval/decide", body)); }
+    catch (e) { $("#ap-err").textContent = e.message; $("#ap-err").hidden = false; }
+    finally { $("#ap-ok").disabled = $("#ap-deny").disabled = false; for (const f of ["#ap-pass", "#ap-pass1", "#ap-pass2"]) $(f).value = ""; }
+  }
+  async function start() {
+    $("#ap-ok").addEventListener("click", () => decide("approve"));
+    $("#ap-deny").addEventListener("click", () => decide("deny"));
+    const m = location.hash.match(/a=(apr_[0-9a-f]+)&t=([0-9a-f]+)/);
+    if (m) {
+      history.replaceState(null, "", "/approve"); // the link is single-use and private
+      try { const j = await post("/api/approval/open", { id: m[1], token: m[2] }); csrf = j.csrf; sessionStorage.setItem("ap_csrf", csrf); render(j); }
+      catch (e) { gate(e.message); }
+      return;
+    }
+    csrf = sessionStorage.getItem("ap_csrf") || "";
+    const r = await fetch("/api/approval/view");
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return gate(j.error);
+    render(j);
+  }
+  start();
+})();
