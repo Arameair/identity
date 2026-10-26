@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -133,7 +134,15 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println("identity", appVersion, "alpha candidate", buildBranch)
+		rev := "UNKNOWN"
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			for _, st := range bi.Settings {
+				if st.Key == "vcs.revision" {
+					rev = st.Value
+				}
+			}
+		}
+		fmt.Println("identity", appVersion, "alpha candidate", buildBranch, "commit", rev)
 		return
 	}
 	if *port < 0 || *port > 65535 {
