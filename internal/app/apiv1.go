@@ -376,9 +376,9 @@ func (a *App) statusV1(r *http.Request) map[string]any {
 		"github":     a.githubV1(),
 		"identities": map[string]int{"active": active, "archived": archived},
 		"authority": map[string]any{
-			"grants":        "NONE — grants are not implemented in this alpha; every /api/v1/authorize answer is DENIED",
-			"default":       "deny (identities start with no access)",
-			"cache_policy":  "do not cache decisions; if Identity can't be reached, block protected actions and show AUTHORITY UNAVAILABLE",
+			"grants":             "NONE — grants are not implemented in this alpha; every /api/v1/authorize answer is DENIED",
+			"default":            "deny (identities start with no access)",
+			"cache_policy":       "do not cache decisions; if Identity can't be reached, block protected actions and show AUTHORITY UNAVAILABLE",
 			"last_install_check": last,
 		},
 		"not_implemented": NotImplemented,
