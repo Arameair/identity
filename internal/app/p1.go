@@ -319,9 +319,9 @@ func (a *App) p1Routes(m *routeMux) {
 			return
 		}
 		req.RequestedBy = principalOf(r)
-		if err := req.Validate(); err != nil {
+		if err := req.Validate(a.pins); err != nil {
 			code := 400
-			if errors.Is(err, authority.ErrUntrusted) {
+			if errors.Is(err, authority.ErrUntrusted) || errors.Is(err, authority.ErrNotPinned) {
 				code = 403
 			}
 			a.decide(r, "install.request_refused", "DENIED", err.Error(), map[string]string{"feature": clip(req.FeatureID, 48)})
@@ -337,7 +337,7 @@ func (a *App) p1Routes(m *routeMux) {
 			caps = append(caps, c.ID)
 		}
 		summary := []string{"Register a NEW installation identity for feature " + req.FeatureID + " " + req.Version + " (" + req.Name + ").",
-			"Trust: " + req.TrustClass + " — source " + req.SourceKind + ": " + req.SourceRef,
+			"Trust: " + a.pins.Basis(req.ArtifactSHA256) + " — exact artifact pinned (the package's own trust label is not evidence). Source " + req.SourceKind + ": " + req.SourceRef,
 			"Publisher (claimed, NOT verified): " + orDash(req.PublisherClaim),
 			"Artifact SHA-256: " + req.ArtifactSHA256,
 			"Declares capabilities: " + orDash(strings.Join(caps, ", ")) + ". It will get ZERO grants and ZERO information sources."}
@@ -350,7 +350,14 @@ func (a *App) p1Routes(m *routeMux) {
 		}
 		var req authority.InstallRequest
 		json.Unmarshal(ap.Action, &req)
-		in, created, err := a.Installs.Reserve(req, ap.ID, adm.AdminID)
+		basis := a.pins.Basis(req.ArtifactSHA256)
+		if basis == "" { // pins can change across restarts: re-check at commit
+			a.Approvals.Finish(ap.ID, "", "FAILED: artifact no longer pinned")
+			a.decide(r, "install.refused", "DENIED", "ARTIFACT_NOT_PINNED", map[string]string{"feature": clip(req.FeatureID, 48)})
+			a.signed(w, r, 403, map[string]any{"error": "INSTALL_REQUEST_REFUSED", "message": authority.ErrNotPinned.Error(), "request_id": reqID(r)})
+			return
+		}
+		in, created, err := a.Installs.Reserve(req, ap.ID, adm.AdminID, basis)
 		if err != nil {
 			a.Approvals.Finish(ap.ID, "", "FAILED: "+err.Error())
 			a.signedFail(w, r, 409, "install.reserve_failed", err.Error())
@@ -492,9 +499,10 @@ func (a *App) p1Routes(m *routeMux) {
 			Subject          string `json:"subject_identity_id"`
 			Capability       string `json:"capability"`
 			ExpiresInSeconds int64  `json:"expires_in_seconds"`
+			UntilRevoked     bool   `json:"until_revoked"`
 		}
-		if decode(r, &b) != nil {
-			a.signedFail(w, r, 400, "grant.bad_request", "expected {destination_installation_id, subject_identity_id, capability, expires_in_seconds?, requester?}")
+		if decode(r, &b) != nil || (b.UntilRevoked && b.ExpiresInSeconds != 0) {
+			a.signedFail(w, r, 400, "grant.bad_request", "expected {destination_installation_id, subject_identity_id, capability, expires_in_seconds? | until_revoked?, requester?}")
 			return
 		}
 		if _, err := a.Admin.Get(); err != nil {
@@ -526,20 +534,29 @@ func (a *App) p1Routes(m *routeMux) {
 			a.signedFail(w, r, 400, "grant.bad_subject", p)
 			return
 		}
+		// Default: a finite expiry (Grok M3). "Until revoked" only when asked
+		// for explicitly AND confirmed by the Admin with an extra tick.
 		var exp *time.Time
-		expTxt := "no expiry (until revoked)"
-		if b.ExpiresInSeconds != 0 {
-			if b.ExpiresInSeconds < 5 || b.ExpiresInSeconds > 30*24*3600 {
-				a.signedFail(w, r, 400, "grant.bad_expiry", "expires_in_seconds must be 5 … 2592000, or 0 for none")
+		expTxt := "NO EXPIRY — until revoked (the Admin must confirm this separately)"
+		if !b.UntilRevoked {
+			secs := b.ExpiresInSeconds
+			if secs == 0 {
+				secs = int64(authority.DefaultGrantTTL / time.Second)
+			}
+			if secs < 5 || secs > 30*24*3600 {
+				a.signedFail(w, r, 400, "grant.bad_expiry", "expires_in_seconds must be 5 … 2592000 (omit it for the 1-hour default; use until_revoked:true for no expiry)")
 				return
 			}
-			t := time.Now().Add(time.Duration(b.ExpiresInSeconds) * time.Second).UTC().Truncate(time.Second)
+			t := time.Now().Add(time.Duration(secs) * time.Second).UTC().Truncate(time.Second)
 			exp, expTxt = &t, "expires "+t.Local().Format("2006-01-02 15:04:05")
+			if b.ExpiresInSeconds == 0 {
+				expTxt += " (default: 1 hour)"
+			}
 		}
 		req := authority.GrantRequest{Requester: requester, Destination: dest.ID, Subject: e.ID, Capability: b.Capability,
-			SourceScope: "none", ExpiresAt: exp, RequestedBy: principalOf(r)}
+			SourceScope: "none", ExpiresAt: exp, UntilRevoked: b.UntilRevoked, RequestedBy: principalOf(r)}
 		a.newApproval(w, r, authority.KindGrant, req, []string{
-			"Allow " + requester + " to ask installation " + dest.ID + " (" + dest.FeatureID + ")",
+			"Allow " + a.principalLabel(requester) + " to ask " + dest.Name + " (" + dest.FeatureID + ", installation " + dest.ID + ")",
 			"to perform ONE capability: " + b.Capability,
 			"for identity " + e.Name + " (" + e.ID + ", " + e.Kind + "). Information sources: none. " + expTxt + "."})
 	}))
@@ -569,6 +586,8 @@ func (a *App) p1Routes(m *routeMux) {
 			err = errors.New("subject identity is no longer available")
 		case req.ExpiresAt != nil && !time.Now().Before(*req.ExpiresAt):
 			err = errors.New("the approved expiry has already passed")
+		case req.ExpiresAt == nil && !(req.UntilRevoked && ap.ConfirmedUntilRevoked):
+			err = errors.New("a grant without expiry needs the Admin's explicit 'until revoked' confirmation in Identity's page")
 		}
 		if err != nil {
 			a.Approvals.Finish(ap.ID, "", "FAILED: "+err.Error())
@@ -601,26 +620,87 @@ func (a *App) p1Routes(m *routeMux) {
 		}
 		a.signed(w, r, 200, map[string]any{"grants": out})
 	}))
-	// Revoking NARROWS access, so it is a routine action (owner decision #20:
-	// fresh approval is for granting/broadening). It is persisted before success.
-	m.HandleFunc("POST /api/v1/grants/{id}/revoke", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+	// Revocation (Grok M2). Revoking narrows access, so the parties to a grant
+	// may do it without an approval: the requester it names, the program that
+	// asked for it, or the destination feature (installation route). Anyone
+	// else — e.g. an unrelated paired program — is refused and must ask the
+	// Admin (emergency path below). Every revocation records who and when.
+	selfRevoke := func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
 			Reason string `json:"reason"`
 		}
 		decode(r, &b)
-		g, err := a.Grants.Revoke(r.PathValue("id"), principalOf(r), b.Reason)
+		g, err := a.Grants.Get(r.PathValue("id"))
+		if err == nil && !g.MayRevoke(principalOf(r)) {
+			a.decide(r, "grant.revoke_refused", "DENIED", "REVOKE_NOT_PERMITTED", map[string]string{"grant_id": g.ID, "destination_installation_id": g.Destination})
+			a.signed(w, r, 403, map[string]any{"error": "REVOKE_NOT_PERMITTED", "request_id": reqID(r),
+				"message": "Only the program the grant was made for, the program that asked for it, or the receiving feature can revoke it directly. Anyone else must ask the Admin: POST /api/v1/grants/{id}/revoke/requests."})
+			return
+		}
+		if err == nil {
+			g, err = a.Grants.Revoke(g.ID, principalOf(r), b.Reason)
+		}
 		if err != nil {
-			code := 404
-			if errors.Is(err, authority.ErrGrantsDamaged) {
-				code = 503
-			} else if !errors.Is(err, authority.ErrNoGrant) {
-				code = 503
+			code := 503
+			if errors.Is(err, authority.ErrNoGrant) {
+				code = 404
 			}
 			a.signedFail(w, r, code, "grant.revoke_failed", err.Error())
 			return
 		}
-		a.decide(r, "grant.revoked", "REVOKED", orDash(b.Reason), map[string]string{"grant_id": g.ID, "destination_installation_id": g.Destination})
+		a.decide(r, "grant.revoked", "REVOKED", orDash(b.Reason), map[string]string{"grant_id": g.ID, "destination_installation_id": g.Destination, "revoked_by": g.RevokedBy})
 		a.signed(w, r, 200, map[string]any{"grant": g, "status": g.Status(time.Now())})
+	}
+	m.HandleFunc("POST /api/v1/grants/{id}/revoke", a.wrap(paired, selfRevoke))
+	m.HandleFunc("POST /api/v1/installation/grants/{id}/revoke", a.wrap(installation, selfRevoke))
+	m.HandleFunc("POST /api/v1/grants/{id}/revoke/requests", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			Reason string `json:"reason"`
+		}
+		decode(r, &b)
+		g, err := a.Grants.Get(r.PathValue("id"))
+		if err != nil {
+			a.signedFail(w, r, 404, "grant.not_found", err.Error())
+			return
+		}
+		if st := g.Status(time.Now()); st != "ACTIVE" {
+			a.signedFail(w, r, 409, "grant.not_active", "that grant is already "+st)
+			return
+		}
+		if _, err := a.Admin.Get(); err != nil {
+			a.signedFail(w, r, 409, "grant.no_admin", err.Error())
+			return
+		}
+		a.newApproval(w, r, authority.KindRevokeGrant, map[string]string{"grant_id": g.ID, "reason": clip(b.Reason, 120)}, []string{
+			"Revoke (end) grant " + g.ID + ": " + a.principalLabel(g.Requester) + " may no longer ask installation " + g.Destination + " for " + g.Capability + ".",
+			"This only removes access. Asked for by " + a.principalLabel(principalOf(r)) + "."})
+	}))
+	m.HandleFunc("POST /api/v1/grants/{id}/admin-revoke", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
+		ap, adm, fresh, ok := a.beginApproval(w, r, authority.KindRevokeGrant)
+		if !ok {
+			return
+		}
+		var act struct {
+			ID     string `json:"grant_id"`
+			Reason string `json:"reason"`
+		}
+		json.Unmarshal(ap.Action, &act)
+		if act.ID != r.PathValue("id") {
+			a.Approvals.Finish(ap.ID, "", "FAILED: approval is for "+act.ID)
+			a.signedFail(w, r, 403, "revoke.wrong_target", "that approval is for a different grant")
+			return
+		}
+		by := "admin:" + adm.AdminID + " (approval " + ap.ID + ")"
+		g, err := a.Grants.Revoke(act.ID, by, act.Reason)
+		if err != nil {
+			a.Approvals.Finish(ap.ID, "", "FAILED: "+err.Error())
+			a.signedFail(w, r, 503, "grant.revoke_failed", err.Error())
+			return
+		}
+		a.Approvals.Finish(ap.ID, g.ID, "REVOKED")
+		a.decide(r, "grant.revoked", "REVOKED", orDash(act.Reason), map[string]string{"grant_id": g.ID, "destination_installation_id": g.Destination,
+			"revoked_by": g.RevokedBy, "approval_id": ap.ID, "admin_id": adm.AdminID})
+		a.signed(w, r, 200, map[string]any{"grant": g, "status": g.Status(time.Now()), "approval_reused": !fresh})
 	}))
 
 	// Tickets: an authenticated requester asks for a one-request ticket.
@@ -649,6 +729,10 @@ func (a *App) p1Routes(m *routeMux) {
 		dest, err := a.Installs.Get(b.Destination)
 		if err != nil || dest.State != authority.InsInstalled {
 			deny(403, authority.DenyDestination)
+			return
+		}
+		if a.pins.Basis(dest.ArtifactSHA256) == "" {
+			deny(403, "ARTIFACT_NOT_PINNED")
 			return
 		}
 		e, ok := a.Ents.Get(b.Subject)
@@ -735,6 +819,10 @@ func (a *App) p1Routes(m *routeMux) {
 			deny(403, authority.DenyDestination)
 			return
 		}
+		if a.pins.Basis(in.ArtifactSHA256) == "" {
+			deny(403, "ARTIFACT_NOT_PINNED")
+			return
+		}
 		e, ok := a.Ents.Get(c.Subject)
 		if entityProblem(e, ok) != "" {
 			deny(403, authority.DenySubject)
@@ -780,7 +868,7 @@ func (a *App) p1Routes(m *routeMux) {
 		id, csrf := a.apSess.open(ap.ID, ap.ExpiresAt)
 		http.SetCookie(w, &http.Cookie{Name: approvalCookie, Value: id, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 		a.Log.Info("approval", "approval.page_opened", reqID(r), "viewing", "the approval page for "+ap.ID+" was opened (one-time link used)", nil)
-		writeJSON(w, 200, map[string]any{"csrf": csrf, "approval": ap.View(time.Now()), "admin": a.adminView(), "system_id": a.Store.Profile.SystemID})
+		writeJSON(w, 200, map[string]any{"csrf": csrf, "approval": ap.View(time.Now()), "display": a.approvalDisplay(ap), "admin": a.adminView(), "system_id": a.Store.Profile.SystemID})
 	}))
 	m.HandleFunc("GET /api/approval/view", a.wrap(approvalPage, func(w http.ResponseWriter, r *http.Request) {
 		s, ok := a.apSess.lookup(r)
@@ -789,7 +877,7 @@ func (a *App) p1Routes(m *routeMux) {
 			return
 		}
 		ap, _ := a.Approvals.Get(s.approvalID)
-		writeJSON(w, 200, map[string]any{"approval": ap.View(time.Now()), "admin": a.adminView(), "system_id": a.Store.Profile.SystemID})
+		writeJSON(w, 200, map[string]any{"approval": ap.View(time.Now()), "display": a.approvalDisplay(ap), "admin": a.adminView(), "system_id": a.Store.Profile.SystemID})
 	}))
 	m.HandleFunc("POST /api/approval/decide", a.wrap(approvalPage, a.handleDecide))
 }
@@ -806,6 +894,8 @@ func (a *App) handleDecide(w http.ResponseWriter, r *http.Request) {
 		Passphrase  string `json:"passphrase"`
 		Confirm     string `json:"passphrase_confirm"`
 		Acknowledge bool   `json:"acknowledge"`
+		// ConfirmUntilRevoked: the extra, deliberate tick for a grant with no expiry.
+		ConfirmUntilRevoked bool `json:"confirm_until_revoked"`
 	}
 	if decode(r, &b) != nil || (b.Decision != "approve" && b.Decision != "deny") {
 		a.fail(w, r, 400, "approval", "approval.bad_request", "decision must be approve or deny")
@@ -817,7 +907,7 @@ func (a *App) handleDecide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	done := func(ap authority.Approval) {
-		writeJSON(w, 200, map[string]any{"approval": ap.View(time.Now()), "admin": a.adminView()})
+		writeJSON(w, 200, map[string]any{"approval": ap.View(time.Now()), "display": a.approvalDisplay(ap), "admin": a.adminView()})
 	}
 	if b.Decision == "deny" {
 		// Denying needs no passphrase: it can only make things safer.
@@ -855,7 +945,7 @@ func (a *App) handleDecide(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		adm, err := a.Admin.Enroll(a.Store.Profile.SystemID, ap.ID, authority.GitHubBinding{ID: act.GitHubID, Login: act.GitHubLogin,
-			Mode: act.GitHubMode, VerifiedAt: act.VerifiedAt, ProofMethod: "GitHub device-flow sign-in verified by Identity (" + act.GitHubMode + ")"}, b.Passphrase)
+			Mode: act.GitHubMode, VerifiedAt: act.VerifiedAt, ProofMethod: "GitHub device-flow sign-in verified by Identity (" + act.GitHubMode + ")"}, b.Passphrase, ap.RequestedBy)
 		if err != nil {
 			code := 400
 			if errors.Is(err, authority.ErrAdminExists) {
@@ -876,6 +966,17 @@ func (a *App) handleDecide(w http.ResponseWriter, r *http.Request) {
 		done(ap)
 		return
 	}
+	untilRevoked := false
+	if ap.Kind == authority.KindGrant {
+		var gr authority.GrantRequest
+		json.Unmarshal(ap.Action, &gr)
+		untilRevoked = gr.ExpiresAt == nil
+		if untilRevoked && !b.ConfirmUntilRevoked {
+			a.fail(w, r, 400, "approval", "grant.until_revoked_unconfirmed",
+				"This grant has NO expiry. To approve it, also tick 'I understand this grant does not expire'. Otherwise deny it and ask for a grant with an expiry.")
+			return
+		}
+	}
 	adm, err := a.Admin.Authenticate(b.Passphrase)
 	if err != nil {
 		code := 401
@@ -891,7 +992,7 @@ func (a *App) handleDecide(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, code, "approval", "approval.auth_refused", err.Error())
 		return
 	}
-	ap2, err := a.Approvals.Decide(ap.ID, true, adm.AdminID, approvalMethod)
+	ap2, err := a.Approvals.Decide(ap.ID, true, adm.AdminID, approvalMethod, untilRevoked)
 	if err != nil {
 		a.fail(w, r, 409, "approval", "approval.decide_failed", err.Error())
 		return

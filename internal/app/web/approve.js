@@ -7,6 +7,7 @@
     install_feature: ["Install a feature", "Elevated action — registers a new installation identity"],
     grant_capability: ["Grant one capability", "Elevated action — allows one narrow request type"],
     uninstall_feature: ["Uninstall a feature", "Elevated action — revokes its grants and credential"],
+    revoke_grant: ["Revoke a permission", "Admin emergency revocation — only removes access"],
   };
   function show(id) { for (const s of ["#ap-gate", "#ap-main", "#ap-done"]) $(s).hidden = s !== id; }
   function gate(msg) { $("#ap-gate-msg").textContent = msg || ""; show("#ap-gate"); }
@@ -18,17 +19,35 @@
     ap = j.approval;
     const [title, kind] = kinds[ap.kind] || [ap.kind, ""];
     if (ap.state !== "PENDING") return done(j);
+    const d = j.display || {}, rq = d.requester || {};
     $("#ap-kind").textContent = kind;
     $("#ap-title").textContent = title + "?";
+    $("#ap-headline").textContent = d.headline || "";
+    $("#ap-warn").textContent = rq.warning ? "⚠ " + rq.warning : "";
+    $("#ap-warn").hidden = !rq.warning;
+    const dl = $("#ap-facts"); dl.textContent = "";
+    fact(dl, "Requested by", (rq.label || ap.requested_by) + (rq.is_primary ? " — your primary Thought Processor" : "") +
+      (rq.paired_at ? " (paired " + new Date(rq.paired_at).toLocaleString() + ")" : ""));
+    if (d.who_gets_access) fact(dl, "Who gets to ask", d.who_gets_access.label);
+    if (d.destination) fact(dl, "Feature", d.destination.name + (d.destination.version ? " " + d.destination.version : "") +
+      (d.destination.trust_basis ? " — trusted because: " + d.destination.trust_basis : ""));
+    if (d.destination && d.destination.publisher) fact(dl, "Publisher", d.destination.publisher);
+    if (d.capability) fact(dl, "Allowed action (one)", d.capability.id + (d.capability.description ? " — " + d.capability.description : ""));
+    if (d.capabilities_declared) fact(dl, "Declares (not granted)", d.capabilities_declared.map((c) => c.id).join(", ") || "none");
+    if (d.subject) fact(dl, "For identity", (d.subject.name || d.subject.identity_id) + (d.subject.kind ? " (" + d.subject.kind + ")" : ""));
+    if (ap.kind === "grant_capability" || ap.kind === "install_feature") fact(dl, "Information sources", "none");
+    if (d.expiry) fact(dl, "Permission expires", d.expiry.until_revoked ? "NEVER — until revoked" : new Date(d.expiry.expires_at).toLocaleString());
+    if (d.effect) fact(dl, "Effect", d.effect);
+    if (d.reason) fact(dl, "Reason given", d.reason);
+    fact(dl, "This request expires", new Date(ap.expires_at).toLocaleTimeString());
+    $("#ap-forever").hidden = !(d.expiry && d.expiry.until_revoked); $("#ap-forever-ok").checked = false;
     const ul = $("#ap-summary"); ul.textContent = "";
     for (const s of ap.summary || []) { const li = document.createElement("li"); li.textContent = s; ul.append(li); }
-    const dl = $("#ap-facts"); dl.textContent = "";
-    fact(dl, "Requested by", ap.requested_by);
-    fact(dl, "Identity installation", j.system_id || "");
-    fact(dl, "Approval", ap.id);
-    fact(dl, "Exact action SHA-256", ap.action_sha256);
-    fact(dl, "Expires", new Date(ap.expires_at).toLocaleTimeString());
-    if (j.admin && j.admin.admin) fact(dl, "Admin Identity", j.admin.admin.admin_id + " (GitHub alias " + j.admin.admin.github_binding.login_label + ")");
+    const adv = $("#ap-adv"); adv.textContent = "";
+    for (const [k, v] of Object.entries(d.advanced || {})) fact(adv, k.replace(/_/g, " "), String(v));
+    if (d.destination && d.destination.installation_id) fact(adv, "installation id", d.destination.installation_id);
+    fact(adv, "Identity installation", j.system_id || "");
+    if (j.admin && j.admin.admin) fact(adv, "Admin Identity", j.admin.admin.admin_id + " (GitHub alias " + j.admin.admin.github_binding.login_label + ")");
     const enroll = ap.kind === "enroll_admin";
     $("#ap-enroll").hidden = !enroll; $("#ap-auth").hidden = enroll;
     $("#ap-ok").textContent = enroll ? "Establish Admin Identity" : "Approve with Admin passphrase";
@@ -56,7 +75,7 @@
     if (decision === "approve") {
       if (ap.kind === "enroll_admin") {
         body.passphrase = $("#ap-pass1").value; body.passphrase_confirm = $("#ap-pass2").value; body.acknowledge = $("#ap-ack").checked;
-      } else body.passphrase = $("#ap-pass").value;
+      } else { body.passphrase = $("#ap-pass").value; body.confirm_until_revoked = $("#ap-forever-ok").checked; }
     }
     $("#ap-ok").disabled = $("#ap-deny").disabled = true; $("#ap-err").hidden = true;
     try { done(await post("/api/approval/decide", body)); }

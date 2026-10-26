@@ -31,7 +31,9 @@ The full, test-enforced inventory with one guard per route is `internal/app/rout
 | `POST /api/v1/installations/{id}/abandon` | paired | own unconfirmed registration only |
 | `POST /api/v1/installations/{id}/uninstall/requests` · `…/uninstall` | paired · **ELEVATED** | revokes grants, removes credential, keeps tombstone |
 | `POST /api/v1/grants/requests` · `POST /api/v1/grants` | paired · **ELEVATED** | re-validated at commit |
-| `GET /api/v1/grants` · `POST /api/v1/grants/{id}/revoke` | paired | revoke narrows access → routine (owner decision #20); persisted before success |
+| `GET /api/v1/grants` · `POST /api/v1/grants/{id}/revoke` | paired | revoke narrows access → no approval, but **only the grant's requester or the program that asked for it** (cleanup, Grok M2); others `403 REVOKE_NOT_PERMITTED`; persisted before success; `revoked_by` recorded |
+| `POST /api/v1/installation/grants/{id}/revoke` | installation | the destination feature may end grants naming it |
+| `POST /api/v1/grants/{id}/revoke/requests` · `…/admin-revoke` | paired · **ELEVATED** | Admin emergency revocation of any grant (approval kind `revoke_grant`) |
 | `POST /api/v1/tickets` | paired | only under an ACTIVE grant for this exact requester/recipient/subject/capability |
 | `GET /api/v1/decisions` | paired | recent decisions (all are also in the persistent log) |
 | `POST /api/v1/installation/confirm` · `GET /api/v1/installation/self` · `POST /api/v1/installation/tickets` | installation | the feature's own credential |
@@ -41,6 +43,13 @@ The full, test-enforced inventory with one guard per route is `internal/app/rout
 Elevated routes all go through one guard, `beginApproval` (`internal/app/p1.go`): approval ID present and valid, Admin record healthy, approval kind/requester/expiry/state/digest correct, decided by this installation's Admin, consumed before execution. `"approved": true` or pairing alone gets `403 ADMIN_APPROVAL_REQUIRED`.
 
 `POST /api/v1/authorize` (the P0 route) is unchanged and still always DENIED.
+
+## P1 cleanup (branch `experiment/p1-cleanup-claude-20261026`, Grok findings #22/#23)
+
+- **M1 pinned artifacts.** `InstallRequest.Validate` now requires the exact `artifact_sha256` to be pinned: built-in `authority.BuiltinFixturePins` (the reviewed `p1-deterministic-worker 0.1.0`, same digest as Thought-Processor's `featpkg.BuiltinFixturePins`) or `-trust-fixture-artifact <sha256>` (repeatable). The claimed `trust_class` is no longer enough (`403 UNTRUSTED_EXECUTION_BLOCKED: ARTIFACT_NOT_PINNED`). Re-checked at commit, and every ticket / live check for an installation whose artifact is no longer pinned is denied (`ARTIFACT_NOT_PINNED`). Installations record `trust_basis`.
+- **M2 revocation.** See routes above. `Grant.requested_by` is stored for new grants; legacy grants can be revoked directly only by their named requester (or the destination feature, or the Admin).
+- **M3 approval page.** `POST /api/approval/open` and `GET /api/approval/view` add a `display` object built only from Identity's records: requester label + paired time (from the pairing store — the label is the one printed next to the pairing code), `is_primary` / `warning` (the primary Thought Processor is the program that asked for the Admin enrollment, stored as `primary_requester` in `admin.json`; older records → a warning on every approval), feature name/version/trust basis, the one capability + description, subject name/kind, information sources none, expiry, effect; raw IDs/digests in `advanced`. Grants default to **1 hour**; `until_revoked: true` needs `confirm_until_revoked: true` on decide (else `400`), and an unconfirmed no-expiry approval can't be committed. Old stored grants keep their stored expiry.
+- **L2 pairing codes** are bound to the `processor_id` that asked for them: another program's attempt is `403` and doesn't count toward the 5-wrong-codes lockout or burn the code. The label shown next to the code becomes the paired label. (Requesting a new code still replaces the pending one — documented limit.)
 
 ## Tests
 

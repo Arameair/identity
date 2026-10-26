@@ -42,6 +42,10 @@ type Admin struct {
 	ApprovalID    string        `json:"enrollment_approval_id"`
 	GitHub        GitHubBinding `json:"github_binding"`
 	Authenticator Verifier      `json:"authenticator"`
+	// PrimaryRequester is the paired program (e.g. processor:tp_…) the owner
+	// used to establish the Admin. Approval pages warn when a request comes
+	// from anything else (Grok M3). Absent in admin.json made before cleanup.
+	PrimaryRequester string `json:"primary_requester,omitempty"`
 }
 
 // Public is what may be shown (no verifier).
@@ -51,10 +55,12 @@ type AdminPublic struct {
 	EstablishedAt     time.Time     `json:"established_at"`
 	GitHub            GitHubBinding `json:"github_binding"`
 	AuthenticatorKind string        `json:"authenticator"`
+	PrimaryRequester  string        `json:"primary_requester,omitempty"`
 }
 
 func (a Admin) Public() AdminPublic {
-	return AdminPublic{AdminID: a.AdminID, SystemID: a.SystemID, EstablishedAt: a.EstablishedAt, GitHub: a.GitHub, AuthenticatorKind: a.Authenticator.Kind}
+	return AdminPublic{AdminID: a.AdminID, SystemID: a.SystemID, EstablishedAt: a.EstablishedAt, GitHub: a.GitHub, AuthenticatorKind: a.Authenticator.Kind,
+		PrimaryRequester: a.PrimaryRequester}
 }
 
 type throttle struct {
@@ -146,7 +152,7 @@ func (s *AdminStore) Get() (Admin, error) {
 // Enroll establishes the Admin Identity exactly once. The file is created
 // with an atomic link-if-absent, so two racing enrollments cannot both win,
 // and an existing (even damaged) admin.json is never replaced.
-func (s *AdminStore) Enroll(systemID, approvalID string, gh GitHubBinding, passphrase string) (Admin, error) {
+func (s *AdminStore) Enroll(systemID, approvalID string, gh GitHubBinding, passphrase string, primary ...string) (Admin, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.loadErr != "" {
@@ -164,6 +170,9 @@ func (s *AdminStore) Enroll(systemID, approvalID string, gh GitHubBinding, passp
 	}
 	a := Admin{Schema: AdminSchema, AdminID: "adm_" + profile.RandHex(10), SystemID: systemID, EstablishedAt: s.Now().UTC(),
 		ApprovalID: approvalID, GitHub: gh, Authenticator: v}
+	if len(primary) > 0 {
+		a.PrimaryRequester = primary[0]
+	}
 	b, err := json.MarshalIndent(a, "", "  ")
 	if err != nil {
 		return Admin{}, err

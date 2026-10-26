@@ -152,6 +152,8 @@ func main() {
 	testWeb := flag.String("test-github-web", "", "TEST FIXTURE ONLY: replaces https://github.com")
 	testAPI := flag.String("test-github-api", "", "TEST FIXTURE ONLY: replaces https://api.github.com")
 	version := flag.Bool("version", false, "print version and exit")
+	var pins multiFlag
+	flag.Var(&pins, "trust-fixture-artifact", "pin one more exact feature artifact SHA-256 that may be registered (repeatable; the reviewed P1 fixture is built in)")
 	flag.Parse()
 
 	if *version {
@@ -196,7 +198,7 @@ func main() {
 		fmt.Println(strings.Join(lines, "\n"))
 	}
 	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch,
-		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce, LocatorDir: defaultLocatorDir()})
+		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce, LocatorDir: defaultLocatorDir(), TrustArtifacts: pins})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
 		os.Exit(1)
@@ -224,6 +226,9 @@ func main() {
 			fmt.Println("  github  : this build has no publisher GitHub App built in")
 		} else {
 			fmt.Println("  github  : " + cfg.ClientIDSource)
+		}
+		for _, d := range pins {
+			fmt.Printf("  trust   : operator-pinned feature artifact %s… (-trust-fixture-artifact)\n", strings.ToLower(strings.TrimSpace(d))[:min(12, len(strings.TrimSpace(d)))])
 		}
 		if n := len(a.Pair.Clients()); n > 0 {
 			fmt.Printf("  paired  : %d Thought Processor(s) — they reconnect on their own\n", n)
@@ -253,3 +258,9 @@ func short(s string) string {
 	}
 	return s
 }
+
+// multiFlag collects a repeatable string flag.
+type multiFlag []string
+
+func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
+func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }

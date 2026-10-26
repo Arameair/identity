@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,8 +83,42 @@ func clean(s string, n int) string {
 	return s
 }
 
-// Validate checks shape and the P1 trust rule.
-func (r *InstallRequest) Validate() error {
+// BuiltinFixturePins are the exact artifact digests of the reviewed trusted
+// local test fixtures (Thought-Processor processor/testfeatures). Thought
+// Processor carries the same list. Grok M1: a package's own manifest can
+// never award trust; only an exact pinned digest can.
+var BuiltinFixturePins = map[string]string{
+	"3cd5e7a60f193f21bd15e14ee1532259fe1088434164ef6af4e3a66a36d493df": "built-in pin: p1-deterministic-worker 0.1.0 (reviewed P1 test fixture)",
+}
+
+// TrustPins are the artifact digests this Identity will register.
+type TrustPins struct{ m map[string]string }
+
+// NewTrustPins combines built-in pins with operator pins (-trust-fixture-artifact).
+func NewTrustPins(operator []string) (TrustPins, error) {
+	m := map[string]string{}
+	for k, v := range BuiltinFixturePins {
+		m[k] = v
+	}
+	for _, d := range operator {
+		d = strings.ToLower(strings.TrimSpace(d))
+		if !sha256RE.MatchString(d) {
+			return TrustPins{}, errors.New("-trust-fixture-artifact needs a 64-character SHA-256")
+		}
+		if _, ok := m[d]; !ok {
+			m[d] = "operator pin (-trust-fixture-artifact)"
+		}
+	}
+	return TrustPins{m: m}, nil
+}
+
+// Basis says why a digest is trusted ("" = not pinned).
+func (p TrustPins) Basis(d string) string { return p.m[d] }
+
+var ErrNotPinned = errors.New("UNTRUSTED_EXECUTION_BLOCKED: ARTIFACT_NOT_PINNED — Identity has no pin for this exact artifact digest. A claimed trust class cannot grant trust; only the reviewed fixture (or a digest the operator pinned with -trust-fixture-artifact) can be registered")
+
+// Validate checks shape and the P1 trust rule (exact pinned artifact).
+func (r *InstallRequest) Validate(pins TrustPins) error {
 	switch {
 	case !featureIDRE.MatchString(r.FeatureID):
 		return errors.New("feature_id must be 2–48 lowercase letters, digits or -")
@@ -103,6 +138,8 @@ func (r *InstallRequest) Validate() error {
 		return ErrUntrusted
 	case len(r.Capabilities) > 16:
 		return errors.New("too many capabilities")
+	case pins.Basis(r.ArtifactSHA256) == "":
+		return ErrNotPinned
 	}
 	seen := map[string]bool{}
 	for _, c := range r.Capabilities {
@@ -126,6 +163,7 @@ type Installation struct {
 	SourceKind     string       `json:"source_kind"`
 	SourceRef      string       `json:"source_ref"`
 	TrustClass     string       `json:"trust_class"`
+	TrustBasis     string       `json:"trust_basis,omitempty"`
 	ArtifactSHA256 string       `json:"artifact_sha256"`
 	ManifestSHA256 string       `json:"manifest_sha256"`
 	Capabilities   []Capability `json:"capabilities"`
@@ -198,7 +236,7 @@ func (s *Installations) commit(next []Installation) error {
 
 // Reserve creates (or, for the same install key, returns) an installation.
 // created reports whether a new ID was minted.
-func (s *Installations) Reserve(req InstallRequest, approvalID, adminID string) (Installation, bool, error) {
+func (s *Installations) Reserve(req InstallRequest, approvalID, adminID, trustBasis string) (Installation, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.loadErr != "" {
@@ -214,7 +252,7 @@ func (s *Installations) Reserve(req InstallRequest, approvalID, adminID string) 
 	}
 	in := Installation{ID: "ins_" + profile.RandHex(10), FeatureID: req.FeatureID, Name: req.Name, Version: req.Version, API: req.API,
 		PublisherClaim: req.PublisherClaim, PublisherProof: "NONE — publisher name is a claim in the manifest; no signature was verified",
-		SourceKind: req.SourceKind, SourceRef: req.SourceRef, TrustClass: req.TrustClass,
+		SourceKind: req.SourceKind, SourceRef: req.SourceRef, TrustClass: req.TrustClass, TrustBasis: trustBasis,
 		ArtifactSHA256: req.ArtifactSHA256, ManifestSHA256: req.ManifestSHA256, Capabilities: req.Capabilities,
 		InstallKey: req.InstallKey, RequestedBy: req.RequestedBy, ApprovalID: approvalID, AdministeredBy: adminID,
 		State: InsPending, CreatedAt: s.Now().UTC()}

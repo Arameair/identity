@@ -344,6 +344,8 @@ func (a *App) engineRoutes(m *routeMux) {
 				code = 429
 			} else if errors.Is(err, pairing.ErrBadRequest) {
 				code = 400
+			} else if errors.Is(err, pairing.ErrCodeOwner) {
+				code = 403
 			}
 			a.fail(w, r, code, "pairing", "pairing.refused", err.Error())
 			return

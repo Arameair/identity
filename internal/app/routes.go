@@ -62,7 +62,10 @@ var RouteGuards = map[string]string{
 	"POST /api/v1/grants/requests":                       gPaired + " (creates a request only)",
 	"POST /api/v1/grants":                                gElevated,
 	"GET /api/v1/grants":                                 gPaired,
-	"POST /api/v1/grants/{id}/revoke":                    gPaired + " (narrows access; persisted before success)",
+	"POST /api/v1/grants/{id}/revoke":                    gPaired + " (narrows access; ONLY the grant's requester or the program that asked for it — others get 403 REVOKE_NOT_PERMITTED; persisted before success)",
+	"POST /api/v1/installation/grants/{id}/revoke":       gInstallation + " (the receiving feature may end grants that name it; persisted before success)",
+	"POST /api/v1/grants/{id}/revoke/requests":           gPaired + " (creates an Admin revocation request only)",
+	"POST /api/v1/grants/{id}/admin-revoke":              gElevated, // Admin emergency revocation of any grant
 	"POST /api/v1/tickets":                               gPaired + " (issues a ticket ONLY under an active grant for this exact requester/recipient/subject/capability)",
 	"GET /api/v1/decisions":                              gPaired,
 	"POST /api/v1/installation/confirm":                  gInstallation,
@@ -75,7 +78,7 @@ var RouteGuards = map[string]string{
 }
 
 // ElevatedRoutes must refuse without a usable Admin approval.
-var ElevatedRoutes = []string{"POST /api/v1/installations", "POST /api/v1/installations/{id}/uninstall", "POST /api/v1/grants"}
+var ElevatedRoutes = []string{"POST /api/v1/installations", "POST /api/v1/installations/{id}/uninstall", "POST /api/v1/grants", "POST /api/v1/grants/{id}/admin-revoke"}
 
 type routeEntry struct {
 	Pattern string `json:"route"`

@@ -5,3 +5,5 @@
 /dist/
 /identity-probe
 /identity-probe.exe
+__pycache__/
+*.pyc

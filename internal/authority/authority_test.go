@@ -266,36 +266,50 @@ func TestInstallReserveIdempotentAndTrustRule(t *testing.T) {
 		SourceKind: "local-trusted-package", TrustClass: TrustLocalFixture, ArtifactSHA256: sha("a"), ManifestSHA256: sha("b"),
 		InstallKey: "00112233445566778899aabbccddeeff", RequestedBy: "processor:tp_a",
 		Capabilities: []Capability{{ID: "worker.test.synthetic", Description: "x", DataClass: "SYNTHETIC"}}}
-	if err := req.Validate(); err != nil {
+	pins, err := NewTrustPins([]string{sha("a")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := req.Validate(pins); err != nil {
 		t.Fatal(err)
 	}
 	u := req
 	u.TrustClass = "THIRD_PARTY"
-	if err := u.Validate(); !errors.Is(err, ErrUntrusted) {
+	if err := u.Validate(pins); !errors.Is(err, ErrUntrusted) {
 		t.Fatal("untrusted class accepted")
 	}
 	u = req
 	u.SourceKind = "github-release"
-	if err := u.Validate(); !errors.Is(err, ErrUntrusted) {
+	if err := u.Validate(pins); !errors.Is(err, ErrUntrusted) {
 		t.Fatal("download source accepted")
 	}
-	a, created, err := s.Reserve(req, "apr_1", "adm")
+	// Grok M1: claiming the fixture trust class is not enough; the exact
+	// artifact must be pinned.
+	u = req
+	u.ArtifactSHA256 = sha("new code that calls itself a fixture")
+	if err := u.Validate(pins); !errors.Is(err, ErrNotPinned) {
+		t.Fatalf("unpinned artifact with a self-declared fixture class accepted: %v", err)
+	}
+	if _, err := NewTrustPins([]string{"not-a-digest"}); err == nil {
+		t.Fatal("bad operator pin accepted")
+	}
+	a, created, err := s.Reserve(req, "apr_1", "adm", pins.Basis(req.ArtifactSHA256))
 	if err != nil || !created {
 		t.Fatal(err)
 	}
-	b, created, err := OpenInstallations(dir).Reserve(req, "apr_2", "adm")
+	b, created, err := OpenInstallations(dir).Reserve(req, "apr_2", "adm", "")
 	if err != nil || created || b.ID != a.ID {
 		t.Fatal("retry minted a second installation")
 	}
 	req2 := req
 	req2.InstallKey = "ffeeddccbbaa99887766554433221100"
-	c, created, _ := s.Reserve(req2, "apr_3", "adm")
+	c, created, _ := s.Reserve(req2, "apr_3", "adm", "")
 	if !created || c.ID == a.ID {
 		t.Fatal("second copy must get its own ID")
 	}
 	clash := req
 	clash.ArtifactSHA256 = sha("other")
-	if _, _, err := s.Reserve(clash, "apr_4", "adm"); err == nil {
+	if _, _, err := s.Reserve(clash, "apr_4", "adm", ""); err == nil {
 		t.Fatal("install key reused for a different artifact")
 	}
 }

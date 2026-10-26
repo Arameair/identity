@@ -51,8 +51,15 @@ type GrantRequest struct {
 	Capability  string     `json:"capability"`
 	SourceScope string     `json:"source_scope"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
-	RequestedBy string     `json:"requested_by"`
+	// UntilRevoked: no expiry, chosen deliberately. The Admin must tick an
+	// extra confirmation in Identity's page; otherwise grants get DefaultGrantTTL.
+	UntilRevoked bool   `json:"until_revoked,omitempty"`
+	RequestedBy  string `json:"requested_by"`
 }
+
+// DefaultGrantTTL applies when a grant request names no expiry (Grok M3).
+// Grants made before this default existed keep their stored expiry (or none).
+const DefaultGrantTTL = time.Hour
 
 type Grant struct {
 	ID           string     `json:"grant_id"`
@@ -64,8 +71,10 @@ type Grant struct {
 	SourceScope  string     `json:"source_scope"`
 	ApprovedBy   string     `json:"approved_by_admin_id"`
 	ApprovalID   string     `json:"approval_id"`
+	RequestedBy  string     `json:"requested_by,omitempty"` // the paired program that asked for it (may differ from Requester)
 	CreatedAt    time.Time  `json:"created_at"`
 	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	UntilRevoked bool       `json:"until_revoked,omitempty"`
 	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
 	RevokedBy    string     `json:"revoked_by,omitempty"`
 	RevokeReason string     `json:"revoke_reason,omitempty"`
@@ -142,7 +151,7 @@ func (s *Grants) Create(req GrantRequest, approvalID, adminID string) (Grant, er
 	}
 	g := Grant{ID: "gnt_" + profile.RandHex(10), Version: 1, Requester: req.Requester, Destination: req.Destination,
 		Subject: req.Subject, Capability: req.Capability, SourceScope: "none", ApprovedBy: adminID, ApprovalID: approvalID,
-		CreatedAt: s.Now().UTC(), ExpiresAt: req.ExpiresAt}
+		RequestedBy: req.RequestedBy, CreatedAt: s.Now().UTC(), ExpiresAt: req.ExpiresAt, UntilRevoked: req.UntilRevoked}
 	if err := s.commit(append(append([]Grant(nil), s.list...), g)); err != nil {
 		return Grant{}, err
 	}
@@ -161,6 +170,14 @@ func (s *Grants) Get(id string) (Grant, error) {
 		}
 	}
 	return Grant{}, ErrNoGrant
+}
+
+// MayRevoke says whether principal (a paired "processor:…" or an
+// "installation:…") may revoke g without an Admin approval (Grok M2): the
+// requester the grant names, the program that asked for it, or the
+// destination installation itself. Anyone else needs the Admin.
+func (g Grant) MayRevoke(principal string) bool {
+	return principal != "" && (principal == g.Requester || principal == g.RequestedBy || principal == "installation:"+g.Destination)
 }
 
 // Revoke ends a grant. Revoking narrows access; it is persisted before it is

@@ -43,7 +43,12 @@ func (c *console) lastCode(t *testing.T) string {
 
 func startV1(t *testing.T, dir string, gh github.Config) (*harness, *console) {
 	con := &console{}
-	h := startAppWith(t, dir, gh, func(o *Options) { o.Announce = con.announce; o.ManagedBy = "thought-processor:tp_test" })
+	h := startAppWith(t, dir, gh, func(o *Options) {
+		o.Announce = con.announce
+		o.ManagedBy = "thought-processor:tp_test"
+		// P1 tests register a stand-in artifact digest; pin it as an operator would.
+		o.TrustArtifacts = []string{strings.Repeat("a", 64)}
+	})
 	return h, con
 }
 

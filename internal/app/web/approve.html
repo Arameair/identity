@@ -26,8 +26,16 @@
   <section id="ap-main" class="ap-card" hidden>
     <div class="ap-kind" id="ap-kind"></div>
     <h1 id="ap-title"></h1>
-    <ul class="ap-summary" id="ap-summary"></ul>
+    <div class="ap-warn" id="ap-warn" role="alert" hidden></div>
+    <p class="ap-headline" id="ap-headline"></p>
     <dl class="ap-facts" id="ap-facts"></dl>
+    <label class="ap-check ap-forever" id="ap-forever" hidden><input type="checkbox" id="ap-forever-ok"> I understand this grant <strong>does not expire</strong>. It stays until someone revokes it.</label>
+    <details class="ap-adv">
+      <summary>Advanced details (IDs and digests)</summary>
+      <p class="small muted">Identity's exact record of the request:</p>
+      <ul class="ap-summary" id="ap-summary"></ul>
+      <dl class="ap-facts" id="ap-adv"></dl>
+    </details>
 
     <div id="ap-enroll" hidden>
       <div class="ap-note">

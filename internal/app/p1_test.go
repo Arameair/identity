@@ -109,6 +109,7 @@ func (h *harness) approve(link string, body map[string]any) (int, map[string]any
 		return resp.StatusCode, m
 	}
 	st, m := post("/api/approval/open", map[string]string{"id": id, "token": tok}, "")
+	h.lastView = m
 	if st != 200 {
 		return st, m
 	}
@@ -355,7 +356,8 @@ func TestP1ElevatedRoutesRequireAdminApproval(t *testing.T) {
 		}
 	}
 	// Paired Processor without Admin approval: denied, whatever it claims.
-	for _, path := range []string{"/api/v1/installations", "/api/v1/grants", "/api/v1/installations/ins_00000000000000000000/uninstall"} {
+	for _, path := range []string{"/api/v1/installations", "/api/v1/grants", "/api/v1/installations/ins_00000000000000000000/uninstall",
+		"/api/v1/grants/gnt_00000000000000000000/admin-revoke"} {
 		for _, body := range []string{`{}`, `{"approved":true}`, `{"approval_id":"apr_00000000000000000000"}`} {
 			st, m := h.v1("POST", path, body, e.tokA)
 			if st != 403 && st != 409 {
@@ -561,5 +563,130 @@ func TestP1GrantTicketCheckRevokeOutageRestart(t *testing.T) {
 	e.h = h
 	if st, m := e.ticket(e.tokA, ins2, e.ent, capW, dig); st != 503 || m["decision"] != "DENIED" {
 		t.Fatalf("damaged grants: %d %v", st, m)
+	}
+}
+
+// Grok M2 / M3 / L2 (P1 cleanup).
+func TestP1CleanupRevocationDisplayExpiryPairing(t *testing.T) {
+	e := setupP1(t)
+	h := e.h
+	defer func() { e.h.stop() }()
+	ins1, sec1 := e.install(t, "00112233445566778899aabbccddeeff")
+	ins2, sec2 := e.install(t, "ffeeddccbbaa99887766554433221100")
+	const capW = "worker.test.synthetic"
+	status := func(gid string) (string, map[string]any) {
+		_, l := h.v1("GET", "/api/v1/grants", "", e.tokA)
+		for _, x := range l["grants"].([]any) {
+			m := x.(map[string]any)
+			if g := m["grant"].(map[string]any); g["grant_id"] == gid {
+				return m["status"].(string), g
+			}
+		}
+		return "", nil
+	}
+
+	// M3: no expiry requested → finite 1-hour default; the primary
+	// Processor's request shows its paired label and no warning.
+	gid := e.grant(t, e.tokA, ins1, e.ent, capW, 0)
+	disp := h.lastView["display"].(map[string]any)
+	req := disp["requester"].(map[string]any)
+	if req["label"] != "Test Processor" || req["verified"] != true || req["is_primary"] != true || req["warning"] != nil {
+		t.Fatalf("primary requester display: %v", req)
+	}
+	if disp["advanced"].(map[string]any)["action_sha256"] == nil || disp["capability"] == nil || disp["subject"] == nil {
+		t.Fatalf("display missing parts: %v", disp)
+	}
+	_, g := status(gid)
+	exp, err := time.Parse(time.RFC3339, g["expires_at"].(string))
+	if err != nil || exp.Sub(time.Now()) < 55*time.Minute || exp.Sub(time.Now()) > 61*time.Minute {
+		t.Fatalf("default expiry: %v %v", g["expires_at"], err)
+	}
+
+	// M2: an unrelated paired program and an unrelated installation cannot revoke.
+	if st, m := h.v1("POST", "/api/v1/grants/"+gid+"/revoke", `{"reason":"not mine"}`, e.tokB); st != 403 || m["error"] != "REVOKE_NOT_PERMITTED" {
+		t.Fatalf("B revoked A's grant: %d %v", st, m)
+	}
+	if st, _ := h.inst("POST", "/api/v1/installation/grants/"+gid+"/revoke", `{}`, ins2, sec2); st != 403 {
+		t.Fatalf("unrelated installation revoked: %d", st)
+	}
+	if s, _ := status(gid); s != "ACTIVE" {
+		t.Fatalf("grant changed after refused revokes: %s", s)
+	}
+	// Admin emergency path, requested by B: approval page warns B is not primary.
+	st, m := h.v1("POST", "/api/v1/grants/"+gid+"/revoke/requests", `{"reason":"emergency"}`, e.tokB)
+	if st != 202 {
+		t.Fatalf("admin revoke request %d %v", st, m)
+	}
+	apID := m["approval"].(map[string]any)["id"].(string)
+	if st, _ := h.v1("POST", "/api/v1/grants/"+gid+"/admin-revoke", `{"approval_id":"`+apID+`"}`, e.tokB); st != 403 {
+		t.Fatal("admin revoke without approval")
+	}
+	if st, _ := h.approve(m["approval_url"].(string), approveBody(adminPass)); st != 200 {
+		t.Fatal("approve admin revoke")
+	}
+	if w := h.lastView["display"].(map[string]any)["requester"].(map[string]any)["warning"]; w == nil || !strings.Contains(w.(string), "NOT come from your primary") {
+		t.Fatalf("no warning for non-primary requester: %v", h.lastView["display"])
+	}
+	st, r := h.v1("POST", "/api/v1/grants/"+gid+"/admin-revoke", `{"approval_id":"`+apID+`"}`, e.tokB)
+	if st != 200 || !strings.HasPrefix(r["grant"].(map[string]any)["revoked_by"].(string), "admin:"+e.admin) {
+		t.Fatalf("admin revoke: %d %v", st, r)
+	}
+	// The destination feature may revoke grants naming it; revoked_by is recorded.
+	gid2 := e.grant(t, e.tokA, ins1, e.ent, capW, 600)
+	st, r = h.inst("POST", "/api/v1/installation/grants/"+gid2+"/revoke", `{"reason":"feature ended it"}`, ins1, sec1)
+	if st != 200 || r["grant"].(map[string]any)["revoked_by"] != "installation:"+ins1 {
+		t.Fatalf("destination revoke: %d %v", st, r)
+	}
+	// The requester may revoke its own grant.
+	gid3 := e.grant(t, e.tokA, ins1, e.ent, capW, 600)
+	if st, r := h.v1("POST", "/api/v1/grants/"+gid3+"/revoke", `{}`, e.tokA); st != 200 || r["grant"].(map[string]any)["revoked_by"] != "processor:tp_aaaa" {
+		t.Fatalf("own revoke: %d %v", st, r)
+	}
+
+	// M3: "until revoked" needs the extra confirmation on Identity's page.
+	st, m = h.v1("POST", "/api/v1/grants/requests", jsonOf(map[string]any{"destination_installation_id": ins1, "subject_identity_id": e.ent,
+		"capability": capW, "until_revoked": true}), e.tokA)
+	if st != 202 {
+		t.Fatalf("until_revoked request %d %v", st, m)
+	}
+	apID, link := m["approval"].(map[string]any)["id"].(string), m["approval_url"].(string)
+	if st, _ := h.approve(link, approveBody(adminPass)); st != 400 {
+		t.Fatalf("until-revoked approved without confirmation: %d", st)
+	}
+	if st, _ := h.v1("POST", "/api/v1/grants", `{"approval_id":"`+apID+`"}`, e.tokA); st != 403 {
+		t.Fatal("unconfirmed until-revoked grant committed")
+	}
+	// (the one-time link is spent; a fresh request, approved with the tick)
+	_, m = h.v1("POST", "/api/v1/grants/requests", jsonOf(map[string]any{"destination_installation_id": ins1, "subject_identity_id": e.ent,
+		"capability": capW, "until_revoked": true}), e.tokA)
+	apID, link = m["approval"].(map[string]any)["id"].(string), m["approval_url"].(string)
+	body := approveBody(adminPass)
+	body["confirm_until_revoked"] = true
+	if st, _ := h.approve(link, body); st != 200 {
+		t.Fatal("confirmed until-revoked refused")
+	}
+	st, r = h.v1("POST", "/api/v1/grants", `{"approval_id":"`+apID+`"}`, e.tokA)
+	if gg := r["grant"].(map[string]any); st != 201 || gg["expires_at"] != nil || gg["until_revoked"] != true {
+		t.Fatalf("until-revoked commit %d %v", st, r)
+	}
+
+	// L2: a pairing code works only for the program it was shown for; a wrong
+	// program's attempt neither uses it nor counts toward the lockout.
+	time.Sleep(pairRequestGap)
+	if st, _, b := h.machine("POST", "/api/v1/pair/request", `{"processor_id":"tp_cccc","processor_label":"Program C"}`, ""); st != 202 {
+		t.Fatalf("pair request %d %s", st, b)
+	}
+	code := e.con.lastCode(t)
+	for i := 0; i < 6; i++ {
+		if st, _, _ := h.machine("POST", "/api/v1/pair", `{"code":"`+code+`","processor_id":"tp_dddd","processor_label":"x"}`, ""); st != 403 {
+			t.Fatalf("code used by another program: %d", st)
+		}
+	}
+	st, _, b := h.machine("POST", "/api/v1/pair", `{"code":"`+code+`","processor_id":"tp_cccc","processor_label":"a different label"}`, "")
+	if st != 200 {
+		t.Fatalf("rightful program could not pair: %d %s", st, b)
+	}
+	if c, ok := h.a.Pair.Lookup("tp_cccc"); !ok || c.Label != "Program C" {
+		t.Fatalf("paired label must be the one shown next to the code: %+v", c)
 	}
 }

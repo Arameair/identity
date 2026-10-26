@@ -113,14 +113,16 @@ func (a *App) apiV1Routes(m *routeMux) {
 		}
 		a.pairGap.last = time.Now()
 		a.pairGap.mu.Unlock()
-		code, exp, err := a.Pair.NewCode()
-		if err != nil {
-			a.fail(w, r, 500, "pairing", "pairing.code_failed", err.Error())
-			return
-		}
 		label := clip(strings.TrimSpace(b.Label), 80)
 		if label == "" {
 			label = "Thought Processor"
+		}
+		// The code works only for this processor_id, and the label printed next
+		// to it becomes the paired label (what approval pages show).
+		code, exp, err := a.Pair.NewCodeFor(b.ProcessorID, label)
+		if err != nil {
+			a.fail(w, r, 500, "pairing", "pairing.code_failed", err.Error())
+			return
 		}
 		a.announce(code, exp, b.ProcessorID, label)
 		a.Log.Info("pairing", "pairing.requested", reqID(r), "code_shown", "a program asked to pair; a one-time code is shown in Identity's window only (valid 5 minutes, never logged)",

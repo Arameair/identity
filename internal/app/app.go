@@ -74,6 +74,9 @@ type Options struct {
 	// <identity_system_id>.json, so Thought Processor can find the right
 	// installation without knowing its profile folder. Empty = off.
 	LocatorDir string
+	// TrustArtifacts are extra exact artifact digests the operator pinned
+	// (-trust-fixture-artifact). Built-in pins cover the reviewed fixture.
+	TrustArtifacts []string
 }
 
 type BuildInfo struct {
@@ -120,6 +123,7 @@ type App struct {
 	Installs  *authority.Installations
 	InstKeys  *pairing.Store
 	Grants    *authority.Grants
+	pins      authority.TrustPins
 	apSess    approvalSessions
 	decisions decisionLog
 	routes    []routeEntry
@@ -161,6 +165,10 @@ func New(opt Options) (*App, error) {
 	a.Installs = authority.OpenInstallations(st.Root)
 	a.InstKeys = pairing.OpenFiles(st.Root, "installation-keys.json", "installation-nonces.json")
 	a.Grants = authority.OpenGrants(st.Root)
+	if a.pins, err = authority.NewTrustPins(opt.TrustArtifacts); err != nil {
+		st.Close()
+		return nil, err
+	}
 	a.apSess.m = map[string]approvalSess{}
 
 	addr := st.Settings().ProcessorAddress

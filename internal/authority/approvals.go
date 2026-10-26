@@ -29,6 +29,7 @@ const (
 	KindInstall     = "install_feature"
 	KindGrant       = "grant_capability"
 	KindUninstall   = "uninstall_feature"
+	KindRevokeGrant = "revoke_grant" // Admin emergency revocation of any grant
 )
 
 // Approval states.
@@ -68,8 +69,10 @@ type Approval struct {
 	ConsumedAt  *time.Time      `json:"consumed_at,omitempty"`
 	Result      string          `json:"result,omitempty"`
 	Outcome     string          `json:"outcome,omitempty"`
-	ViewToken   string          `json:"view_token_sha256"`
-	ViewOpened  bool            `json:"view_opened"`
+	// ConfirmedUntilRevoked: the Admin ticked the extra "no expiry" box.
+	ConfirmedUntilRevoked bool   `json:"confirmed_until_revoked,omitempty"`
+	ViewToken             string `json:"view_token_sha256"`
+	ViewOpened            bool   `json:"view_opened"`
 }
 
 // View is what callers may see (no token hash).
@@ -226,7 +229,7 @@ func (s *Approvals) OpenView(id, token string) (Approval, error) {
 
 // Decide records the Admin's decision. The caller MUST have authenticated
 // the Admin (AdminStore.Authenticate) for this exact approval first.
-func (s *Approvals) Decide(id string, approve bool, adminID, method string) (Approval, error) {
+func (s *Approvals) Decide(id string, approve bool, adminID, method string, untilRevokedConfirmed ...bool) (Approval, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.loadErr != "" {
@@ -246,6 +249,7 @@ func (s *Approvals) Decide(id string, approve bool, adminID, method string) (App
 	next := append([]Approval(nil), s.list...)
 	t := now.UTC()
 	next[i].DecidedAt, next[i].DecidedBy, next[i].Method = &t, adminID, method
+	next[i].ConfirmedUntilRevoked = approve && len(untilRevokedConfirmed) > 0 && untilRevokedConfirmed[0]
 	next[i].State = Denied
 	if approve {
 		next[i].State = Approved

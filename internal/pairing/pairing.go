@@ -81,6 +81,8 @@ type Store struct {
 	clients   []Client
 	loadErr   string
 	code      string
+	codeOwner string // processor_id the code was shown for ("" = any, e.g. made in Identity's own page)
+	codeLabel string // label shown in Identity's console with the code; becomes the paired label
 	codeExp   time.Time
 	failures  int
 	lockedTo  time.Time
@@ -136,10 +138,18 @@ func randomCode() string {
 	return string(out)
 }
 
-// NewCode replaces any pending code with a fresh one.
-func (s *Store) NewCode() (string, time.Time, error) {
+// NewCode replaces any pending code with a fresh one usable by any program
+// (Identity's own page). See NewCodeFor.
+func (s *Store) NewCode() (string, time.Time, error) { return s.NewCodeFor("", "") }
+
+// NewCodeFor makes a code that only processorID can use (Grok L2: a wrong
+// guess from a different program neither burns it nor locks pairing for the
+// program the person is actually connecting). The label is shown next to
+// the code in Identity's console and becomes the pairing's verified label.
+func (s *Store) NewCodeFor(processorID, label string) (string, time.Time, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.codeOwner, s.codeLabel = processorID, label
 	if s.loadErr != "" {
 		return "", time.Time{}, errors.New(s.loadErr)
 	}
@@ -172,6 +182,7 @@ var (
 	ErrLocked     = errors.New("too many wrong pairing codes; wait a minute and ask Identity for a new code")
 	ErrBadCode    = errors.New("that pairing code is wrong or expired; ask Identity for a new one")
 	ErrBadRequest = errors.New("a processor_id (4–64 letters, digits, . _ -) is required")
+	ErrCodeOwner  = errors.New("that pairing code was shown for a different program; ask Identity for your own code")
 )
 
 func normalize(code string) string {
@@ -200,6 +211,9 @@ func (s *Store) Pair(code, processorID, label string) (string, error) {
 	if now.Before(s.lockedTo) {
 		return "", ErrLocked
 	}
+	if s.codeOwner != "" && processorID != s.codeOwner {
+		return "", ErrCodeOwner
+	}
 	valid := s.code != "" && now.Before(s.codeExp) &&
 		subtle.ConstantTimeCompare([]byte(normalize(code)), []byte(s.code)) == 1
 	if !valid {
@@ -212,7 +226,10 @@ func (s *Store) Pair(code, processorID, label string) (string, error) {
 		return "", ErrBadCode
 	}
 	redact.Forget(s.code)
-	s.code, s.failures = "", 0
+	if s.codeOwner != "" && s.codeLabel != "" {
+		label = s.codeLabel // the label the person saw next to the code
+	}
+	s.code, s.failures, s.codeOwner, s.codeLabel = "", 0, "", ""
 	tb := make([]byte, 32)
 	if _, err := rand.Read(tb); err != nil {
 		return "", err
@@ -312,6 +329,18 @@ func (s *Store) EnrollWithTicketKey(id, label string) (string, error) {
 		return "", errors.New("credential could not be saved: " + err.Error())
 	}
 	return secret, nil
+}
+
+// Lookup returns the public record for id (label bound at pairing time).
+func (s *Store) Lookup(id string) (PublicClient, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.clients {
+		if c.ProcessorID == id {
+			return public(c), true
+		}
+	}
+	return PublicClient{}, false
 }
 
 // Has reports whether id is registered.

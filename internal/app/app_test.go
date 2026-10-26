@@ -33,6 +33,8 @@ type harness struct {
 	cancel context.CancelFunc
 	done   chan error
 	link   string
+	// lastView is the approval page's view from the latest approve() call.
+	lastView map[string]any
 }
 
 func ghFixture(t *testing.T) *httptest.Server {
