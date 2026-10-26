@@ -250,7 +250,7 @@
     if (pr.load_error) h += `<div class="note bad-note">${esc(pr.load_error)}</div>`;
     if (pr.pending_code) {
       const left = Math.max(0, Math.round((new Date(pr.expires_at) - Date.now()) / 1000));
-      h += `<div class="code-box"><span class="code">${esc(pr.pending_code)}</span><span class="small">Type this into Thought Processor's <em>Pair with Identity</em> box. Valid ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} more, once.</span>
+      h += `<div class="code-box"><span class="code">${esc(pr.pending_code)}</span><span class="small">Type this into Thought Processor where it asks for Identity's code. Valid ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} more, once.</span>
         <button class="btn ghost" type="button" data-act="/api/pairing/cancel">Cancel</button></div>`;
     } else {
       h += `<div class="row"><button class="btn ${pr.clients.length ? "ghost" : "primary"}" type="button" data-act="/api/pairing/code">${pr.clients.length ? "Pair another Processor" : "Pair Thought Processor"}</button></div>
@@ -258,6 +258,11 @@
     }
     for (const c of pr.clients) h += `<dl class="account"><dt>Paired</dt><dd><strong>${esc(c.label || c.processor_id)}</strong> <span class="muted small">${esc(c.processor_id)}</span></dd><dt>Since</dt><dd>${esc(fmtTime(c.paired_at))}${c.last_used ? " · last asked " + esc(ago(c.last_used)) : ""}</dd>
       <dt></dt><dd><button class="btn ghost" type="button" data-act="/api/pairing/unpair" data-processor="${esc(c.processor_id)}">Unpair</button></dd></dl>`;
+    const ids = (state.identities || []);
+    h += `<h3>Identities</h3><p class="muted small">Created and managed from Thought Processor. Every identity starts with no feature or source access; grants are not implemented in this alpha.</p>`;
+    if (state.identities_error) h += `<div class="note bad-note">${esc(state.identities_error)}</div>`;
+    if (!ids.length) h += `<p class="muted small">None yet.</p>`;
+    for (const e of ids) h += `<dl class="account"><dt>${esc(e.kind)}</dt><dd><strong>${esc(e.name)}</strong> <span class="muted small">${esc(e.id)}${e.archived_at ? " · ARCHIVED" : ""}</span></dd><dt>Access</dt><dd>none (NOT GRANTED)</dd></dl>`;
     const d = state.engine_access;
     h += `<h3>Thought Engine install access</h3>`;
     if (d) h += `<div class="note ${d.allowed ? "ok-note" : d.state === "CHECK_FAILED" ? "warn-note" : "warn-note"}"><strong>${esc(d.state)}</strong> <span class="muted small">rule ${esc(d.rule)} · ${esc(ago(d.checked_at))}</span><p>${esc(d.reason)}</p><p class="small"><strong>What to do:</strong> ${esc(d.next_step)}</p></div>`;

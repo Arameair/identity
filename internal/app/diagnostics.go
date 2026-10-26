@@ -42,11 +42,13 @@ func (a *App) Diagnostics(requestID string) string {
 	p("started=%s UTC", a.Started.UTC().Format(time.RFC3339))
 	p("profile=%s system_id=%s profile_created=%s", profile.DisplayPath(a.Store.Root), a.Store.Profile.SystemID, a.Store.Profile.CreatedAt.Format(time.RFC3339))
 	p("open_windows(sessions)=%d", a.Sess.Count())
-	p("endpoints: GET /api/health (public, self-reported); everything else requires this run's operator session + CSRF")
+	p("endpoints: GET /api/health (public, self-reported); /api/v1/* for paired programs (bearer token, signed answers); everything else requires this run's operator session + CSRF")
 	if set.SetupCompletedAt != nil {
 		p("setup=COMPLETED at %s", set.SetupCompletedAt.Format(time.RFC3339))
+	} else if set.WizardRequested {
+		p("setup=WIZARD OPEN in the troubleshooting page (developer path)")
 	} else {
-		p("setup=IN PROGRESS (welcome flow shown)")
+		p("setup=wizard not used (normal first use happens in Thought Processor)")
 	}
 	p("")
 	p("[github]")
@@ -90,6 +92,20 @@ func (a *App) Diagnostics(requestID string) string {
 	}
 	p("note=%s", pr.Note)
 	p("authentication: this discovery is unauthenticated (public health only); paired Processors authenticate with a token — see [pairing]. Identity never reads Processor's operator code")
+	p("")
+	p("[service role and lifecycle]")
+	p("role=independent authority service; Thought Processor is the normal human interface (C01). Troubleshooting page is not the normal way in")
+	if a.opt.ManagedBy != "" {
+		p("ownership=MANAGED started_by=%s", a.opt.ManagedBy)
+	} else {
+		p("ownership=EXTERNAL (started by a person or another tool)")
+	}
+	p("api=%s service_file=%s", APIVersion, profile.DisplayPath(a.Store.ServicePath()))
+	act, arch := a.Ents.Counts()
+	p("identities active=%d archived=%d (all with no access: grants not implemented; /api/v1/authorize always DENIED)", act, arch)
+	if e := a.Ents.LoadError(); e != "" {
+		p("identities_error=%s", e)
+	}
 	p("")
 	p("[pairing and engine access]")
 	if e := a.Pair.LoadError(); e != "" {

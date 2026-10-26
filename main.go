@@ -1,8 +1,10 @@
-// Identity — standalone identity app: first-use setup, GitHub sign-in, feature catalog, read-only Thought Processor discovery.
+// Identity — the independent identity and permission service behind Thought
+// Processor. It runs in the background; people use it through Thought
+// Processor. Its own web page is a troubleshooting view only.
 //
 // One standalone executable. No Project Controller, no gh CLI needed.
 //
-//	identity.exe [-port 7790] [-data <profile folder>] [-processor 127.0.0.1:7860] [-no-browser]
+//	identity.exe [-port 7790] [-data <profile folder>] [-open] [-managed-by <who>]
 package main
 
 import (
@@ -17,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/Arameair/identity/internal/app"
@@ -28,7 +31,7 @@ const (
 	// 7790 avoids Thought-engine (7798), Thought Processor (7860) and the
 	// 2026-10-25 trial prototypes (7797, 7798).
 	DefaultPort = 7790
-	appVersion  = "0.3.0-alpha"
+	appVersion  = "0.4.0-alpha"
 )
 
 // Optional: go build -ldflags "-X main.buildBranch=<branch>"; otherwise PC_BRANCH, else UNKNOWN.
@@ -121,14 +124,16 @@ func main() {
 	port := flag.Int("port", defaultPort(), "loopback port for Identity (0 = pick a free one)")
 	data := flag.String("data", defaultData(), "private profile folder for this Identity")
 	proc := flag.String("processor", "", "optional Thought Processor address to watch, e.g. 127.0.0.1:7860")
-	noBrowser := flag.Bool("no-browser", false, "do not open a browser; just print the private link")
+	open := flag.Bool("open", false, "also open the troubleshooting page in a browser (not needed for normal use)")
+	flag.Bool("no-browser", true, "kept for older scripts; Identity no longer opens a browser unless -open is given")
+	managedBy := flag.String("managed-by", os.Getenv("IDENTITY_MANAGED_BY"), "set by the program that started Identity and owns its lifecycle, e.g. thought-processor:tp_123")
 	testWeb := flag.String("test-github-web", "", "TEST FIXTURE ONLY: replaces https://github.com")
 	testAPI := flag.String("test-github-api", "", "TEST FIXTURE ONLY: replaces https://api.github.com")
 	version := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
 	if *version {
-		fmt.Println("identity", appVersion, "prototype B", buildBranch)
+		fmt.Println("identity", appVersion, "alpha candidate", buildBranch)
 		return
 	}
 	if *port < 0 || *port > 65535 {
@@ -154,7 +159,14 @@ func main() {
 	if branch == "" {
 		branch = os.Getenv("PC_BRANCH") // set by Project Controller
 	}
-	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch})
+	var outMu sync.Mutex
+	announce := func(lines []string) {
+		outMu.Lock()
+		defer outMu.Unlock()
+		fmt.Println(strings.Join(lines, "\n"))
+	}
+	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch,
+		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
 		os.Exit(1)
@@ -162,23 +174,36 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	err = a.Run(ctx, nil, func(link string) {
+		outMu.Lock()
+		defer outMu.Unlock()
 		fmt.Printf("Identity %s  branch %s  commit %s\n", appVersion, a.Build.Branch, short(a.Build.Revision))
+		fmt.Println("  Identity is running in the background. Use it through Thought Processor —")
+		fmt.Println("  you don't need to open anything here. Keep this window open (minimise it is fine).")
+		fmt.Println()
 		fmt.Printf("  profile : %s\n", *data)
-		fmt.Printf("  run     : %s   pid %d   port %d (loopback only)\n", a.RunID, os.Getpid(), a.Port)
+		fmt.Printf("  run     : %s   pid %d   port %d (loopback only)   api %s\n", a.RunID, os.Getpid(), a.Port, app.APIVersion)
+		if *managedBy != "" {
+			fmt.Printf("  started : by %s (it may stop Identity when you choose Shut down)\n", *managedBy)
+		}
 		if cfg.Mode() != "real" {
 			fmt.Printf("  GITHUB  : TEST FIXTURE at %s — not real GitHub\n", cfg.WebBase)
 		} else if cfg.ClientID == "" {
-			fmt.Println("  github  : this build has no publisher GitHub App built in — Identity can guide you through using your own")
+			fmt.Println("  github  : this build has no publisher GitHub App built in")
 		} else {
 			fmt.Println("  github  : " + cfg.ClientIDSource)
 		}
-		fmt.Printf("  open    : %s\n", link)
-		fmt.Println("            (private link — do not paste it anywhere; it changes every start and is")
-		fmt.Printf("             also in %s)\n", a.Store.OpenLinkPath())
-		fmt.Println("  stop    : Ctrl+C here, close this window, or Stop Identity in the page. Only Identity stops.")
-		if !*noBrowser {
+		if n := len(a.Pair.Clients()); n > 0 {
+			fmt.Printf("  paired  : %d Thought Processor(s) — they reconnect on their own\n", n)
+		} else {
+			fmt.Println("  paired  : none yet — in Thought Processor choose Connect Identity; a code will appear HERE")
+		}
+		fmt.Println("  stop    : Ctrl+C here, or Shut down from Thought Processor. Only Identity stops.")
+		fmt.Println()
+		fmt.Println("  troubleshooting page (developers / support only — private, do not share):")
+		fmt.Printf("    %s\n", link)
+		if *open {
 			if err := openBrowser(link); err != nil {
-				fmt.Println("  (browser did not open automatically; copy the link above into your browser)")
+				fmt.Println("    (browser did not open automatically; copy the link above)")
 			}
 		}
 	})

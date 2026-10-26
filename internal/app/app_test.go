@@ -70,8 +70,17 @@ func ghFixture(t *testing.T) *httptest.Server {
 
 func startApp(t *testing.T, dir string, gh github.Config) *harness {
 	t.Helper()
+	return startAppWith(t, dir, gh, nil)
+}
+
+func startAppWith(t *testing.T, dir string, gh github.Config, tweak func(*Options)) *harness {
+	t.Helper()
 	github.SetPollScaleForTests(20 * time.Millisecond)
-	a, err := New(Options{Port: 0, DataDir: dir, GitHub: gh, Version: "test", Branch: "test-branch", WatchEvery: 200 * time.Millisecond})
+	opt := Options{Port: 0, DataDir: dir, GitHub: gh, Version: "test", Branch: "test-branch", WatchEvery: 200 * time.Millisecond}
+	if tweak != nil {
+		tweak(&opt)
+	}
+	a, err := New(opt)
 	if err != nil {
 		t.Fatal(err)
 	}

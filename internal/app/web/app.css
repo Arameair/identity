@@ -160,3 +160,5 @@ dialog::backdrop { background: rgba(0,0,0,0.35); }
 .guide > li { margin-bottom: 12px; }
 .guide ul { margin: 6px 0 0; padding-left: 18px; }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
+.trouble-banner { padding: 8px 16px; background: var(--info-bg); color: var(--info); border-bottom: 1px solid var(--line); font-size: 13px; }

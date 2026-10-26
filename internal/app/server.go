@@ -83,8 +83,8 @@ func (a *App) Handler() http.Handler {
 	// Public and minimal: lets Thought Processor (or anyone on this computer)
 	// see what answers here. Self-reported; not authentication.
 	m.HandleFunc("GET /api/health", a.wrap(public, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]string{"app": Product, "version": a.Build.Version, "protocol": Protocol,
-			"note": "self-reported; not authentication"})
+		writeJSON(w, 200, map[string]string{"app": Product, "version": a.Build.Version, "protocol": Protocol, "api": APIVersion,
+			"note": "self-reported; not authentication. Thought Processor: pair via POST /api/v1/pair/request"})
 	}))
 
 	m.HandleFunc("POST /api/session", a.wrap(bootstrap, a.handleSignIn))
@@ -122,7 +122,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /api/github/own-app/remove", a.wrap(mutate, a.handleOwnAppRemove))
 	m.HandleFunc("POST /api/setup/complete", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now().UTC()
-		if err := a.Store.UpdateSettings(func(s *profile.Settings) { s.SetupCompletedAt = &now }); err != nil {
+		if err := a.Store.UpdateSettings(func(s *profile.Settings) { s.SetupCompletedAt = &now; s.WizardRequested = false }); err != nil {
 			a.fail(w, r, 500, "setup", "setup.save_failed", "could not save setup progress: "+err.Error())
 			return
 		}
@@ -130,7 +130,7 @@ func (a *App) Handler() http.Handler {
 		writeJSON(w, 200, a.State())
 	}))
 	m.HandleFunc("POST /api/setup/reopen", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
-		if err := a.Store.UpdateSettings(func(s *profile.Settings) { s.SetupCompletedAt = nil }); err != nil {
+		if err := a.Store.UpdateSettings(func(s *profile.Settings) { s.SetupCompletedAt = nil; s.WizardRequested = true }); err != nil {
 			a.fail(w, r, 500, "setup", "setup.save_failed", "could not save: "+err.Error())
 			return
 		}
@@ -175,6 +175,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /api/drafts", a.wrap(mutate, a.handleDraft))
 	m.HandleFunc("POST /api/drafts/withdraw", a.wrap(mutate, a.handleWithdraw))
 	a.engineRoutes(m)
+	a.apiV1Routes(m)
 	m.HandleFunc("POST /api/shutdown", a.wrap(mutate, func(w http.ResponseWriter, r *http.Request) {
 		a.Log.Info("lifecycle", "identity.stop_requested", reqID(r), "stopping", "Stop Identity pressed", nil)
 		writeJSON(w, 200, map[string]string{"stopping": "identity only"})
@@ -411,10 +412,14 @@ func (a *App) State() map[string]any {
 			"profile_path": profile.DisplayPath(a.Store.Root), "system_id": a.Store.Profile.SystemID,
 			"profile_created_at": a.Store.Profile.CreatedAt, "status": "RUNNING",
 		},
-		"pairing":         a.pairingState(),
-		"engine_access":   a.LastAccess(),
-		"publisher":       map[string]string{"name": Publisher, "evidence": "name embedded in this experimental build — not a signed release"},
-		"setup":           map[string]any{"completed": set.SetupCompletedAt != nil, "completed_at": set.SetupCompletedAt},
+		"pairing":          a.pairingState(),
+		"identities":       a.Ents.List(true),
+		"identities_error": a.Ents.LoadError(),
+		"managed_by":       a.opt.ManagedBy,
+		"engine_access":    a.LastAccess(),
+		"publisher":        map[string]string{"name": Publisher, "evidence": "name embedded in this experimental build — not a signed release"},
+		"setup": map[string]any{"completed": set.SetupCompletedAt != nil || !set.WizardRequested, "completed_at": set.SetupCompletedAt,
+			"note": "the step-by-step wizard is a developer/troubleshooting path; normal first use is in Thought Processor"},
 		"github":          gv,
 		"last_account":    set.LastAccount,
 		"processor":       a.Watch.Current(),

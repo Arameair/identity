@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Arameair/identity/internal/discovery"
+	"github.com/Arameair/identity/internal/entities"
 	"github.com/Arameair/identity/internal/features"
 	"github.com/Arameair/identity/internal/github"
 	"github.com/Arameair/identity/internal/logbook"
@@ -28,7 +29,7 @@ import (
 
 const (
 	Product   = "identity"
-	Protocol  = "identity/0-alpha"
+	Protocol  = "identity/1-alpha"
 	Prototype = "alpha candidate"
 	Publisher = publisher.Name
 )
@@ -36,13 +37,14 @@ const (
 // NotImplemented is shown in the UI and diagnostics so nothing missing is
 // mistaken for something working.
 var NotImplemented = []string{
+	"Feature/source grants: every authorization answer is DENIED (identities start with no access)",
+	"Receiver-side enforcement in Thought Engine or other features",
+	"Feature service registration with Identity (only Thought Processor pairs)",
+	"Secure administrator bootstrap / per-person admin sign-in (a paired Processor acts for the operator who approved the pairing)",
 	"Publisher access-request submission service (drafts stay local, NOT SUBMITTED)",
-	"Publisher approval / feature grants (nothing is ever shown as GRANTED)",
-	"Starting, attaching to or stopping the Thought Engine (install only)",
-	"Signed releases / signed decisions (checksums + pairing HMAC only)",
-	"Thought Engine observation grants and receiver-side enforcement",
 	"Persistent GitHub sign-in (the token is memory-only; restart = sign in again)",
-	"Signed release / signed publisher catalog",
+	"Signed releases / signed publisher catalog / OS-protected token storage",
+	"Process supervision: Identity stops itself on request; it never starts or stops other programs",
 }
 
 // AppChoice is one GitHub App sign-in can use (public Client ID only).
@@ -59,6 +61,12 @@ type Options struct {
 	Version       string
 	Branch        string // from -ldflags, else "UNKNOWN"
 	WatchEvery    time.Duration
+	// ManagedBy is set when another program (normally Thought Processor)
+	// started Identity and owns its lifecycle (flag -managed-by). Empty =
+	// started by a person or another tool (EXTERNAL).
+	ManagedBy string
+	// Announce shows lines in Identity's own console window (pairing codes).
+	Announce func(lines []string)
 }
 
 type BuildInfo struct {
@@ -97,6 +105,8 @@ type App struct {
 	GH       *github.Client
 	Feats    *features.Store
 	Pair     *pairing.Store
+	Ents     *entities.Store
+	pairGap  pairThrottle
 	access   accessCache
 	Watch    *discovery.Watcher
 	Sess     *Sessions
@@ -106,6 +116,7 @@ type App struct {
 	Port     int
 	shutdown chan struct{}
 	once     sync.Once
+	stopWhy  string
 }
 
 // New opens the profile (taking its lock) and the activity log.
@@ -127,6 +138,7 @@ func New(opt Options) (*App, error) {
 	a.GH = github.New(opt.GitHub, features.Repos(), a.onGitHubEvent)
 	a.Feats = features.Open(st.Root)
 	a.Pair = pairing.Open(st.Root)
+	a.Ents = entities.Open(st.Root)
 
 	addr := st.Settings().ProcessorAddress
 	if opt.ProcessorAddr != "" {
@@ -199,6 +211,12 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 	if e := a.Feats.LoadError(); e != "" {
 		a.Log.Error("features", "drafts.load_failed", "", "disabled", e, nil)
 	}
+	if e := a.Ents.LoadError(); e != "" {
+		a.Log.Error("identities", "identities.load_failed", "", "disabled", e, nil)
+	}
+	if err := a.Store.SaveService(a.serviceRecord()); err != nil {
+		a.Log.Warn("lifecycle", "identity.service_file_not_saved", "", "warn", err.Error(), nil)
+	}
 
 	wctx, wcancel := context.WithCancel(ctx)
 	defer wcancel()
@@ -218,7 +236,7 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 	case <-ctx.Done():
 		reason = "signal from the console (Ctrl+C / window closed / terminate)"
 	case <-a.shutdown:
-		reason = "Stop Identity pressed in the UI"
+		reason = a.stopWhy
 	case err := <-errc:
 		if !errors.Is(err, http.ErrServerClosed) {
 			a.Log.Error("lifecycle", "identity.server_failed", "", "error", err.Error(), nil)
@@ -236,7 +254,26 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 }
 
 // RequestShutdown asks Run to stop (used by the UI's Stop Identity button).
-func (a *App) RequestShutdown() { a.once.Do(func() { close(a.shutdown) }) }
+func (a *App) RequestShutdown() {
+	a.requestShutdownBecause("Stop Identity pressed in the troubleshooting page")
+}
+
+func (a *App) requestShutdownBecause(why string) {
+	a.once.Do(func() { a.stopWhy = why; close(a.shutdown) })
+}
+
+// serviceRecord is written to runtime/service.json so Thought Processor can
+// find Identity whichever starts first. A locator only — never trust.
+func (a *App) serviceRecord() map[string]any {
+	mb := a.opt.ManagedBy
+	if mb == "" {
+		mb = "external"
+	}
+	return map[string]any{"app": Product, "api": APIVersion, "protocol": Protocol, "version": a.Build.Version,
+		"base_url": "http://127.0.0.1:" + strconv.Itoa(a.Port), "port": a.Port, "pid": os.Getpid(), "run_id": a.RunID,
+		"started_at": a.Started.UTC(), "managed_by": mb,
+		"note": "locator only — not proof of identity. Verify the pairing proof (X-Identity-Proof) before trusting answers."}
+}
 
 func orDash(s string) string {
 	if s == "" {

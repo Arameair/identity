@@ -7,7 +7,9 @@
 //	<root>/drafts.json       local access-request drafts (NOT SUBMITTED)
 //	<root>/github-app.json   optional public GitHub App Client ID (not a secret)
 //	<root>/logs/             persistent activity log
-//	<root>/runtime/          lock + this run's private open link (deleted on exit)
+//	<root>/identities.json   identities this installation is the authority for (no access by default)
+//	<root>/paired-clients.json  paired programs (token hashes only)
+//	<root>/runtime/          lock, this run's private open link, service.json (all deleted on exit)
 //
 // Nothing secret is ever written here: GitHub access tokens live in memory only.
 package profile
@@ -49,7 +51,11 @@ type VerifiedAccount struct {
 }
 
 type Settings struct {
-	SetupCompletedAt *time.Time       `json:"setup_completed_at,omitempty"`
+	SetupCompletedAt *time.Time `json:"setup_completed_at,omitempty"`
+	// WizardRequested: the old Identity-first setup wizard is shown only
+	// when someone asks for it in the troubleshooting page (Manage → Run
+	// setup again). Normal first use happens in Thought Processor.
+	WizardRequested  bool             `json:"wizard_requested,omitempty"`
 	ProcessorAddress string           `json:"processor_address,omitempty"`
 	LastAccount      *VerifiedAccount `json:"last_verified_account,omitempty"`
 }
@@ -121,6 +127,7 @@ func Open(root string) (*Store, error) {
 
 func (s *Store) Close() {
 	os.Remove(s.OpenLinkPath())
+	os.Remove(s.ServicePath())
 	if s.lock != nil {
 		s.lock.release()
 	}
@@ -156,6 +163,14 @@ func (s *Store) OpenLinkPath() string { return filepath.Join(s.Root, "runtime", 
 func (s *Store) SaveOpenLink(link string) error {
 	return os.WriteFile(s.OpenLinkPath(), []byte(link+"\n"), 0o600)
 }
+
+// ServicePath is runtime/service.json: where this running Identity can be
+// reached (port, pid, run ID). It lets Thought Processor find Identity
+// whichever program starts first. It is a locator, NOT a trust signal:
+// Processor must still check the pairing proof. Deleted on clean exit.
+func (s *Store) ServicePath() string { return filepath.Join(s.Root, "runtime", "service.json") }
+
+func (s *Store) SaveService(v any) error { return writeJSON(s.ServicePath(), v) }
 
 // DisplayPath shortens the home directory to ~ so diagnostics don't reveal
 // the Windows/Unix user name.

@@ -1,8 +1,9 @@
 // Package pairing lets a local Thought Processor prove, on every request, that
 // a person paired it with this Identity.
 //
-//  1. In Identity's own window the person asks for a one-time code
-//     (8 characters, 5 minutes, single use). It is shown only there.
+//  1. Processor asks (POST /api/v1/pair/request), or the person presses
+//     Pair in Identity's troubleshooting page. Identity shows a one-time code
+//     (8 characters, 5 minutes, single use) only in its own window.
 //  2. They type it into Processor; Processor sends it to POST /api/v1/pair.
 //  3. Identity answers with a random 256-bit client token. Identity keeps
 //     only its SHA-256; Processor keeps the token in its own profile.
@@ -39,6 +40,9 @@ const (
 )
 
 var idRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{4,64}$`)
+
+// ValidProcessorID reports whether id is an acceptable processor_id.
+func ValidProcessorID(id string) bool { return idRE.MatchString(id) }
 
 type Client struct {
 	ProcessorID string    `json:"processor_id"`
