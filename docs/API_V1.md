@@ -1,5 +1,8 @@
 # Identity API v1 — contract for Thought Processor
 
+> **⚠ SECURITY WARNING (2026-10-26):** this candidate speaks API `identity/1`, which sends the pairing secret on every request and signs answers with it. A program that occupies Identity's port while Identity is stopped can collect the secret, fake answers, and reuse the secret against the real Identity. **Do not build on this branch.** Fixed in `identity/2` on [`experiment/feature-contract-20261026`](https://github.com/Arameair/identity/tree/experiment/feature-contract-20261026) (commit `c8c0a54`); see its `docs/API_CHANGELOG.md`.
+
+
 **Branch:** `alpha-candidate-20261026` · **API label:** `identity/1-alpha` · **Status:** alpha candidate, not promoted. Examples below are real responses captured from this build (tokens removed).
 
 Thought Processor is the normal human interface (decision **C01**). Identity runs in the background, and Processor uses this API to show and manage it. A working reference client is in [`cmd/identity-probe`](../cmd/identity-probe/main.go). Copy its `call()` function: it does the proof and wrong-service checks described below.

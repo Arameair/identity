@@ -1,5 +1,8 @@
 # Identity — alpha candidate 2026-10-26
 
+> **⚠ SECURITY WARNING (2026-10-26):** this candidate speaks API `identity/1`, which sends the pairing secret on every request and signs answers with it. A program that occupies Identity's port while Identity is stopped can collect the secret, fake answers, and reuse the secret against the real Identity. **Do not build on this branch.** Fixed in `identity/2` on [`experiment/feature-contract-20261026`](https://github.com/Arameair/identity/tree/experiment/feature-contract-20261026) (commit `c8c0a54`); see its `docs/API_CHANGELOG.md`.
+
+
 **Identity is the independent identity and permission service behind Thought Processor.** It runs in the background, holds the identities this installation is the authority for, signs in to GitHub on the person's behalf, and answers a paired Thought Processor. People use it **through Thought Processor**. Its own web page is now a troubleshooting view only.
 
 > **Branch `alpha-candidate-20261026`.** This is a candidate and has not been promoted: only the owner decides whether it becomes `alpha`. It is built from `experiment/engine-access-pairing-20261026` (`884e386`), which itself builds on `alpha-candidate-20261025` (`7addeee`). It applies the owner decisions of 2026-10-26 (C01–C09).

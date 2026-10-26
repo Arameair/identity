@@ -1,5 +1,8 @@
 # AGENTS.md — Identity alpha candidate 2026-10-26 runbook (owner + AI operators, e.g. a Grok bot)
 
+> **⚠ SECURITY WARNING (2026-10-26):** this candidate speaks API `identity/1`, which sends the pairing secret on every request and signs answers with it. A program that occupies Identity's port while Identity is stopped can collect the secret, fake answers, and reuse the secret against the real Identity. **Do not build on this branch.** Fixed in `identity/2` on [`experiment/feature-contract-20261026`](https://github.com/Arameair/identity/tree/experiment/feature-contract-20261026) (commit `c8c0a54`); see its `docs/API_CHANGELOG.md`.
+
+
 **Goal:** on the owner's **Windows** computer, install this Identity candidate, prove it works as a **background service** that a program pairs with, and report PASS/FAIL with evidence.
 
 Thought Processor does not speak this API yet; the Processor team is building that now. Until then, **`identity-probe.exe` plays Processor's part**. It is a test client with no UI.
