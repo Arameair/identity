@@ -1,3 +1,7 @@
+## P1 experiment (2026-10-26, branch experiment/p1-feature-foundation-claude-20261026) — still `identity/2-alpha`
+
+Additive; nothing removed. New: `/api/v1/admin*`, `/api/v1/approvals/{id}`, `/api/v1/installations*`, `/api/v1/grants*`, `/api/v1/tickets`, `/api/v1/decisions`, installation-authenticated `/api/v1/installation/*` and `/api/v1/authz/check` (header `X-Installation-ID`, same identity/2 signing), and Identity's approval page (`/approve`, `/api/approval/*`). Signed-POST nonces are now persisted (replay refused across restart). `/api/v1/status` gains `authority.admin` and `authority.p1`. See docs/P1_FEATURE_FOUNDATION_20261026.md.
+
 # Identity API changelog
 
 The API label is reported by `GET /api/health` (`api`) and `GET /api/v1/status` (`api`). Processor should show **INCOMPATIBLE** when the label's major part differs from `identity/1`.

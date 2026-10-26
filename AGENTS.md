@@ -1,5 +1,7 @@
 # AGENTS.md — Identity alpha candidate 2026-10-26 runbook (owner + AI operators, e.g. a Grok bot)
 
+> **On the P1 branch?** This file is the older P0 runbook. For P1 use Thought-Processor `docs/P1/START_HERE.md` and `docs/P1/TEST_P1.md`; Identity's P1 details are in [docs/P1_FEATURE_FOUNDATION_20261026.md](docs/P1_FEATURE_FOUNDATION_20261026.md).
+
 **Goal:** on the owner's **Windows** computer, install this Identity candidate, prove it works as a **background service** that a program pairs with, and report PASS/FAIL with evidence.
 
 Thought Processor does not speak this API yet; the Processor team is building that now. Until then, **`identity-probe.exe` plays Processor's part**. It is a test client with no UI.
