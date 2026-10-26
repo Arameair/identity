@@ -1,118 +1,181 @@
-# AGENTS.md — runbook for AI operators (e.g. a Grok bot)
+# AGENTS.md — Identity alpha candidate 2026-10-26 runbook (owner + AI operators, e.g. a Grok bot)
 
-Goal: on the owner's **Windows** computer, get **Thought Processor** running, **Identity** running, GitHub sign-in completed **by the human**, and the two programs seeing each other read-only. Then report with Copy Diagnostics.
+**Goal:** on the owner's **Windows** computer, install this Identity candidate, prove it works as a **background service** that a program pairs with, and report PASS/FAIL with evidence.
 
-Both repositories are public. Nothing here needs a GitHub token on the command line.
+Thought Processor does not speak this API yet; the Processor team is building that now. Until then, **`identity-probe.exe` plays Processor's part**. It is a test client with no UI.
 
-| Program | Repo | Branch | Port | Profile folder |
-| --- | --- | --- | --- | --- |
-| Thought Processor | `Arameair/Thought-Processor` | `alpha-candidate-20261025` | **7860** | `%USERPROFILE%\tp-alpha` |
-| Identity | `Arameair/identity` | `alpha-candidate-20261025` | **7790** | `%USERPROFILE%\.identity\default` |
+| | |
+| --- | --- |
+| Repo / branch | `Arameair/identity` · `alpha-candidate-20261026` (public, no token needed) |
+| Port | **7790** (the self-test uses 7891, so it doesn't clash) |
+| Profile for this trial | `%USERPROFILE%\.identity\alpha-20261026` (fresh, so old trials don't mix in) |
 
 ## Rules — read first
 
-1. **Never paste, log, or send** anything after `#key=` (Identity's link) or `#code=` (Processor's link), GitHub device codes, tokens, or cookies, in chat, issues, commits or reports. Open those links locally only.
-2. **The human approves GitHub sign-in.** You may click *Connect GitHub* and open the GitHub page. Entering the code and pressing **Authorize** is the owner's action, unless the owner explicitly tells you to do it in a browser already signed in as them.
-3. Each program runs in **its own** terminal window. Stopping one must never stop the other. Don't kill processes you didn't start.
-4. Don't edit `alpha`, `main` or anyone's experiment branches. Report problems; don't "fix" by changing code unless asked.
-5. Never claim a step passed unless you saw the expected result below.
+1. **Never paste, log or send** any of these into chat, issues, commits or reports:
+   - the 8-character **pairing code** (`ABCD-EFGH`)
+   - the GitHub device code
+   - anything after `#key=`
+   - the contents of `.identity-probe\pairing.json`
+   - tokens or cookies
+
+   The tools print none of these except where a person must read them.
+2. **A human approves GitHub sign-in** on github.com. The AI may start it and open the page. The owner enters the code and presses **Authorize**, unless the owner explicitly tells the AI to do it.
+3. Identity runs in **its own window** (window 1). Run commands in window 2. Don't kill processes you didn't start.
+4. Don't edit `alpha`, `main` or other branches. Report problems; don't "fix" code unless asked.
+5. A step passes only if you saw the **Expected** result. Otherwise it's FAIL or NOT RUN.
 
 ## Step 0 — prerequisites
 
 ```powershell
-git --version     # any recent version
-go version        # must be go1.22 or newer
+git --version
+go version        # go1.22 or newer; else install from https://go.dev/dl/ and open a NEW PowerShell
 ```
-If Go is missing: install it from https://go.dev/dl/ (Windows .msi), then open a **new** PowerShell window.
+Close any older Identity window first: an old one on port 7790 makes Step 3 fail with `cannot listen`.
 
-## Step 1 — Thought Processor (terminal window 1)
+## Step 1 — get and build (window 2)
 
 ```powershell
 cd $HOME
-git clone --branch alpha-candidate-20261025 https://github.com/Arameair/Thought-Processor.git
-cd Thought-Processor\processor
-go test ./...
-go build -o thought-processor.exe .
-.\thought-processor.exe -port 7860 -data "$env:USERPROFILE\tp-alpha"
-```
-**Expected:** `go test` prints `ok`; the program prints `Thought Processor 0.1.0-experiment (0ba8bd52face)`, a `run … pid …` line, and an `open : http://127.0.0.1:7860/#code=…` line (private, rule 1). Leave this window open.
-
-Check from another window:
-```powershell
-Invoke-RestMethod http://127.0.0.1:7860/api/health
-```
-**Expected:** `app = thought-processor`, `protocol = thought-processor.diagnostic/0-experimental`.
-
-## Step 2 — Identity (terminal window 2)
-
-```powershell
-cd $HOME
-git clone --branch alpha-candidate-20261025 https://github.com/Arameair/identity.git
-cd identity
+git clone --branch alpha-candidate-20261026 https://github.com/Arameair/identity.git identity-1026
+cd identity-1026
+git log -1 --format="%h %s"
 .\scripts\build-windows.ps1
-.\identity.exe -processor 127.0.0.1:7860
 ```
-If PowerShell blocks the script ("running scripts is disabled"), run the same steps by hand: `go vet ./...`, `go test ./...`, `go build -ldflags "-X main.buildBranch=alpha-candidate-20261025" -o identity.exe .`
+If PowerShell blocks scripts, run the same steps by hand:
+```powershell
+go vet ./... ; go test ./...
+go build -ldflags "-X main.buildBranch=alpha-candidate-20261026" -o identity.exe .
+go build -o identity-probe.exe ./cmd/identity-probe
+```
+**Expected:** every `go test` line says `ok`, and you end up with `identity.exe` and `identity-probe.exe`.
 
-**Expected console lines:**
-- `Identity 0.3.0-alpha  branch alpha-candidate-20261025  commit <sha>`
-- `github  : built into this build (Arameair's GitHub App)`. If it says *no publisher GitHub App built in*, stop: wrong branch or old checkout.
-- `run … pid … port 7790 (loopback only)`
-- `open : http://127.0.0.1:7790/#key=…` (private, rule 1). A browser window opens automatically.
+## Step 2 — automatic self-test (window 2, about 30 seconds)
 
-Check: `Invoke-RestMethod http://127.0.0.1:7790/api/health` → `app = identity`, `version = 0.3.0-alpha`.
+```powershell
+.\identity-probe.exe smoke
+```
+This starts real `identity.exe` processes on throwaway profiles and runs 11 scenarios:
 
-If an old `IDENTITY_GITHUB_CLIENT_ID` environment variable is set in that window, Identity treats it as a *developer override*. That's harmless, but for a clean test run `Remove-Item Env:IDENTITY_GITHUB_CLIENT_ID` first.
+- background mode
+- pairing
+- default-deny
+- clean shutdown
+- restart and reconnect
+- Processor-first start
+- Identity down (fail closed)
+- wrong installation
+- duplicate instance
+- unpair
+- restart after a crash
 
-## Step 3 — first-use setup in the Identity window
+**Expected:** `SMOKE RESULT: PASS`. The last line gives the path of `smoke-report.txt`; **attach that file** to the report. It contains no codes or tokens.
 
-1. **Welcome** → *Begin*.
-2. **GitHub account** → *Connect GitHub*. A GitHub tab opens and the code is copied. **Hand over to the owner** (rule 2): paste the code, *Continue*, *Authorize*.
-   - Expect Identity to show the account **within ~15 seconds** of GitHub's "all set" page.
-   - While waiting, the screen shows *Last checked with GitHub … GitHub says …*.
-   - Use **only** the newest tab, and don't press *Cancel* in between: every new start issues a new code.
-3. **Features** → Thought Processor and Thought Engine show *Availability / Request / Grant*. Grant always says **NOT GRANTED** (correct; no grant service exists yet). Saving a draft is optional and stays **NOT SUBMITTED**.
-4. **Thought Processor** → the address `127.0.0.1:7860` is filled in → *Use this address*. **Expected:** `DETECTED — SELF-REPORTED, UNVERIFIED` and an *Open Thought Processor* button.
-5. **Done** → *Finish setup*. Identity switches to the monitoring view.
+## Step 3 — start Identity for real (window 1)
 
-## Step 4 — Processor sees Identity
+```powershell
+cd $HOME\identity-1026
+.\identity.exe -data "$env:USERPROFILE\.identity\alpha-20261026"
+```
+**Expected console:**
+- `Identity 0.4.0-alpha  branch alpha-candidate-20261026  commit <sha>`
+- `Identity is running in the background. Use it through Thought Processor —`
+- `github  : built into this build (Arameair's GitHub App)`. If it says *no publisher GitHub App built in*, you have the wrong build: stop.
+- `paired  : none yet — … a code will appear HERE`
+- **No browser opens.** The `troubleshooting page` link is private (rule 1) and not needed.
 
-Open Processor's own page with the `#code=` link from window 1 (locally). In its **Identity** card enter `127.0.0.1:7790` → *Save*. **Expected:** `Found · unverified`, "it CLAIMS to be Identity".
+Leave window 1 open.
 
-## Step 5 — independence check
+## Step 4 — pair, as Processor will (window 2)
 
-- Press Ctrl+C in window 1 (Processor). Identity keeps running; within ~10 s its log shows `processor.state_changed … NOT RUNNING`. Start Processor again with the same command: Identity shows `DETECTED` again.
-- Press Ctrl+C in window 2 (Identity). Processor keeps running (`Invoke-RestMethod http://127.0.0.1:7860/api/health` still answers). Start Identity again: same System ID, old log lines still there, GitHub signed out (by design, sign in again).
+```powershell
+.\identity-probe.exe pair
+```
+**Expected:**
+1. Window 1 shows a `PAIRING REQUEST` box with a code.
+2. Window 2 asks you to type the code. Type it from window 1 (rule 1: don't paste it anywhere else).
+3. Window 2 prints `PAIRED as probe_… with Identity installation idn_…`.
 
-## Step 6 — report
+## Step 5 — create an identity and check (window 2)
 
-In Identity press **Copy Diagnostics** and paste it, plus Processor's *Copy Context*, into the report. Both are built to remove codes and tokens; still glance over them before sending. Report each step as **PASS / FAIL / NOT RUN** with what you actually saw.
+```powershell
+.\identity-probe.exe create -name "Tass" -kind companion
+.\identity-probe.exe check
+```
+**Expected:**
+- `CREATED ent_… Tass (companion) — no access granted`.
+- `check` prints `PASS` lines and ends with `RESULT: PASS`. In particular, `authorize defaults to DENIED` must be PASS, because identities start with no access.
+
+## Step 6 — GitHub sign-in through the API (window 2 + owner)
+
+```powershell
+.\identity-probe.exe github
+```
+It prints a GitHub link and a code. **Owner:** open the link, enter the code, press **Authorize**.
+
+**Expected:**
+- `SIGNED IN as <login>` within about 15 seconds of GitHub's "all set" page.
+- Then `.\identity-probe.exe check` shows `thought-engine eligible_to_install=ALLOWED` (your account can see Arameair/Thought-engine) or `NOT_ALLOWED`. Either is a valid result; record which.
+- Eligibility means **install only**. `authorize` must still say DENIED.
+
+## Step 7 — restart and reconnect (C05)
+
+1. Window 1: press **Ctrl+C**. Expected: `Identity stopped.`
+2. Start it again with the Step 3 command. Expected: `paired  : 1 Thought Processor(s) — they reconnect on their own`.
+3. Window 2: `.\identity-probe.exe check`. Expected: `RESULT: PASS`, with **no new code** and the same `idn_…` and `Tass`.
+4. GitHub shows `SIGNED_OUT` again. That is by design: the token is kept in memory only.
+
+## Step 8 — Processor-first start (C01)
+
+1. Window 1: press **Ctrl+C**.
+2. Window 2: run `.\identity-probe.exe check -wait 2m`. It prints `waiting for Identity … AUTHORITY UNAVAILABLE`.
+3. Within 2 minutes, start Identity again in window 1.
+
+**Expected:** window 2 connects by itself and ends `RESULT: PASS`.
+
+## Step 9 — Identity down means fail closed (C06)
+
+1. Window 1: press **Ctrl+C**.
+2. Window 2: run `.\identity-probe.exe check`.
+
+**Expected:** `FAIL Identity reachable AUTHORITY UNAVAILABLE …` with exit code 2. This is the **correct** behaviour: the test passes when you see this. Then start Identity again in window 1.
+
+## Step 10 — shutdown as Processor's "Shut down" choice (C04)
+
+```powershell
+.\identity-probe.exe shutdown
+```
+**Expected:**
+- Window 2 shows `PASS Identity stopped (port closed)`.
+- Window 1 shows `Identity stopped.`
+- The file `%USERPROFILE%\.identity\alpha-20261026\runtime\service.json` is gone.
+
+## Step 11 — report
+
+Report each step as **PASS / FAIL / NOT RUN**, with what you actually saw. Include:
+- the commit from Step 1 (`git log -1`)
+- `smoke-report.txt` from Step 2
+- the `check` output from Steps 5–8
+
+Optional, for deeper troubleshooting: open the troubleshooting link from window 1 **locally**, press **Copy Diagnostics**, and attach the result (secrets are removed; glance over it anyway).
 
 ## Troubleshooting
 
 | You see | Meaning / fix |
 | --- | --- |
-| `cannot listen on 127.0.0.1:7790` | Something already uses the port (often an older Identity). Close it, or add `-port 7791`. |
-| `profile in use` | Another Identity already runs with that profile. Use it, or close it first. |
-| GitHub chip says *NO GITHUB APP IN THIS BUILD* | Wrong branch/old build. `git log -1` must show the alpha-candidate commit; rebuild. |
-| GitHub chip shows *your own GitHub App* | This profile saved a tester's own app earlier. *Manage → Account → Stop using it* returns to the built-in app. |
-| GitHub "all set" but Identity still *WAITING* | An older code was approved. Use the code on screen in the newest tab. Diagnostics line `waiting: … github_said=…` tells you GitHub's last answer. |
-| `Can't get an answer from GitHub … attempt N` | Network/proxy/firewall blocking `github.com` from Identity. Report the diagnostics. |
+| `cannot listen on 127.0.0.1:7790` | An older Identity (or something else) is using the port. Close it, or add `-port 7792` and give the probe `-url http://127.0.0.1:7792`. |
+| `profile in use` | Another Identity already uses that `-data` folder. Close it first. |
+| `smoke` says `something already answers on port 7891` | Run `.\identity-probe.exe smoke -port 7893`. |
+| `pair` says `pairing failed: … wrong or expired` | Run `pair` again and use the **newest** code in window 1. After 5 wrong codes, wait 1 minute. |
+| `check` says `token refused` | This Identity doesn't know the probe: you unpaired, or used a different `-data` folder. Run `pair` again. |
+| `check` says `NOT signed by the paired Identity` / `DIFFERENT Identity installation` | Something other than the paired Identity answered. Report it; don't continue. |
+| GitHub stays `WAITING` | Approve the **newest** code. Network problems show as `github_said=…` in the next `check`. |
 | *GitHub sign-in isn't switched on for this app* | Owner: enable **Device Flow** in the GitHub App settings. |
-| *GitHub doesn't recognise this app's Client ID* | Wrong/old build, or the app was deleted. Report it. |
-| Processor shows `WRONG SERVICE` / `NOT RUNNING` in Identity | Check the address and that window 1 is still running. |
-| Identity page says "This window isn't signed in" | Identity restarted; open the **new** `#key=` link from window 2. |
+| Window 1 shows a pairing box you didn't ask for | Another local program asked to pair. Ignore it; the code expires in 5 minutes. |
 
-## Step 7 (experiment branches only) — install Thought Engine through Processor
+## Not in scope (don't try)
 
-Use Identity `experiment/engine-access-pairing-20261026` and Processor `experiment/install-thought-engine-20261026` instead of the alpha candidates.
-1. In Identity: *Manage → Thought Processor → Pair Thought Processor*. A code like `ABCD-EFGH` appears (valid 5 minutes). It's private, so don't paste it into chat.
-2. In Processor's **Thought Engine** card, type that code → *Pair with Identity*. **Expected:** "Paired", then Identity's answer: **ALLOWED** (the GitHub account can see Arameair/Thought-engine) or **NOT ALLOWED** plus what to do.
-3. If allowed → **Install Thought Engine**. **Expected:** "Installed", with version, SHA-256 and folder. Nothing is started.
-4. Report each as PASS/FAIL with Processor's *Copy context* and Identity's *Copy Diagnostics*.
-
-Needs a published Thought-engine release (tag `engine-v…`). Without one, Processor says "Thought Engine has no published version yet."
-
-## Not in scope here (don't try to do these)
-
-Starting the Thought Engine, Identity-granted permissions, Processor start/attach/stop of the Engine. These are design topics; see Thought-Processor's `docs/INSTALL_AUTHORITY_DISCUSSION_2026-10-25.md`.
+- Granting permissions (none exist yet).
+- Starting or stopping Thought Engine.
+- Thought Processor's UI for this API (the Processor team's work).
+- The older Engine install demo, which lives on `experiment/engine-access-pairing-20261026`.

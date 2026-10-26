@@ -102,11 +102,11 @@ func (a *App) EngineAccess(ctx context.Context, fresh bool) Decision {
 		DecisionID: "dec_" + profile.RandHex(8), IdentitySystemID: a.Store.Profile.SystemID}
 	switch {
 	case gv.Status == github.Expired:
-		d.State, d.Reason, d.NextStep = SignInExpire, "Your GitHub sign-in in Identity expired.", "Open Identity and press Connect GitHub."
+		d.State, d.Reason, d.NextStep = SignInExpire, "Your GitHub sign-in in Identity expired.", "Connect GitHub from Thought Processor (Identity → Connect GitHub)."
 	case gv.Status != github.Verified:
 		d.State = NotSignedIn
 		d.Reason = "Identity isn't signed in to GitHub right now. It forgets the sign-in when it restarts."
-		d.NextStep = "Open Identity and press Connect GitHub."
+		d.NextStep = "Connect GitHub from Thought Processor (Identity → Connect GitHub)."
 	default:
 		cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		rc, acct, err := a.GH.CheckRepo(cctx, repo)
@@ -116,9 +116,9 @@ func (a *App) EngineAccess(ctx context.Context, fresh bool) Decision {
 		}
 		switch {
 		case errors.Is(err, github.ErrNotSignedIn):
-			d.State, d.Reason, d.NextStep = NotSignedIn, "Identity isn't signed in to GitHub right now.", "Open Identity and press Connect GitHub."
+			d.State, d.Reason, d.NextStep = NotSignedIn, "Identity isn't signed in to GitHub right now.", "Connect GitHub from Thought Processor (Identity → Connect GitHub)."
 		case errors.Is(err, github.ErrSignInRejected):
-			d.State, d.Reason, d.NextStep = SignInExpire, "GitHub no longer accepts Identity's sign-in (it expired or was revoked).", "Open Identity and press Connect GitHub."
+			d.State, d.Reason, d.NextStep = SignInExpire, "GitHub no longer accepts Identity's sign-in (it expired or was revoked).", "Connect GitHub from Thought Processor (Identity → Connect GitHub)."
 		case rc.Result == "VISIBLE":
 			d.State, d.Allowed = Allowed, true
 			d.Reason = fmt.Sprintf("Your GitHub account %s can see %s.", acct.Login, repo)
