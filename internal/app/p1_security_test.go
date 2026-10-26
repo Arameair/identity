@@ -64,3 +64,24 @@ func TestP1OperatorSessionExpires(t *testing.T) {
 		t.Fatal("expired session was retained")
 	}
 }
+
+func TestP1ReplayStorageFailureIsUnavailableNotUnauthorized(t *testing.T) {
+	dir := t.TempDir()
+	h, con := startV1(t, dir, github.Config{WebBase: github.RealWeb, APIBase: github.RealAPI})
+	defer h.stop()
+	token, _ := h.pairV1(con, "tp_ledger")
+	target := filepath.Join(dir, "paired-nonces.json")
+	if err := os.Mkdir(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	st, _, body := h.machine("POST", "/api/v1/identities", `{"name":"A","kind":"person"}`, token)
+	if st != 503 {
+		t.Fatalf("replay ledger failure returned %d (body: %s), expected 503", st, body)
+	}
+	if err := os.Remove(target); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := h.v1("POST", "/api/v1/identities", `{"name":"A","kind":"person"}`, token); st != 201 {
+		t.Fatalf("signed API could not resume after ledger recovery: %d", st)
+	}
+}
