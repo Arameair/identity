@@ -12,7 +12,7 @@
 
 The owner requested that Grok and other assistants be able to provide independent architectural feedback. Use [Review](REVIEW.md) and [issue #14](https://github.com/Arameair/identity/issues/14) to preserve alternatives and counterarguments, especially around Identity's first run, organized feature-owned storage, auto-registration and optional background startup.
 
-The existing [end-user design notes](END_USER_DESIGN_NOTES.md) are deliberately kept as an independent perspective, **not silently recast as an accepted requirement**. A proposal for no background service can be retained alongside a proposal for an opt-in background service until the owner decides. If feedback was written by Grok, name Grok only when provenance is confirmed by the contributor or owner; do not attribute text merely because it appears in the discussion.
+The existing [end-user design notes](archive/END_USER_DESIGN_NOTES_20261025.md) are deliberately kept as an independent perspective, **not silently recast as an accepted requirement**. A proposal for no background service can be retained alongside a proposal for an opt-in background service until the owner decides. If feedback was written by Grok, name Grok only when provenance is confirmed by the contributor or owner; do not attribute text merely because it appears in the discussion.
 
 ## Verification rules
 
