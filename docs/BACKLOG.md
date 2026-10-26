@@ -1,6 +1,6 @@
 # Identity — active work and archived backlog
 
-**Reviewed 2026-10-26.** This is a navigation/triage summary, **not** an acceptance or promotion decision. Issues and older branches remain available through GitHub history even when closed.
+**Verified 2026-10-26:** **4 open issues (#9, #14, #15, #19); 10 historical issues closed as `not_planned` (#1, #2, #3, #5, #6, #8, #10, #16, #17, #18); 5 historical pull requests closed without merge (#4, #7, #11, #12, #13).** These closures are backlog triage, **not** claims that the prototypes passed acceptance. GitHub retains the discussions and source branches.
 
 ## Active issues (one place to start)
 
@@ -11,9 +11,9 @@
 | [#15 — Real authorization enforcement](https://github.com/Arameair/identity/issues/15) | Design and prove actual authenticated source → Thought Engine grant checks, revocation and outage handling. | Install permission, runtime data access and Engine-local toggles are different things. |
 | [#19 — Current candidate/owner acceptance](https://github.com/Arameair/identity/issues/19) | Collect actual owner clean-machine trials and fix remaining new-user friction. | Do not mark Linux fixture, candidate code, or self-reported health as approved Windows end-to-end behavior. |
 
-## What was superseded (history retained)
+## Closed historical issues (history retained)
 
-These old issues describe historical prototypes, duplicated work or a launch model superseded by the **Processor-first human interface** decision; closing is a **triage outcome, not a claim of successful completion**.
+All ten issues in this section are **confirmed closed as `not_planned`**. They describe historical prototypes, duplicated work or a launch model superseded by the **Processor-first human interface** decision. **None was marked `completed`; unresolved requirements remain on the four active tracking issues.**
 
 - **#1, #5, #6 and #16:** Identity-first wizard, automatic Thought Controller launch, or Identity-led "Start Experience" flows. Preserve for research; use [current first-run direction](FIRST_RUN.md) and active #14 for any new lifecycle decision.
 - **#2 and #10:** earlier local-card / GitHub-CLI experiments and acceptance checklists; preserve test evidence. Follow the current #19 candidate and do not infer that the original owner tests passed.
@@ -21,7 +21,9 @@ These old issues describe historical prototypes, duplicated work or a launch mod
 - **#8:** historical creation of the separate Thought repository; current engine selection and cognitive feature design belong in the appropriate project and cross-repo architecture review.
 - **#17 and #18:** October 25 GitHub polling failure and sign-in/shipping trial notes. The candidate reports fixes, but unresolved real-user regression and release acceptance remain under #19.
 
-The five old draft pull requests **#4, #7, #11, #12 and #13** were unmerged experiments based on earlier architecture. They should remain available as historical comparisons, not as pending proposals to merge into today's documentation-only Alpha.
+## Closed historical pull requests
+
+**All five are confirmed closed without merge**, with source branches and review histories preserved: [#4](https://github.com/Arameair/identity/pull/4), [#7](https://github.com/Arameair/identity/pull/7), [#11](https://github.com/Arameair/identity/pull/11), [#12](https://github.com/Arameair/identity/pull/12), and [#13](https://github.com/Arameair/identity/pull/13). They were earlier experiments, not approved changes to `alpha`, `stable` or `main`.
 
 ## Cross-repo decisions that must stay consistent
 
