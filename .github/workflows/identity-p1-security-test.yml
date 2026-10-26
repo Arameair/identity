@@ -19,11 +19,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Format for validation and display changes
+      - name: Format check
         shell: bash
         run: |
-          gofmt -w internal/app/apiv1.go internal/app/session.go internal/app/p1_security_test.go internal/pairing/pairing.go internal/pairing/p1_security_test.go
-          git diff -- internal/app/apiv1.go internal/app/session.go internal/app/p1_security_test.go internal/pairing/pairing.go internal/pairing/p1_security_test.go
+          files="$(gofmt -l internal/app/apiv1.go internal/app/session.go internal/app/p1_security_test.go internal/pairing/pairing.go internal/pairing/p1_security_test.go)"
+          if [ -n "$files" ]; then printf 'Unformatted Go files:\\n%s\\n' "$files"; exit 1; fi
       - name: Vet
         run: go vet ./...
       - name: Tests
