@@ -31,7 +31,7 @@
 
 ## Unresolved reviewer input
 
-The [end-user notes](END_USER_DESIGN_NOTES.md) recommend *one folder, one process* and **no background service** for the first usable product. This is useful for a minimalist prototype but is **not accepted as a universal ecosystem constraint**. Separately owned storage **is** owner-confirmed. The background service versus manual startup choice remains open and is specifically [under independent review](https://github.com/Arameair/identity/issues/14).
+The [end-user notes](archive/END_USER_DESIGN_NOTES_20261025.md) recommend *one folder, one process* and **no background service** for the first usable product. This is useful for a minimalist prototype but is **not accepted as a universal ecosystem constraint**. Separately owned storage **is** owner-confirmed. The background service versus manual startup choice remains open and is specifically [under independent review](https://github.com/Arameair/identity/issues/14).
 
 The outside-user notes also propose a Thought Engine readiness section on the default **Identity** dashboard. That UI placement is superseded by **D-08**: if useful, the feature's status belongs in **Thought Processor**. This does not approve installing or requiring Thought Engine.
 
