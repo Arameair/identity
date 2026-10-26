@@ -1,47 +1,28 @@
 # Identity documentation
 
-**Updated:** October 25, 2026 · [Project home](../README.md) · [Prototype status](STATUS.md)
+**Current scope:** [Identity](../README.md) is the independent identity/authorization authority; [Thought Processor](https://github.com/Arameair/Thought-Processor) is the intended user and administrator interface. **No production security or released runnable application is claimed.**
 
-**Guiding principle:** People and administrators interact through **Thought Processor**, while Identity independently governs identities, relationships and permissions. Each feature owns its actual work and data. This repository documents both a **longer-term identity/security architecture** and a **working-in-progress local Go prototype**. Do not confuse the two.
+## Read these first
 
-## New to the project?
-
-| Start here | What you will learn |
+| Document | Why it matters |
 | --- | --- |
-| [Main project overview](../README.md) | Problem, **Processor-first human experience**, system boundaries and current progress |
-| **[Test the experimental Identity subsystem](TRY_THE_PROTOTYPE.md)** | Git / Go / PowerShell commands for the existing Identity-first debug candidate; **not** final user onboarding |
-| **[Engineering case study](PROJECT_JOURNEY.md)** | Problem statement, constraints, design tradeoffs, iterations, results and outstanding gaps |
-| [Status and branch ledger](STATUS.md) | Precisely what has source code, fixtures, real-runtime evidence or owner acceptance |
+| [Architecture](ARCHITECTURE.md) | Component responsibilities and the security boundary between Identity, Processor, and independent features. |
+| [Decisions](DECISIONS.md) | Owner-approved design choices versus unresolved questions. |
+| [Status](STATUS.md) | Tested facts, candidate branches, blockers, and release state. |
+| [First run](FIRST_RUN.md) | Intended Processor-first experience, **not yet implemented end-to-end**. |
+| [Engineering case study](PROJECT_JOURNEY.md) | Project history, tradeoffs, evidence, and portfolio narrative. |
 
-## Architecture and decisions
+## Build, evaluate, and review
 
-| Document | Purpose |
-| --- | --- |
-| [Vision](VISION.md) | Why Identity is separate from thought, memory and other optional services |
-| [Identity-first model](IDENTITY_FIRST_MODEL.md) | Entity, feature, service and runtime distinctions |
-| [Architecture](ARCHITECTURE.md) | Identity/Processor/feature responsibilities and conceptual integration flow |
-| [First-run target](FIRST_RUN.md) | **Thought Processor-led** administrator, restore and zero-feature experience; **not yet implemented end-to-end** |
-| [Storage governance](STORAGE.md) | Centrally organized references, independently owned feature data |
-| [Security](SECURITY.md) | Actual prototype limitations, credentials, authentication and missing grant enforcement |
-| [Proposed interfaces](INTERFACES.md) | Forward-looking service enrollment and authorization contracts, **not live APIs** |
-| [Decision register](DECISIONS.md) | Owner-selected architectural direction and unresolved choices |
-| [Independent review](REVIEW.md) | Contrasting opinions and review methods |
+[Developer-only prototype trial](TRY_THE_PROTOTYPE.md) · [Roadmap](ROADMAP.md) · [Security](SECURITY.md) · [Branch workflow](WORKFLOW.md) · [Experiment report template](EXPERIMENT_TEMPLATE.md)
 
-## Engineering workflow and evidence
+## Detailed reference material
 
-| Document | Purpose |
-| --- | --- |
-| [Roadmap](ROADMAP.md) | Small acceptance gates and measurable next step |
-| [Workflow](WORKFLOW.md) | Start functional experiments from Alpha; owner controls promotion |
-| [Experiment template](EXPERIMENT_TEMPLATE.md) | Version, environment, run evidence, failure, side effects and rollback report |
-| [AI collaboration](AI_COLLABORATION.md) | Honest authorship and source/test verification |
-| [Original user-design critique](END_USER_DESIGN_NOTES.md) | Historical independent proposal, not silently promoted into a requirement |
+These documents remain available for deeper review but are **not separate competing requirements**:
 
-## Primary source and trial evidence
+- [Vision](VISION.md) and [Identity-first authority model](IDENTITY_FIRST_MODEL.md).
+- [Storage ownership](STORAGE.md) and [proposed interfaces](INTERFACES.md).
+- [Independent review](REVIEW.md) and [AI collaboration rules](AI_COLLABORATION.md).
+- [Archived October 25 end-user critique](archive/END_USER_DESIGN_NOTES_20261025.md) — preserved history; its Identity-first UI recommendation is superseded.
 
-- [October 25 Identity Alpha candidate](https://github.com/Arameair/identity/tree/alpha-candidate-20261025) — runnable candidate with code, tests and its own [operator runbook](https://github.com/Arameair/identity/blob/alpha-candidate-20261025/AGENTS.md). **Promotion pending; its normal-user UI location contradicts the Processor-first target.**
-- [Claude Prototype B evidence](https://github.com/Arameair/identity/blob/experiment/identity-home-claude-20261025/docs/HOME_TRIAL_EVIDENCE_CLAUDE.md) — development-Linux process tests, separately marked GitHub fixtures and explicit missing owner Windows test.
-- [Owner home-trial acceptance card](https://github.com/Arameair/identity/blob/experiment/identity-consolidated-home-trial-20261025/docs/HOME_TRIAL_ACCEPTANCE_2026-10-25.md) — what must be observed before calling the work accepted.
-- [Open first-run / storage review](https://github.com/Arameair/identity/issues/14) — record critique and alternatives without treating comments as decisions.
-
-**Branch note:** `main` currently contains documentation rather than the prototype executable. Functional work belongs in isolated branches based on `alpha`; no documentation update approves code or moves a release lane.
+**Reading rule:** When an older suggestion disagrees with a recorded owner decision, use [DECISIONS.md](DECISIONS.md) and identify the change explicitly. If implementation and documentation differ, [STATUS.md](STATUS.md) and verifiable branch evidence describe what exists; neither implies owner acceptance.
