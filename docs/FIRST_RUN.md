@@ -1,6 +1,6 @@
 # First run — Thought Processor is the normal interface (launch order flexible)
 
-**Status:** intended user experience and security acceptance criteria; **not fully implemented**. Reviewed 2026-10-26. Existing experimental Identity candidates still open their *own* setup/monitor browser UI. That behavior is a prototype/debug path, **not the target experience**. See [current status](STATUS.md) and [test instructions](TRY_THE_PROTOTYPE.md).
+**Status · October 27, 2026:** Intended full user experience and security acceptance criteria; **not implemented end-to-end**. P0 Alpha has authenticated Processor–Identity pairing. The P1 cleanup experiment adds Admin/grants and the separate Identity approval page for a pinned fixture, but is not owner-accepted as the finished experience. The older Identity-owned setup/monitor wizard is a diagnostic path. See [status](STATUS.md), [current P1 trial](https://github.com/Arameair/Thought-Processor/blob/experiment/p1-cleanup-claude-20261026/docs/P1/START_HERE.md), and [historical subsystem test](TRY_THE_PROTOTYPE.md).
 
 ## One human-facing application
 
@@ -16,7 +16,7 @@ Identity must remain a usable, independently running **service** even when Thoug
 - First operator-approved **service pairing** establishes peer authenticity; subsequent restarts reconnect automatically using securely stored scoped credentials. Pairing does not imply permission to access information sources.
 - An **explicit Processor application exit** should ask **Shut down managed workspace (selected by default)** or **Keep services running**. A controlled shutdown verifies owned process and child-process exit, reports leftovers, and never kills unrelated services without separate permission. Closing a browser tab is not necessarily a Processor application exit.
 - When Identity is unreachable, **new protected actions and queued protected dispatch fail closed**; no offline grace/cached allowance in v1. Independent processes can remain running for safe status and diagnostics.
-- These are design requirements; no reliable process-supervisor, secure pairing, or receiver-enforced grant implementation is proven by this page.
+- These are system-level design requirements. P0 pairing and P1 fixture authorization have experimental implementations, but this document does not establish a product-grade process supervisor, universal receiving-service enforcement or owner acceptance.
 
 See [cross-repository decisions](CROSS_REPO_DECISIONS_2026-10-26.md).
 
