@@ -1,6 +1,6 @@
 # Design decisions and unresolved questions
 
-**Reviewed:** 2026-10-26. Keep **owner-selected direction**, **independent review**, and **tested behavior** separate. This register is not proof that any new cross-service integrations work.
+**Reviewed:** 2026-10-27. Keep **owner-selected direction**, **independent review**, and **tested behavior** separate. This register is not proof that any new cross-service integrations work.
 
 ## Confirmed owner direction
 
@@ -27,7 +27,16 @@ The authoritative cross-repository register is [Cross-repo decisions](CROSS_REPO
 - **D-14 — Memory later:** Memory is a wholly separate optional future feature. No Memory build or contract is within this first Processor prototype.
 - **D-15 — Sequence:** Identity concept → Thought Processor system-wide UX now → Thought Engine next. No permanent selection between the `Thought` and `Thought-engine` experiments has been made.
 
-**Evidence status:** These are owner-approved **design decisions only**. The code, authentication protocol, runtime tests and owner Alpha acceptance are not established by this list.
+**Evidence status:** These are owner-approved **design decisions**, not automatically implemented functionality. P0 Alpha now includes authenticated Processor–Identity pairing; P1's unpromoted experiment has a limited Admin/install/grant mechanism and tests against one deterministic fixture. The actual Engine/Worker integration and P1 owner acceptance remain incomplete. See [status](STATUS.md).
+
+## October 27 owner-confirmed additions
+
+- **D-16 — Canonical identity authority:** Identity creates and owns one durable identity record/ID. Thought Engine attaches thoughts, history and preferences by that ID and must not mint a competing canonical identity.
+- **D-17 — Autonomous within grants:** An identity can recommend tools/features and Processor may create a disconnected identity with **zero initial grants**. Such recommendations do not authorize install, execute or data access. Previously approved valid grants can be used without asking the owner on every call; new or broader capabilities require separate authenticated approval.
+- **D-18 — No Identity bypass:** Identity alone decides authorization for protected work, even if the request arrives through a legacy local endpoint, an Engine attach token, or direct Worker call. The receiving feature must enforce the decision. If Identity is unavailable, new protected operations and queued protected dispatch fail closed. Local on/off preferences may restrict work, never authorize it.
+- **D-19 — Reasoning/worker boundary:** Processor coordinates, Engine handles general reasoning, Fast AI Worker is the intended replaceable AI-processing utility behind Engine; specialized features may have different workers. Engine installation that bundles a required Worker is **a proposal**, not a confirmed installation rule.
+
+Evidence: [cross-repo owner discussion](https://github.com/Arameair/Thought-Processor/issues/20) · [Identity grant design](https://github.com/Arameair/identity/issues/15) · [Engine handoff](https://github.com/Arameair/Thought-engine/issues/3) · [Worker handoff](https://github.com/Arameair/fast-ai-worker/issues/3).
 
 ## Pending architecture choices
 
