@@ -1,14 +1,14 @@
 # Security and account-management boundaries
 
-**Reviewed:** 2026-10-25. **Security status: experimental.** This project does **not** yet provide a verified identity provider, protected administrator authority, authenticated Identity-to-feature pairing, or enforced multi-service grants. Do not use the prototype to secure sensitive data or production systems.
+**Reviewed:** 2026-10-27. **Security status: experimental, not audited.** P0 Alpha implements authenticated Processor–Identity pairing, and an unpromoted P1 experiment implements Admin approval, installation identities, scoped grants, and receiver checks for a **pinned deterministic local fixture**. This is **not** production-grade multi-feature security; do not use these prototypes to secure sensitive data or production systems.
 
 [Current evidence](STATUS.md) · [Prototype trial](TRY_THE_PROTOTYPE.md) · [Planned contracts](INTERFACES.md)
 
 ## Processor-facing trust boundary
 
-**Human approvals and identity/account administration belong in Thought Processor**, but Processor must **not** become the authority that signs grants or a shared credential store. It must authenticate to Identity for authorized state and commands, bind each action to the real user/administrator and exact scope, and display Identity's verified outcome. Identity remains independently operational; a direct Identity browser wizard in the October 25 candidate is an experimental/debug interface only.
+**The normal human administrative experience belongs in Thought Processor**, but Processor must **not** become the authority that signs grants or a shared credential store. In the P1 experiment, elevated approvals are performed in Identity's own approval page with the Admin authenticator, never delegated to a Processor toggle. It must authenticate to Identity for authorized state and commands, bind each action to the real user/administrator and exact scope, and display Identity's verified outcome. Identity remains independently operational; a direct Identity browser wizard in the October 25 candidate is an experimental/debug interface only.
 
-**Not implemented:** secure Processor-to-Identity administrative protocol, initial mutual trust establishment, or destination-enforced Identity-issued grants. A Processor UI card showing Identity as found does **not** solve this security boundary.
+**What is implemented:** P0 authenticated pairing and signed exchanges; P1 experiment operation-bound approvals, separate per-installation credentials, and live receiver checks for the trusted test fixture. **Not proven:** general third-party feature enrollment, actual Engine/Worker receiver enforcement, secure OS isolation, or owner-accepted production recovery. A Processor UI card merely showing 'found' remains untrusted.
 
 ## Trust principles
 
@@ -38,7 +38,7 @@ A **Client ID is public** and can be compiled into a distributed app. **Client s
 
 The candidate starts a local server bound to `127.0.0.1`, provides local browser access, and probes Processor's health/status endpoint read-only. Local binding, private browser fragments and redaction reduce some exposure, but **none establishes secure mutual authentication for separate services**.
 
-Before cross-service grants are real, test at least: service identity proof, administrative approval, scope validation, replay prevention, expiration, revocation, offline behavior, compatible protocol versions, actor isolation and enforcement in the destination service.
+Before calling any **additional** feature secure, repeat real-process tests for caller authentication, administrative approval, scope validation, replay prevention, expiration, revocation, Identity outages, compatibility, actor isolation, and **the destination's own enforcement**. The P1 fixture tests do not prove the Engine and Worker have migrated.
 
 Never forward a local app's private `#key=` or Processor `#code=` fragment. Use the current run's link only in your own local browser. Review diagnostics for private material **even if redaction tests have passed**.
 
@@ -49,8 +49,12 @@ Identity is intended to organize location/ownership references for independently
 - Prefer distinct profiles for each experiment and application.
 - Stop processes before changing or deleting a profile, and back up any data you want to preserve.
 - No feature should receive a shared master token by default.
-- Identity being stopped must not magically authorize a new service; any permitted offline behavior requires a bounded and tested policy.
+- **Fail closed for v1:** when Identity is unavailable, new protected operations and protected queued work must not proceed. Safe local history views and non-sensitive standalone checks are different from protected execution.
 - Do not store private user data or secrets in repository checkouts.
+
+## P1 findings and unresolved threats
+
+The [P1 cleanup report](https://github.com/Arameair/Thought-Processor/blob/experiment/p1-cleanup-claude-20261026/docs/P1/P1_CLEANUP_REPORT_20261026.md) records Claude's real-process and adversarial test evidence. It is not an independent certification. Relevant limits include no OS separation between same-user processes, a passphrase Admin authenticator instead of Windows Hello/passkeys, recovery deferred, digest pins without genuine signed publisher provenance, and no completed real Engine/Worker permission checks. The owner's P1 hands-on acceptance is outstanding. [Current branch/status ledger](STATUS.md).
 
 ## Required before any security or production claim
 
