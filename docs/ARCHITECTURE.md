@@ -4,13 +4,13 @@
 
 > **Identity owns the organization and authority of the system. Each feature owns its actual work.**
 
-**Status:** Architecture and integration direction, **not implemented multi-service authorization**. **Owner correction (2026-10-25): Thought Processor is the normal human/administrator interface; Identity is the independent authority service behind it.** The current experimental Identity browser wizard does not match that target interaction boundary. [Current status](STATUS.md).
+**Status · October 27, 2026:** The owner-promoted P0 Alpha implements authenticated Processor–Identity pairing, while the unpromoted P1 cleanup experiment implements scoped grants and live checks **for a deterministic test fixture**. The complete multi-feature, cross-service authorization design remains unverified; see [current evidence](STATUS.md). Thought Processor is the normal human interface; Identity owns authority.
 
 ## Human interface versus service authority
 
-**The person or administrator opens Thought Processor.** Thought Processor presents the system: setup, identities, account connections, available features, requested approvals, health, logs and diagnostics. It requests authoritative information and operations from **Identity**, over a future authenticated service interface. Identity does not become a second normal user dashboard. A developer-only direct Identity diagnostics/recovery path is acceptable if clearly scoped.
+**The person or administrator opens Thought Processor.** Thought Processor presents the system: setup, identities, account connections, available features, requested approvals, health, logs and diagnostics. It requests authoritative information and operations from **Identity** via an authenticated interface implemented in P0 for pairing and extended in the P1 experiment for limited grants. Identity does not become a second normal user dashboard. A developer-only direct Identity diagnostics/recovery path is acceptable if clearly scoped.
 
-**Important:** Thought Processor is **the control surface**, not a credential vault or the authority that issues grants. Identity must run independently and receiving features must enforce granted permissions. The UI-to-Identity protocol, initial trust bootstrap and secure consent flow are **not yet implemented**; merely reversing a discovery arrow or embedding a page would not implement them. Processor is not a mandatory data-path proxy.
+**Important:** Thought Processor is **the control surface**, not a credential vault or the authority that issues grants. Identity must run independently and receiving features must enforce granted permissions. P0 demonstrates authenticated pairing, and P1 provides an experimental Admin enrollment and operation-specific approval flow. Neither constitutes production-grade bootstrap, recovery, or universal feature enforcement; merely reversing a discovery arrow or embedding a page cannot substitute for them. Processor is not a mandatory data-path proxy.
 
 ## Three different layers
 
@@ -38,7 +38,7 @@
                                   valid permissions locally
 ```
 
-This diagram shows **intended responsibilities**, not functioning integrations. The Processor-to-Identity authenticated management channel and enforced grant flows are **not implemented**. Data does not have to route through Processor or Identity.
+This diagram shows **intended responsibilities**. P0 implements authenticated Processor pairing; P1 demonstrates receiver-enforced grants for one explicitly trusted local test fixture. Engine, Fast AI Worker and general third-party feature enforcement are **not verified**. Data does not have to route through Processor or Identity.
 
 Features may send data directly to one another when the receiving feature enforces valid authorization. Processor is the **human control point**, not a mandatory relay for independent feature work.
 
@@ -96,15 +96,15 @@ This is a **logical example**, not a mandatory physical directory or a claim tha
 
 - The **Identity service** must work with zero optional cognitive features and without GitHub sign-in; normal human interaction happens through **Thought Processor** when available. No separate Identity browser dashboard is required for product onboarding. [First-run proposal](FIRST_RUN.md).
 - An optional feature can be stopped without deleting its durable service registration or corrupting another feature.
-- Closing Processor does not stop Identity or source services or revoke their previously valid grants.
-- If Identity is unavailable, no **new** privilege should be granted. Previously authorized independent work may continue only under a tested, bounded offline policy.
+- Closing a browser tab is not consent to stop services. On an **explicit application exit**, the owner-selected design asks whether to shut down managed workspace processes (default) or keep them running; only system-owned processes may be stopped through an approved lifecycle controller.
+- If Identity is unavailable, the selected v1 policy is to **fail closed** for new protected operations and queued protected dispatch. Existing local history viewing and standalone non-sensitive health checks may continue; no cached grant/offline grace is authorized.
 - If a service proposes a direction for additional observation, it cannot create a new grant or start an uncontrolled program.
 - Experimental `PC_DATA` and branch checkouts must stay distinct from durable production data.
 - Backups, migrations, restore, recovery and credential storage must be tested before the system is described as a secure multi-service provider.
 
 ## Security reality
 
-Different experiments use different GitHub approaches: the older local manager checks an existing `gh` CLI session, while the October 25 Go candidate implements a GitHub App device-flow sign-in path. **Neither is proof of Identity-issued feature grants.** Local Processor port checks remain discovery, **not** authenticated registration. Loopback binding and browser session checks do not create a trusted inter-service channel by themselves. See [Security](SECURITY.md), [Interfaces](INTERFACES.md) and [Status](STATUS.md).
+Historical GitHub login experiments include an existing `gh` CLI session and a GitHub App device flow. GitHub login alone is **not** a feature grant. P0 `identity/2` pairing is distinct from unverified port discovery, and P1 shows grants only with a pinned deterministic fixture. Loopback binding and browser session checks do not create OS process isolation or universal feature authorization. See [Security](SECURITY.md), [Interfaces](INTERFACES.md) and [Status](STATUS.md).
 
 ## Sources of direction and unresolved questions
 
