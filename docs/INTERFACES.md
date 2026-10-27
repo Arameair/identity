@@ -1,12 +1,12 @@
 # Interfaces and future contracts
 
-**This document defines questions and proposed contracts, not APIs that are currently implemented.** The experimental Go app has its own limited local HTTP endpoints. Do not assume other repositories accept the messages described here.
+**Historical proposals, not a current API specification.** This document captures interface questions and suggested contracts. Since it was drafted, P0 Alpha implemented `identity/2` paired signed APIs and the unpromoted P1 cleanup experiment added scoped grant and installation endpoints for a pinned deterministic fixture. **Do not implement against sketches here**; consult actual branch source, [status](STATUS.md) and [P1 design evidence](https://github.com/Arameair/Thought-Processor/issues/20). Other features have not all adopted P1.
 
 ## Human-facing management boundary (planned)
 
 **Thought Processor is the sole normal user/administrator interface.** Identity must expose authenticated, scope-checked service operations that Processor can use to **show** trusted identity and account state, **request** administrative decisions, and **display** the confirmed outcome. Processor should not own a second source of truth for identities/grants, and Identity should not require a separate dashboard for everyday setup or feature management. All flows need traceable request IDs, explicit actor authority, safe consent handling and clear unavailable/denied states.
 
-This integration is **not implemented** in the October 25 candidate. The candidate's direct Identity wizard and unauthenticated health detection are developer tests, not Processor-to-Identity management calls. The first milestone should prove a minimally authenticated **read-only status** request before any account or grant mutation.
+The **October 25** candidate lacked this authenticated integration. **Later P0** pairing and **P1** narrow management/grant mechanisms supersede that historical limitation, but the complete Processor-led product and Engine/Worker enforcement still require owner acceptance.
 
 ## Identity cards
 
@@ -31,7 +31,7 @@ The receiving service must be able to determine which immutable identity has a g
 
 Expected states should distinguish **NOT INSTALLED**, **INSTALLED / DISABLED**, **ENABLED / WAITING**, **AUTHORIZED / READY**, **REVOKED**, **INCOMPATIBLE**, and **UNAVAILABLE**.
 
-## Feature self-registration (owner-selected direction; NOT IMPLEMENTED)
+## Feature self-registration (owner-selected direction; partially prototyped in P1 for a trusted fixture)
 
 Independent services should be able to start first and **request enrollment or renewed registration** with Identity. Proposed records distinguish durable `service_id`, execution-scoped `instance_id`, installation/owner association, protocol/capability version, bounded runtime endpoint and current provenance. The actual wire format and trust mechanism are not decided.
 
