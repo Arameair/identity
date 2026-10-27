@@ -1,6 +1,6 @@
 # Identity — active work and archived backlog
 
-**Verified 2026-10-26:** **4 open issues (#9, #14, #15, #19); 10 historical issues closed as `not_planned` (#1, #2, #3, #5, #6, #8, #10, #16, #17, #18); 5 historical pull requests closed without merge (#4, #7, #11, #12, #13).** These closures are backlog triage, **not** claims that the prototypes passed acceptance. GitHub retains the discussions and source branches.
+**Historical triage snapshot — October 26, 2026:** Issues #9, #14, #15 and #19 were the active list at that point; 10 older issues and 5 pull requests were closed without promotion. **Newer tracking issues have since been created; this is not an assertion of today's open-issue count.** Refer to the [live issues list](https://github.com/Arameair/identity/issues) and [status ledger](STATUS.md). Closures are backlog organization, not owner acceptance.
 
 ## Active issues (one place to start)
 
@@ -9,7 +9,8 @@
 | [#9 — Account and GitHub integration](https://github.com/Arameair/identity/issues/9) | Finish verified provider connection and separately approved repository/account operations. | GitHub login is not a general feature entitlement; normal user interactions eventually belong in Processor. |
 | [#14 — Architecture review](https://github.com/Arameair/identity/issues/14) | Decide lifecycle, trust bootstrap, feature relationships, storage, source approvals and unresolved design conflicts. | Cross-repo architecture discussion; proposals are not granted permissions. |
 | [#15 — Real authorization enforcement](https://github.com/Arameair/identity/issues/15) | Design and prove actual authenticated source → Thought Engine grant checks, revocation and outage handling. | Install permission, runtime data access and Engine-local toggles are different things. |
-| [#19 — Current candidate/owner acceptance](https://github.com/Arameair/identity/issues/19) | Collect actual owner clean-machine trials and fix remaining new-user friction. | Do not mark Linux fixture, candidate code, or self-reported health as approved Windows end-to-end behavior. |
+| [#19 — Earlier candidate/owner trial](https://github.com/Arameair/identity/issues/19) | Preserve the October 25 owner trial and user friction findings. | Historical baseline; P1 uses newer matched branches. |
+| [#20 — Alpha promotion gate](https://github.com/Arameair/identity/issues/20) | Track exact candidate, reproducible proof, security boundaries and owner verdict before promotion. | P0 is owner-promoted; P1 cleanup is a separate unpromoted experiment. |
 
 ## Closed historical issues (history retained)
 
@@ -29,7 +30,7 @@ All ten issues in this section are **confirmed closed as `not_planned`**. They d
 
 **Confirmed owner direction:** Thought Processor is the primary **system-wide user/admin interface**; Identity is the identity, security and permission authority; a receiving feature must independently **enforce** an Identity decision. Each feature owns its processing/data. Identity and Processor must be independently operable. **No source is allowed by default**: selecting a feature or connecting an account does not turn on every log, game or conversation feed.
 
-**Open / not product-approved:** secure first-time administrator bootstrap; local pairing protocol; publisher **install entitlement** independent of GitHub repository visibility; separate start, attach, ingest and data-source grants; revocation timing; Engine lifecycle supervision; offline leases; and which Thought/Engine data shape is canonical. The October 26 [Engine installation fixture demo](https://github.com/Arameair/identity/blob/experiment/engine-access-pairing-20261026/docs/ENGINE_INSTALL_DEMO_20261026.md) tests an interim **repo-visibility-v0** rule but does **not** establish a final policy or a real GitHub/Windows user test.
+**Still open for product readiness:** OS-backed Admin authentication/recovery, hostile-code isolation, general publisher provenance and install entitlement, real source grants and Engine/Worker receiver enforcement, in-flight revocation, lifecycle supervision and a canonical Engine migration. **Now prototyped in P0/P1 rather than absent:** authenticated Processor pairing, one Admin record, limited per-feature registration and scoped grants for the pinned fixture. The October 26 [Engine installation fixture demo](https://github.com/Arameair/identity/blob/experiment/engine-access-pairing-20261026/docs/ENGINE_INSTALL_DEMO_20261026.md) tests an interim **repo-visibility-v0** rule but does **not** establish a final policy or a real GitHub/Windows user test.
 
 **Design provenance:** The October 25 [owner alignment note](https://github.com/Arameair/identity/blob/experiment/dynamic-feature-observation-design-20261025/docs/OWNER_DESIGN_ALIGNMENT_2026-10-25.md) discusses per-source default-deny, source-owned Sparks, a shared Engine, separate Memory, and Attention/Decay as processing mechanics. The old Spark → Trace → Thought code is historical implementation, not proof the new design is running. Do not discard these distinctions when reviewing older issues.
 
