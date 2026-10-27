@@ -1,6 +1,8 @@
-# Developer subsystem trial — current Identity candidate
+# Historical developer subsystem trial — October 25 Identity candidate
 
-**Last reviewed:** 2026-10-25 · **Audience:** developers and integration testers · **Status:** experimental, not a release.
+**Historical scope:** October 25, 2026 · **Audience:** developers and integration testers · **Status:** earlier prototype, not the current P1 and not a release.
+
+> **For the October 27 P1 owner trial, use [Thought Processor's matched P1 START HERE](https://github.com/Arameair/Thought-Processor/blob/experiment/p1-cleanup-claude-20261026/docs/P1/START_HERE.md), with both Identity and Processor on `experiment/p1-cleanup-claude-20261026`.** This page intentionally documents an older candidate. See [current status](STATUS.md).
 
 > **Do not treat this as the final end-user install guide.** The owner has specified that the **person/administrator interacts through Thought Processor**, while Identity is its independent backend authority. The candidate currently opens an **Identity-owned** browser wizard and looks for Processor in the opposite direction. This guide preserves a truthful way to test the existing code while that UX/integration mismatch is unresolved. [Intended first-run design](FIRST_RUN.md).
 
@@ -100,7 +102,7 @@ For a broader evidence checklist see [home-trial acceptance criteria](https://gi
 - If Processor is offline, confirm that Processor is running on the separately configured address. A response identifying itself as Processor is still unverified.
 - **Reset is destructive:** only after backing up any wanted test data and stopping Identity, you may remove the *specific test profile you created*. For isolation on future runs, start Identity with `-data "$env:USERPROFILE\.identity\portfolio-trial"` instead of the default profile.
 
-Do not use this experiment to guard sensitive services or confidential data. The authorization/grant layer is not implemented. **A successful test of the current Identity UI is not acceptance of the intended Processor-first human interface.**
+Do not use this older experiment to guard sensitive services or confidential data. **This October 25 candidate does not include the later P1 authorization/grant layer.** A successful test of its Identity-owned UI is not acceptance of the intended Processor-first experience or of P1.
 
 ## Where next?
 
