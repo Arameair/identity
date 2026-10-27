@@ -11,11 +11,12 @@
 | [Status](STATUS.md) | Tested facts, candidate branches, blockers, and release state. |
 | [Active backlog](BACKLOG.md) | The small set of open tracking issues; what was superseded and why. |
 | [First run](FIRST_RUN.md) | Intended Processor-first experience, **not yet implemented end-to-end**. |
-| [Engineering case study](PROJECT_JOURNEY.md) | Project history, tradeoffs, evidence, and portfolio narrative. |
+| [Engineering case study](PROJECT_JOURNEY.md) | Project history, tradeoffs, implementation evidence, and portfolio narrative. |
+| [Credits and acknowledgments](CREDITS.md) | Project ownership, named AI contribution sources, and appropriate technology attribution. |
 
 ## Build, evaluate, and review
 
-[Developer-only prototype trial](TRY_THE_PROTOTYPE.md) · [Roadmap](ROADMAP.md) · [Security](SECURITY.md) · [Branch workflow](WORKFLOW.md) · [Experiment report template](EXPERIMENT_TEMPLATE.md)
+[Current P1 hands-on trial](https://github.com/Arameair/Thought-Processor/blob/experiment/p1-cleanup-claude-20261026/docs/P1/START_HERE.md) · [Historical October 25 subsystem trial](TRY_THE_PROTOTYPE.md) · [Roadmap](ROADMAP.md) · [Security](SECURITY.md) · [Branch workflow](WORKFLOW.md) · [Experiment report template](EXPERIMENT_TEMPLATE.md)
 
 ## Detailed reference material
 
