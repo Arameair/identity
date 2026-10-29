@@ -70,17 +70,50 @@
     if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
     return j;
   }
+  function formError(message, field) {
+    $("#ap-err").textContent = message;
+    $("#ap-err").hidden = false;
+    if (field) field.focus();
+  }
   async function decide(decision) {
     const body = { decision };
+    $("#ap-err").hidden = true;
     if (decision === "approve") {
       if (ap.kind === "enroll_admin") {
-        body.passphrase = $("#ap-pass1").value; body.passphrase_confirm = $("#ap-pass2").value; body.acknowledge = $("#ap-ack").checked;
+        const pass1 = $("#ap-pass1");
+        const pass2 = $("#ap-pass2");
+        // A password manager can autofill separate values. Do not submit a
+        // known mismatch to Identity or discard both values on a validation error.
+        if (pass1.value.length < 12) {
+          return formError("Choose a passphrase with at least 12 characters.", pass1);
+        }
+        if (pass1.value.length > 256) {
+          return formError("The passphrase must be 256 characters or fewer.", pass1);
+        }
+        if (pass1.value !== pass2.value) {
+          return formError("The two entries do not match. Check Bitdefender autofill and enter the same passphrase in both boxes.", pass2);
+        }
+        if (!$("#ap-ack").checked) {
+          return formError("Confirm that you own this installation before establishing its Admin Identity.", $("#ap-ack"));
+        }
+        body.passphrase = pass1.value;
+        body.passphrase_confirm = pass2.value;
+        body.acknowledge = true;
       } else { body.passphrase = $("#ap-pass").value; body.confirm_until_revoked = $("#ap-forever-ok").checked; }
     }
-    $("#ap-ok").disabled = $("#ap-deny").disabled = true; $("#ap-err").hidden = true;
-    try { done(await post("/api/approval/decide", body)); }
-    catch (e) { $("#ap-err").textContent = e.message; $("#ap-err").hidden = false; }
-    finally { $("#ap-ok").disabled = $("#ap-deny").disabled = false; for (const f of ["#ap-pass", "#ap-pass1", "#ap-pass2"]) $(f).value = ""; }
+    $("#ap-ok").disabled = $("#ap-deny").disabled = true;
+    let succeeded = false;
+    try {
+      done(await post("/api/approval/decide", body));
+      succeeded = true;
+    } catch (e) {
+      formError(e.message);
+    } finally {
+      $("#ap-ok").disabled = $("#ap-deny").disabled = false;
+      // Keep inputs after a rejected submission so autofill problems can be
+      // corrected locally; clear only after a successful decision.
+      if (succeeded) for (const f of ["#ap-pass", "#ap-pass1", "#ap-pass2"]) $(f).value = "";
+    }
   }
   async function start() {
     $("#ap-ok").addEventListener("click", () => decide("approve"));
