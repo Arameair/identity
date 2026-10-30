@@ -41,6 +41,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Arameair/identity/internal/authority"
 	"github.com/Arameair/identity/internal/entities"
 	"github.com/Arameair/identity/internal/features"
 	"github.com/Arameair/identity/internal/github"
@@ -383,6 +384,7 @@ func (a *App) statusV1(r *http.Request) map[string]any {
 			"cache_policy":       "do not cache decisions; if Identity can't be reached, block protected actions and show AUTHORITY UNAVAILABLE",
 			"admin":              a.adminView(),
 			"p1":                 P1Features,
+			"upgrade_api":        authority.UpgradeAPI,
 			"last_install_check": last,
 		},
 		"not_implemented": NotImplemented,

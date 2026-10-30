@@ -72,13 +72,16 @@ var RouteGuards = map[string]string{
 	"GET /api/v1/installation/self":                      gInstallation,
 	"POST /api/v1/authz/check":                           gInstallation + " (the live decision; consumes the ticket)",
 	"POST /api/v1/installation/tickets":                  gInstallation + " (installation as requester; same grant rule)",
+	"POST /api/v1/installations/{id}/upgrade/requests":   gPaired + " (creates a request only; only the program that installed it; new artifact must be pinned)",
+	"POST /api/v1/installations/{id}/upgrade":            gElevated,
+	"POST /api/v1/installations/{id}/upgrade/rollback":   gPaired + " (restores ONLY the record from before this requester's latest upgrade, within 30 min, if the old artifact is still pinned; never restores grants)",
 	"POST /api/approval/open":                            gApprovalPage,
 	"GET /api/approval/view":                             gApprovalPage,
 	"POST /api/approval/decide":                          gApprovalPage,
 }
 
 // ElevatedRoutes must refuse without a usable Admin approval.
-var ElevatedRoutes = []string{"POST /api/v1/installations", "POST /api/v1/installations/{id}/uninstall", "POST /api/v1/grants", "POST /api/v1/grants/{id}/admin-revoke"}
+var ElevatedRoutes = []string{"POST /api/v1/installations", "POST /api/v1/installations/{id}/uninstall", "POST /api/v1/grants", "POST /api/v1/grants/{id}/admin-revoke", "POST /api/v1/installations/{id}/upgrade"}
 
 type routeEntry struct {
 	Pattern string `json:"route"`

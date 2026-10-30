@@ -134,6 +134,16 @@ func (a *App) approvalDisplay(ap authority.Approval) map[string]any {
 		d["headline"] = "Uninstall \"" + f["name"].(string) + "\""
 		d["destination"] = f
 		d["effect"] = "Revokes all its grants and removes its credential. The ID is kept as a tombstone and never reused."
+	case authority.KindUpgrade:
+		var u authority.UpgradeRequest
+		json.Unmarshal(ap.Action, &u)
+		f := feature(u.InstallationID)
+		d["headline"] = "Upgrade \"" + f["name"].(string) + "\" to " + u.To.Version
+		d["destination"] = map[string]any{"name": u.To.Name, "feature_id": u.To.FeatureID, "version": u.To.Version, "installation_id": u.InstallationID,
+			"trust_basis": orDash(a.pins.Basis(u.To.ArtifactSHA256)), "publisher": orDash(u.To.PublisherClaim) + " (claimed by the package, NOT verified)"}
+		d["effect"] = "Keeps the same installation ID and credential. Grants for capabilities the new version drops are revoked; new capabilities get no grant."
+		adv["from_artifact_sha256"], adv["artifact_sha256"], adv["manifest_sha256"] = u.FromArtifactSHA256, u.To.ArtifactSHA256, u.To.ManifestSHA256
+		adv["data_migration"], adv["source"] = u.DataMigration, u.To.SourceKind+": "+u.To.SourceRef
 	case authority.KindRevokeGrant:
 		var act struct {
 			ID     string `json:"grant_id"`

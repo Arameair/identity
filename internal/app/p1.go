@@ -38,7 +38,7 @@ import (
 const (
 	InstallationIDHeader = "X-Installation-ID"
 	FeatureAPI           = "thought.feature-api/1"
-	P1Features           = "p1: admin-identity, admin-approvals, installation-identities, scoped-grants, tickets, live-check"
+	P1Features           = "p1: admin-identity, admin-approvals, installation-identities, scoped-grants, tickets, live-check, installation-upgrade (experimental)"
 	approvalCookie       = "identity_approval"
 	approvalMethod       = "local passphrase (" + authority.AuthenticatorKind + ")"
 )
@@ -273,6 +273,7 @@ func (a *App) installationView(in authority.Installation) map[string]any {
 // ---- routes ----
 
 func (a *App) p1Routes(m *routeMux) {
+	a.upgradeRoutes(m)
 	// Admin Identity
 	m.HandleFunc("GET /api/v1/admin", a.wrap(paired, func(w http.ResponseWriter, r *http.Request) {
 		a.signed(w, r, 200, a.adminView())

@@ -177,6 +177,8 @@ type Installation struct {
 	EndedAt        *time.Time   `json:"ended_at,omitempty"`
 	EndedBy        string       `json:"ended_by,omitempty"`
 	CredentialGen  int          `json:"credential_generation"`
+	// Upgrades: approved in-place upgrades (newest last); see upgrade.go.
+	Upgrades []UpgradeEvent `json:"upgrades,omitempty"`
 }
 
 func (i Installation) HasCapability(c string) bool {

@@ -7,6 +7,7 @@
     install_feature: ["Install a feature", "Elevated action — registers a new installation identity"],
     grant_capability: ["Grant one capability", "Elevated action — allows one narrow request type"],
     uninstall_feature: ["Uninstall a feature", "Elevated action — revokes its grants and credential"],
+    upgrade_feature: ["Upgrade a feature", "Elevated action — moves one installation to a new pinned version"],
     revoke_grant: ["Revoke a permission", "Admin emergency revocation — only removes access"],
   };
   function show(id) { for (const s of ["#ap-gate", "#ap-main", "#ap-done"]) $(s).hidden = s !== id; }
