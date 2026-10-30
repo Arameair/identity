@@ -56,14 +56,18 @@ type AppChoice struct {
 }
 
 type Options struct {
-	DefaultApp    AppChoice // what "use the publisher's app again" returns to
-	Port          int
-	DataDir       string
-	GitHub        github.Config
-	ProcessorAddr string // optional preset from -processor flag
-	Version       string
-	Branch        string // from -ldflags, else "UNKNOWN"
-	WatchEvery    time.Duration
+	// NoOpenLinkFile: don't save this run's private troubleshooting link to
+	// runtime/open-link.txt (for launchers that never use that page). The
+	// link then exists only in memory and on stdout.
+	NoOpenLinkFile bool
+	DefaultApp     AppChoice // what "use the publisher's app again" returns to
+	Port           int
+	DataDir        string
+	GitHub         github.Config
+	ProcessorAddr  string // optional preset from -processor flag
+	Version        string
+	Branch         string // from -ldflags, else "UNKNOWN"
+	WatchEvery     time.Duration
 	// ManagedBy is set when another program (normally Thought Processor)
 	// started Identity and owns its lifecycle (flag -managed-by). Empty =
 	// started by a person or another tool (EXTERNAL).
@@ -228,7 +232,10 @@ func (a *App) Run(ctx context.Context, ln net.Listener, ready func(link string))
 	srv := &http.Server{Handler: a.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second}
 
 	link := fmt.Sprintf("http://127.0.0.1:%d/#key=%s", a.Port, a.Sess.Key())
-	if err := a.Store.SaveOpenLink(link); err != nil {
+	if a.opt.NoOpenLinkFile {
+		// nothing written; a stale file from an older run is removed
+		os.Remove(a.Store.OpenLinkPath())
+	} else if err := a.Store.SaveOpenLink(link); err != nil {
 		a.Log.Warn("lifecycle", "identity.open_link_not_saved", "", "warn", err.Error(), nil)
 	}
 	v := a.GH.View()

@@ -147,6 +147,7 @@ func main() {
 	data := flag.String("data", defaultData(), "private profile folder for this Identity")
 	proc := flag.String("processor", "", "optional Thought Processor address to watch, e.g. 127.0.0.1:7860")
 	open := flag.Bool("open", false, "also open the troubleshooting page in a browser (not needed for normal use)")
+	noLinkFile := flag.Bool("no-open-link-file", false, "don't save the private troubleshooting link to runtime/open-link.txt (it stays in memory and on stdout)")
 	flag.Bool("no-browser", true, "kept for older scripts; Identity no longer opens a browser unless -open is given")
 	managedBy := flag.String("managed-by", os.Getenv("IDENTITY_MANAGED_BY"), "set by the program that started Identity and owns its lifecycle, e.g. thought-processor:tp_123")
 	testWeb := flag.String("test-github-web", "", "TEST FIXTURE ONLY: replaces https://github.com")
@@ -198,7 +199,8 @@ func main() {
 		fmt.Println(strings.Join(lines, "\n"))
 	}
 	a, err := app.New(app.Options{Port: *port, DataDir: *data, GitHub: cfg, DefaultApp: def, ProcessorAddr: *proc, Version: appVersion, Branch: branch,
-		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce, LocatorDir: defaultLocatorDir(), TrustArtifacts: pins})
+		ManagedBy: strings.TrimSpace(*managedBy), Announce: announce, LocatorDir: defaultLocatorDir(), TrustArtifacts: pins,
+		NoOpenLinkFile: *noLinkFile})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Identity could not start:", err)
 		os.Exit(1)
