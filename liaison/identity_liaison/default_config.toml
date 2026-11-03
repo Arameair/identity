@@ -67,7 +67,7 @@ max_history = 12
 # Off when repo is empty.
 repo = ""
 branch = ""
-paths = ["mind/*.md", "library/*"]
+paths = ["mind/*.md", "library/*", "projects/*"]
 dest = "/shared/mirror"
 
 [run]

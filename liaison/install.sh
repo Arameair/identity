@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Install identity-liaison on Linux / WSL.
-#   curl -fsSL https://raw.githubusercontent.com/Arameair/identity/experiment/github-liaison-agent-20261103/liaison/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Arameair/identity/alpha/liaison/install.sh | bash
 # or, from a checkout:   bash liaison/install.sh
 set -euo pipefail
 
-BRANCH="${LIAISON_BRANCH:-experiment/github-liaison-agent-20261103}"
+BRANCH="${LIAISON_BRANCH:-alpha}"
 SOURCE="git+https://github.com/Arameair/identity@${BRANCH}#subdirectory=liaison"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"

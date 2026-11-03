@@ -4,14 +4,14 @@ Give TASS instructions **through GitHub issues**. The Liaison reads the md files
 
 It grew out of the nemotronTASS Lab 23 notebook (`notebooks/lab23_source.ipynb`). It reuses that notebook's context guard, truncation check and "never invent evidence" rules, now as an installable tool instead of notebook cells.
 
-> **Experimental.** Branch `experiment/github-liaison-agent-20261103`, not promoted to `alpha`. See [the experiment report](../docs/LIAISON_AGENT_20261103.md) for what has and hasn't been tested.
+> **On `alpha`** (owner-approved November 3, 2026; built on branch `experiment/github-liaison-agent-20261103`). Still a prototype: no stable release. See [the experiment report](../docs/LIAISON_AGENT_20261103.md) for what has and hasn't been tested.
 
 ## Run it in Docker (recommended)
 
 You need Docker (WSL or Docker Desktop), the Nemotron GGUF file, and GitHub CLI signed in (`gh auth login`).
 
 ```bash
-git clone -b experiment/github-liaison-agent-20261103 https://github.com/Arameair/identity.git ~/identity-liaison
+git clone -b alpha https://github.com/Arameair/identity.git ~/identity-liaison
 cd ~/identity-liaison/liaison
 ./docker-run.sh
 ```
@@ -41,14 +41,14 @@ Add `--cpu` or `--external` to `dry-run`, `check` or `stop` too if you started t
 Needs Python 3.11+, your local llama.cpp model on `127.0.0.1:8081`, and GitHub CLI signed in (`gh auth login`).
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Arameair/identity/experiment/github-liaison-agent-20261103/liaison/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Arameair/identity/alpha/liaison/install.sh | bash
 identity-liaison check
 ```
 
 Or by hand:
 
 ```bash
-pipx install "git+https://github.com/Arameair/identity@experiment/github-liaison-agent-20261103#subdirectory=liaison"
+pipx install "git+https://github.com/Arameair/identity@alpha#subdirectory=liaison"
 identity-liaison init
 identity-liaison check
 ```

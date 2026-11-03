@@ -43,6 +43,7 @@ ENV = {
     "IDENTITY_LIAISON_CHAT_PULSE": ("chat", "pulse_seconds", int),
     "IDENTITY_LIAISON_SYNC_REPO": ("sync", "repo", str),
     "IDENTITY_LIAISON_SYNC_DEST": ("sync", "dest", str),
+    "IDENTITY_LIAISON_SYNC_PATHS": ("sync", "paths", "list"),
 }
 
 

@@ -63,5 +63,5 @@ Fixture results do not prove that the real model follows the reply format or wri
 
 ## Owner review
 
-- Decision: **PENDING** (accept / revise / reject).
-- Promotion: **None unless the owner explicitly approves.**
+- Decision: **ACCEPTED** by the owner on 2026-11-03 ("add this exact container to everyone's alpha").
+- Promotion: merged into `alpha` on 2026-11-03, together with the Thought Processor workspace (Thought-Processor `alpha`), which builds this Liaison from identity `alpha`. Rollback: identity `alpha` before the merge was `a582f8ea595eb12145c4116e67e30de46cb470c8`.
