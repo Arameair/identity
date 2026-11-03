@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "identity-liaison"
+version = "0.1.0"
+description = "Identity Liaison: takes instructions from GitHub issues, reads md files across repos, and updates card files using a local Nemotron model."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+authors = [{ name = "Arameair" }]
+
+[project.scripts]
+identity-liaison = "identity_liaison.cli:main"
+
+[tool.setuptools]
+packages = ["identity_liaison"]
+
+[tool.setuptools.package-data]
+identity_liaison = ["default_config.toml"]

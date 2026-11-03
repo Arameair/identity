@@ -1,0 +1,30 @@
+name: liaison-tests
+on:
+  push:
+    paths: ["liaison/**", ".github/workflows/liaison-tests.yml"]
+  pull_request:
+    paths: ["liaison/**", ".github/workflows/liaison-tests.yml"]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline tests (fake GitHub + fake model)
+        working-directory: liaison
+        run: python -m unittest discover -s tests -v
+      - name: Package installs
+        run: pip install ./liaison && identity-liaison --version
+      - name: Docker image builds and runs
+        run: docker build -t identity-liaison:ci liaison && docker run --rm identity-liaison:ci --version
+      - name: Compose files are valid
+        working-directory: liaison
+        run: |
+          mkdir -p secrets config && touch secrets/github_token
+          for f in compose.yaml "compose.yaml -f compose.cpu.yaml" compose.external-model.yaml; do
+            docker compose -f $f config -q && echo "OK $f"
+          done
