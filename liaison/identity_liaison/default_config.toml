@@ -64,11 +64,19 @@ max_history = 12
 
 [sync]
 # Mirror repo files into a local folder for the Thought Processor workspace.
-# Off when repo is empty.
+# sources: "owner/repo[@branch]:pattern,pattern" — the first source is the identity's own repo.
+#   e.g. ["Arameair/TASS@alpha:mind/*.md", "Arameair/Developmnt:library/*,projects/*"]
+# (Older single-repo form: repo + paths.) Off when both are empty.
+sources = []
 repo = ""
 branch = ""
 paths = ["mind/*.md", "library/*", "projects/*"]
 dest = "/shared/mirror"
+
+[outbox]
+# Requests the workspace writes after the owner approves them (e.g. a TASS mind change).
+# The Liaison turns each into a pull request; nothing is committed to a base branch directly.
+dir = ""
 
 [run]
 # How often `identity-liaison run` checks GitHub (the "pulse").

@@ -10,7 +10,8 @@ from pathlib import Path
 from . import __version__
 from .agent import Agent
 from .chat import SideChat
-from .sync import Mirror
+from .outbox import Outbox
+from .sync import Mirror, sources_from
 from .config import Config, default_path, write_default
 from .github import GitHub, find_token
 from .instructions import FileRef, Instruction
@@ -124,30 +125,33 @@ def cmd_chat_once(args) -> int:
 
 def cmd_sync_once(args) -> int:
     cfg = _load(args)
-    if not cfg["sync"]["repo"]:
-        print("Sync is off: set [sync] repo (or IDENTITY_LIAISON_SYNC_REPO).")
+    if not sources_from(cfg):
+        print("Sync is off: set [sync] sources (or IDENTITY_LIAISON_SYNC_SOURCES).")
         return 1
     changed = Mirror(cfg, _github(cfg)).pulse()
-    print(f"Synced {cfg['sync']['repo']} -> {cfg['sync']['dest']}: {len(changed)} changed")
+    print(f"Synced -> {cfg['sync']['dest']}: {len(changed)} changed")
     return 0
 
 
 def cmd_run(args) -> int:
     cfg = _load(args)
-    agent = chat = mirror = None
-    sync_repo = cfg["sync"]["repo"]
+    agent = chat = mirror = outbox = None
+    sync_repo = bool(sources_from(cfg))
+    outbox_dir = cfg["outbox"]["dir"]
     pulse = int(cfg["run"]["pulse_seconds"])
     chat_repos = cfg["chat"]["repos"]
-    chat_pulse = int(cfg["chat"]["pulse_seconds"]) if chat_repos else pulse
+    chat_pulse = int(cfg["chat"]["pulse_seconds"])
     print(f"identity-liaison {__version__} (model {cfg['model']['url']}, mode {cfg['write']['mode']})")
     print(f"  instructions: {', '.join(cfg['github']['instruction_repos'])} every {pulse}s")
     if chat_repos:
         print(f"  side chat:    {', '.join(chat_repos)} (label '{cfg['chat']['label']}') every {chat_pulse}s")
     if sync_repo:
-        print(f"  mirror:       {sync_repo} {cfg['sync']['paths']} -> {cfg['sync']['dest']} every {chat_pulse}s")
+        print(f"  mirror:       {'; '.join(str(x) for x in sources_from(cfg))} -> {cfg['sync']['dest']} every {chat_pulse}s")
+    if outbox_dir:
+        print(f"  outbox:       {outbox_dir} (owner-approved requests -> pull requests) every {chat_pulse}s")
     print("Ctrl+C to stop.")
     next_task = next_fast = 0.0
-    fast = bool(chat_repos or sync_repo)
+    fast = bool(chat_repos or sync_repo or outbox_dir)
     try:
         while True:
             now = time.monotonic()
@@ -160,6 +164,12 @@ def cmd_run(args) -> int:
                         mirror.pulse()
                     except Exception as e:  # noqa: BLE001 — keep the loop alive
                         print(f"[{stamp}] mirror failed: {e}")
+                if outbox_dir:
+                    try:
+                        outbox = outbox or Outbox(cfg, _github(cfg))
+                        outbox.pulse()
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[{stamp}] outbox failed: {e}")
                 if chat_repos:
                     try:
                         chat = chat or _chat(args, cfg)
