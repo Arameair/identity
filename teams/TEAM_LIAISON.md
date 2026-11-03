@@ -74,3 +74,8 @@ Before any automatic nudges: **a durable communication record** that survives re
 The Project Lead spec adds that the Liaison may escalate an unresponsive or repeatedly ineffective Project Lead straight to the identity or owner, and that the Liaison confirms receipts and that referenced artifacts exist (the Test Architect judges correctness).
 
 Smallest useful test: one worker sends `REQUEST_NUDGE`, the Liaison acknowledges it, the decision-maker approves it, one nudge is delivered, and the receipt shows up in the record.
+
+**New Rule:** When a worker reports DONE without a commit or test result, the Liaison asks for the evidence instead of escalating to the Project Lead.
+
+Smallest useful test: one worker sends `REQUEST_NUDGE`, the Liaison acknowledges it, the decision-maker approves it, one nudge is delivered, and the receipt shows up in the record.
+=== end of current content ===
