@@ -120,6 +120,9 @@ class Agent:
         limit = int(self.cfg["run"]["max_per_pulse"])
         for repo in self.cfg["github"]["instruction_repos"]:
             try:
+                # Create the labels up front so `gh issue create --label liaison` works
+                # before the Liaison has ever handled an issue.
+                self._ensure_labels(repo)
                 issues = self.pending(repo)
             except GitHubError as e:
                 self.log(f"  {repo}: cannot list issues ({e})")

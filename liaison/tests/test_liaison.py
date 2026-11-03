@@ -126,6 +126,11 @@ class PRModeTests(Base):
         # Done issues are not picked up again.
         self.assertEqual(self.agent.pulse(), 0)
 
+    def test_labels_created_on_first_pulse(self):
+        self.assertEqual(self.agent.pulse(), 0)
+        self.assertEqual(self.state.labels["Arameair/identity"],
+                         {"liaison", WORKING, DONE, BLOCKED})
+
     def test_answer_only(self):
         self.state.add_issue("Arameair/identity", "Q", "read:\n- Arameair/TASS:cards/TASS.md\ntask: What does TASS require?")
         self.agent.pulse()
