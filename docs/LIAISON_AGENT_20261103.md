@@ -34,10 +34,10 @@ The Go Identity service is **not touched**. The Liaison lives in `liaison/` and 
 | `compose.yaml` wiring: Liaison → `model` service by name, healthcheck gate, `init` writes `/config/config.toml` | Fixture model in place of llama.cpp image | Docker Compose 5.6 | `PASS model at http://model:8081` | PASS (fixture model) |
 | `compose.external-model.yaml` in container against **real GitHub** | Actual GitHub (no `liaison` issues existed, so nothing written), fixture model | Docker, host network | `check` all PASS; `once --dry-run` handled 0; `run` pulsed every 5s | PASS |
 | Missing/empty token in container | Actual | Docker | Logs `pulse failed: … is empty` each pulse; container stays Up (no restart loop) | PASS |
-| `./docker-run.sh` end to end with real `python:3.12-alpine` + `llama.cpp:server-cuda` images | Actual | Owner WSL | — | **NOT RUN** |
+| `./docker-run.sh` end to end with real `python:3.12-alpine` + `llama.cpp:server-cuda` images | Actual | Owner WSL (DESKTOP-HEK2HFN), Docker via sudo | Owner console 2026-11-03 07:56: image built, model container Healthy (32.5s), `check`: GitHub signed in as Arameair, both instruction repos reachable, `model at http://model:8081: context 8192 tokens`; Liaison running, pulse 300s | PASS |
 | Real Nemotron 3 Nano 4B produces a usable card in the `<<<FILE` format | Actual | Owner WSL | — | **NOT RUN** |
 | Real issue → real PR on GitHub | Actual | Owner WSL | — | **NOT RUN** |
-| `install.sh` on owner WSL | Actual | Owner WSL | — | **NOT RUN** |
+| `install.sh` on owner WSL | Actual | Owner WSL | — | NOT RUN (Docker used instead) |
 
 Fixture results do not prove that the real model follows the reply format or writes good cards.
 
