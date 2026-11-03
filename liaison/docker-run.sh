@@ -51,6 +51,7 @@ docker_err="$(docker info 2>&1 >/dev/null)" || {
     echo "Docker needs sudo on this computer, so docker commands will run with sudo."
     keep="LIAISON_UID,LIAISON_GID,TASS_MODEL_DIR,LIAISON_MODEL_FILE,LIAISON_MODEL_URL,LIAISON_MODE"
     keep+=",LIAISON_PULSE,LIAISON_REPOS,LIAISON_OWNERS,LIAISON_CTX,LIAISON_GPU_LAYERS,LIAISON_BASE,LIAISON_PIP_FLAGS"
+    keep+=",LIAISON_CHAT_REPOS,LIAISON_CHAT_PULSE"
     DOCKER=(sudo "--preserve-env=$keep" docker)
     sudo true || { echo "sudo was refused."; exit 1; }
     echo "(Tip: to skip sudo next time:  sudo usermod -aG docker $real_user   then close and reopen WSL.)"
@@ -137,5 +138,6 @@ case "$action" in
     echo
     echo "Liaison is running. It checks GitHub every ${LIAISON_PULSE:-300}s."
     echo "  Watch it:  ./docker-run.sh logs        Stop it:  ./docker-run.sh stop"
-    echo "  Give it work: open an issue with the 'liaison' label (see README.md)." ;;
+    echo "  Give it work: open an issue with the 'liaison' label (see README.md)."
+    echo "  Side chat:    comment on the 'liaison-chat' issue in Arameair/Developmnt; TASS replies within ~30s." ;;
 esac

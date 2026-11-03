@@ -294,3 +294,85 @@ class NewCardTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SideChatTests(Base):
+    REPO = "Arameair/Developmnt"
+
+    def setUp(self):
+        super().setUp()
+        from identity_liaison.chat import MARK, SideChat
+        self.MARK = MARK
+        self.state.add_file(self.REPO, "main", "side-chat/platform.md", "# Platform\nThe platform uses GitHub issues as the record.\n")
+        self.state.add_file(self.REPO, "main", "side-chat/pulse.md", "# Pulse\nThe Liaison checks every 30 seconds.\n")
+        self.state.add_file(self.REPO, "main", "README.md", "# Not knowledge\n")
+        self.cfg.data["chat"]["repos"] = [self.REPO]
+        self.seen_prompts = []
+        self.chat = SideChat(self.cfg, self.gh, Model(self.cfg["model"]), log=self.logs.append)
+
+    def thread(self, n=1):
+        return self.state.threads.get((self.REPO, n), [])
+
+    def test_opening_post_gets_reply_with_knowledge(self):
+        n = self.state.add_issue(self.REPO, "Side chat", "Hi TASS, what is in the side-chat folder?",
+                                 labels=("liaison-chat",))
+        self.assertEqual(self.chat.pulse(), 1)
+        reply = self.thread(n)[-1]["body"]
+        self.assertTrue(reply.startswith(self.MARK))
+        self.assertIn("**TASS:**", reply)
+        self.assertIn("side-chat/platform.md", reply)
+        self.assertNotIn("README.md", reply)
+        system = self.model_srv.calls[-1]["messages"][0]["content"]
+        self.assertIn("GitHub issues as the record", system)
+        # Nothing new from the owner: no second reply.
+        self.assertEqual(self.chat.pulse(), 0)
+
+    def test_follow_up_is_a_conversation(self):
+        n = self.state.add_issue(self.REPO, "Side chat", "Hi", labels=("liaison-chat",))
+        self.chat.pulse()
+        self.state.add_comment(self.REPO, n, "And how often does it check?")
+        self.state.add_comment(self.REPO, n, "Quick answer please.")
+        self.assertEqual(self.chat.pulse(), 1)
+        msgs = self.model_srv.calls[-1]["messages"]
+        self.assertEqual([m["role"] for m in msgs], ["system", "user", "assistant", "user"])
+        self.assertIn("how often", msgs[-1]["content"])
+        self.assertIn("Quick answer", msgs[-1]["content"])  # consecutive comments merged
+        self.assertNotIn(self.MARK, msgs[2]["content"])
+        self.assertLessEqual(self.model_srv.calls[-1]["max_tokens"], 1024)
+
+    def test_strangers_and_unlabelled_issues_ignored(self):
+        self.state.add_issue(self.REPO, "Side chat", "hi", author="stranger", labels=("liaison-chat",))
+        n = self.state.add_issue(self.REPO, "Side chat", "hi", labels=("liaison-chat",))
+        self.chat.pulse()
+        self.state.add_comment(self.REPO, n, "spam from someone else", author="stranger")
+        self.assertEqual(self.chat.pulse(), 0)
+        self.state.add_issue(self.REPO, "other", "hi", labels=())
+        self.assertEqual(self.chat.pulse(), 0)
+        self.assertEqual(len(self.model_srv.calls), 1)
+
+    def test_title_only_issue_waits_for_a_comment(self):
+        self.state.add_issue(self.REPO, "Side chat", "", labels=("liaison-chat",))
+        self.assertEqual(self.chat.pulse(), 0)
+
+    def test_dry_run_posts_nothing(self):
+        self.state.add_issue(self.REPO, "Side chat", "hi", labels=("liaison-chat",))
+        self.chat.dry_run = True
+        self.assertEqual(self.chat.pulse(), 1)
+        self.assertEqual(self.thread(), [])
+
+
+class SideChatTightContextTests(Base):
+    n_ctx = 1400  # fake tokenizer: ~4 chars per token; big.md alone would not fit
+
+    def test_drops_unmentioned_files_to_fit(self):
+        from identity_liaison.chat import SideChat
+        repo = "Arameair/Developmnt"
+        self.state.add_file(repo, "main", "side-chat/big.md", "# Big\n" + "filler words here. " * 150)
+        self.state.add_file(repo, "main", "side-chat/pulse.md", "# Pulse\nChecks every 30 seconds.\n")
+        self.cfg.data["chat"]["repos"] = [repo]
+        self.state.add_issue(repo, "Side chat", "Explain pulse to me", labels=("liaison-chat",))
+        chat = SideChat(self.cfg, self.gh, Model(self.cfg["model"]), log=self.logs.append)
+        self.assertEqual(chat.pulse(), 1)
+        system = self.model_srv.calls[-1]["messages"][0]["content"]
+        self.assertIn("Checks every 30 seconds", system)
+        self.assertNotIn("filler words", system)

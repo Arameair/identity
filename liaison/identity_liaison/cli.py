@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .agent import Agent
+from .chat import SideChat
 from .config import Config, default_path, write_default
 from .github import GitHub, find_token
 from .instructions import FileRef, Instruction
@@ -109,24 +110,54 @@ def cmd_once(args) -> int:
     return 0
 
 
+def _chat(args, cfg: Config) -> SideChat:
+    return SideChat(cfg, _github(cfg), Model(cfg["model"]), dry_run=getattr(args, "dry_run", False))
+
+
+def cmd_chat_once(args) -> int:
+    cfg = _load(args)
+    n = _chat(args, cfg).pulse()
+    print(f"\nReplied to {n} side chat(s).")
+    return 0
+
+
 def cmd_run(args) -> int:
     cfg = _load(args)
-    agent = None
+    agent = chat = None
     pulse = int(cfg["run"]["pulse_seconds"])
-    print(f"identity-liaison {__version__} watching {', '.join(cfg['github']['instruction_repos'])} "
-          f"every {pulse}s (model {cfg['model']['url']}, mode {cfg['write']['mode']}). Ctrl+C to stop.")
+    chat_repos = cfg["chat"]["repos"]
+    chat_pulse = int(cfg["chat"]["pulse_seconds"]) if chat_repos else pulse
+    tick = min(pulse, chat_pulse)
+    print(f"identity-liaison {__version__} (model {cfg['model']['url']}, mode {cfg['write']['mode']})")
+    print(f"  instructions: {', '.join(cfg['github']['instruction_repos'])} every {pulse}s")
+    if chat_repos:
+        print(f"  side chat:    {', '.join(chat_repos)} (label '{cfg['chat']['label']}') every {chat_pulse}s")
+    print("Ctrl+C to stop.")
+    next_task = next_chat = 0.0
     try:
         while True:
+            now = time.monotonic()
             stamp = time.strftime("%H:%M:%S")
-            try:
-                # Set up inside the loop so a missing token is reported each pulse
-                # instead of crashing (and restart-looping) the container.
-                agent = agent or _agent(args, cfg)
-                n = agent.pulse()
-                print(f"[{stamp}] pulse: {n} instruction(s)")
-            except Exception as e:  # noqa: BLE001 — keep the loop alive
-                print(f"[{stamp}] pulse failed: {e}")
-            time.sleep(pulse)
+            if chat_repos and now >= next_chat:
+                next_chat = now + chat_pulse
+                try:
+                    chat = chat or _chat(args, cfg)
+                    n = chat.pulse()
+                    if n:
+                        print(f"[{stamp}] side chat: replied {n}")
+                except Exception as e:  # noqa: BLE001 — keep the loop alive
+                    print(f"[{stamp}] side chat failed: {e}")
+            if now >= next_task:
+                next_task = now + pulse
+                try:
+                    # Set up inside the loop so a missing token is reported each pulse
+                    # instead of crashing (and restart-looping) the container.
+                    agent = agent or _agent(args, cfg)
+                    n = agent.pulse()
+                    print(f"[{stamp}] pulse: {n} instruction(s)")
+                except Exception as e:  # noqa: BLE001 — keep the loop alive
+                    print(f"[{stamp}] pulse failed: {e}")
+            time.sleep(max(1.0, min(next_chat if chat_repos else next_task, next_task) - time.monotonic()))
     except KeyboardInterrupt:
         print("\nStopped.")
     return 0
@@ -170,6 +201,10 @@ def main(argv=None) -> int:
         s.add_argument("--dry-run", action="store_true",
                        help="read and think, but don't comment, label or write anything")
         s.set_defaults(fn=cmd_once if name == "once" else cmd_run)
+
+    s = sub.add_parser("chat-once", help="answer waiting side chat messages once, then exit")
+    s.add_argument("--dry-run", action="store_true", help="print replies instead of posting them")
+    s.set_defaults(fn=cmd_chat_once)
 
     args = p.parse_args(argv)
     try:

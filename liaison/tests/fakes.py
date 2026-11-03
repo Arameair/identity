@@ -28,6 +28,10 @@ class FakeGitHubState:
         self.prs: list[dict] = []
         self.labels: dict[str, set[str]] = {}
         self.commits: list[tuple[str, str, str]] = []
+        self.threads: dict[tuple[str, int], list[dict]] = {}
+
+    def add_comment(self, repo, n, body, author=None):
+        self.threads.setdefault((repo, n), []).append({"user": {"login": author or self.login}, "body": body})
 
     def add_file(self, repo, branch, path, text):
         self.files.setdefault(repo, {}).setdefault(branch, {})[path] = text
@@ -128,7 +132,8 @@ def start_fake_github(state: FakeGitHubState):
                 return self._send(201, {})
             if rest == "/issues" and method == "GET":
                 want = q.get("labels")
-                out = [i for i in state.issues.get(repo, [])
+                out = [dict(i, comments=len(state.threads.get((repo, i["number"]), [])))
+                       for i in state.issues.get(repo, [])
                        if not want or want in {l["name"] for l in i["labels"]}]
                 return self._send(200, out)
             if rest == "/issues" and method == "POST":
@@ -138,8 +143,11 @@ def start_fake_github(state: FakeGitHubState):
             if m:
                 n, kind, label = int(m.group(1)), m.group(2), m.group(3)
                 issue = state.issue(repo, n)
+                if kind == "comments" and method == "GET":
+                    return self._send(200, state.threads.get((repo, n), []))
                 if kind == "comments":
                     state.comments.append((repo, n, body["body"]))
+                    state.add_comment(repo, n, body["body"])
                     return self._send(201, {})
                 if method == "POST":
                     for name in body["labels"]:

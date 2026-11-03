@@ -17,7 +17,10 @@ services:
     environment:
       IDENTITY_LIAISON_MODEL_URL: ${LIAISON_MODEL_URL:-http://127.0.0.1:18081}
       IDENTITY_LIAISON_MODE: ${LIAISON_MODE:-pr}
-      IDENTITY_LIAISON_REPOS: ${LIAISON_REPOS:-Arameair/identity,Arameair/nemotronTASS}
+      IDENTITY_LIAISON_REPOS: ${LIAISON_REPOS:-Arameair/identity,Arameair/nemotronTASS,Arameair/Developmnt}
+      # Side chat: comment on a 'liaison-chat' issue and TASS replies in the thread.
+      IDENTITY_LIAISON_CHAT_REPOS: ${LIAISON_CHAT_REPOS:-Arameair/Developmnt}
+      IDENTITY_LIAISON_CHAT_PULSE: ${LIAISON_CHAT_PULSE:-30}
       IDENTITY_LIAISON_OWNERS: ${LIAISON_OWNERS:-Arameair}
       IDENTITY_LIAISON_PULSE: ${LIAISON_PULSE:-300}
     user: "${LIAISON_UID:-1000}:${LIAISON_GID:-1000}"

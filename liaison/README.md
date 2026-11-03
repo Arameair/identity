@@ -102,6 +102,21 @@ Each issue moves through labels that follow the Core Team protocol:
 | `liaison:done` | Finished. The comment has the answer, or a link to the pull request |
 | `liaison:blocked` | Could not finish. The comment says why. Remove this label to retry |
 
+## Side chat (Arameair/Developmnt)
+
+A conversation with TASS in a GitHub issue thread.
+
+1. Put md files in the **`side-chat/`** folder of [Arameair/Developmnt](https://github.com/Arameair/Developmnt/tree/main/side-chat).
+2. Comment on the issue labelled **`liaison-chat`** (open a new one any time; each issue is its own conversation).
+3. Within about 30 seconds TASS replies in the thread. It reads every md file in `side-chat/` plus the conversation so far, and lists the files it read under each reply.
+
+Details:
+- Several comments in a row count as one message. Only your comments get replies.
+- If the files and the conversation don't fit the model's context, TASS drops the oldest messages first, then the files your newest message doesn't mention. Mention a file by name, such as "explain pulse", to keep it in.
+- To pull in files from other repos, put a `read:` list in the issue's description (same format as instructions).
+- TASS posts with your GitHub account. A hidden `<!-- identity-liaison:chat -->` marker tells its replies apart from yours.
+- Change the repo, folder or speed in `config/config.toml` (`[chat]`), or with `LIAISON_CHAT_REPOS` / `LIAISON_CHAT_PULSE`. Try a reply without posting it with `identity-liaison chat-once --dry-run`.
+
 ## Safety rules (built in)
 
 - **Only your issues count.** Issues opened by anyone not in `[github] owners` are ignored, because the repos are public.

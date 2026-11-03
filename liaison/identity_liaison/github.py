@@ -147,6 +147,16 @@ class GitHub:
                                      "sort": "created", "direction": "asc"})
         return [i for i in items if "pull_request" not in i]
 
+    def list_comments(self, repo: str, number: int) -> list[dict]:
+        out, page = [], 1
+        while True:
+            items = self.request("GET", f"/repos/{repo}/issues/{number}/comments",
+                                 params={"per_page": "100", "page": str(page)})
+            out.extend(items)
+            if len(items) < 100 or page >= 10:
+                return out
+            page += 1
+
     def comment(self, repo: str, number: int, body: str) -> dict:
         return self.request("POST", f"/repos/{repo}/issues/{number}/comments", {"body": body})
 

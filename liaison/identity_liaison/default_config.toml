@@ -3,7 +3,7 @@
 
 [github]
 # Repos the Liaison watches for instruction issues.
-instruction_repos = ["Arameair/identity", "Arameair/nemotronTASS"]
+instruction_repos = ["Arameair/identity", "Arameair/nemotronTASS", "Arameair/Developmnt"]
 # Issues need this label to be picked up.
 label = "liaison"
 # ONLY issues opened by these GitHub logins are obeyed.
@@ -49,6 +49,18 @@ min_output_tokens = 512
 thinking = false
 # Lower = steadier, less likely to ramble or repeat. 0.3 suits card edits.
 temperature = 0.3
+
+[chat]
+# Side chat: open issues with this label are conversations with TASS.
+# Comment on the issue and TASS replies in the thread.
+repos = ["Arameair/Developmnt"]
+label = "liaison-chat"
+# md files TASS reads before answering, in the chat issue's own repo (default branch).
+knowledge = ["side-chat/*.md"]
+# How often to check for new comments.
+pulse_seconds = 30
+# Most recent messages kept in the conversation sent to the model.
+max_history = 12
 
 [run]
 # How often `identity-liaison run` checks GitHub (the "pulse").

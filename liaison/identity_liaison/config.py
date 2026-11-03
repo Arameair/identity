@@ -39,6 +39,8 @@ ENV = {
     "IDENTITY_LIAISON_REPOS": ("github", "instruction_repos", "list"),
     "IDENTITY_LIAISON_OWNERS": ("github", "owners", "list"),
     "IDENTITY_LIAISON_PULSE": ("run", "pulse_seconds", int),
+    "IDENTITY_LIAISON_CHAT_REPOS": ("chat", "repos", "list"),
+    "IDENTITY_LIAISON_CHAT_PULSE": ("chat", "pulse_seconds", int),
 }
 
 
