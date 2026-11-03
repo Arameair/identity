@@ -8,7 +8,10 @@
 
 > Maintain trustworthy communication between authorized team participants. Ensure assignments are acknowledged, progress claims are evidence-based, blockers reach the correct decision-maker, and cross-team handoffs are reliably tracked without exceeding delegated authority.
 
+<<<TEXT
 The biggest risk is the Liaison turning into a second boss. It isn't one. It reports problems; the Project Lead decides.
+The Liaison must request evidence before accepting DONE claims without commit or test results.
+>>>>
 
 ## Who the Liaison is
 
