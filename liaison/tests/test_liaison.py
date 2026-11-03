@@ -154,6 +154,38 @@ class EditTests(unittest.TestCase):
             self.assertEqual(summary, "Added it.")
             self.assertIn("- Track acknowledgments.\n- Ask for evidence.\n", apply_edits(CARD, edits), v)
 
+    REAL = Path(__file__).parent / "data" / "team_liaison_original.md"
+
+    def test_real_reply_1437_replace_with_repeated_line_and_bare_closer(self):
+        # Real Nemotron reply, issue #25 re-run 14:37Z: FIND without the card's **bold**,
+        # `replace` that repeats the original line twice, closed with a bare `>>>`.
+        old = self.REAL.read_text()
+        orig = ("The Liaison may not: create new scope, approve permission changes, read another team's or "
+                "identity's private records, merge or promote branches, or say a test ran when it didn't.")
+        rule = ("Now, if a worker reports DONE without a commit or test result, the Liaison asks for the "
+                "evidence instead of escalating.")
+        reply = (f"SUMMARY: Added the evidence rule.\nFIND: {orig}\nACTION: replace\n<<<TEXT\n{orig}\n{rule}\n{orig}\n>>>")
+        summary, edits = parse_edits(reply)
+        self.assertEqual(len(edits), 1)
+        out = apply_edits(old, edits)
+        self.assertEqual(out.count("merge or promote branches"), 1)
+        self.assertIn(rule, out)
+        added = [l for l in out.splitlines() if l not in old.splitlines()]
+        self.assertEqual(added, [rule])
+        self.assertNotIn(">>>", out)
+
+    def test_real_reply_pr27_four_bracket_closer(self):
+        # Real Nemotron reply behind PR #27 (14:48Z): closed with `>>>>`; markers leaked into the card.
+        old = self.REAL.read_text()
+        risk = ("The biggest risk is the Liaison turning into a second boss. It isn't one. "
+                "It reports problems; the Project Lead decides.")
+        rule = "The Liaison must request evidence before accepting DONE claims without commit or test results."
+        reply = f"SUMMARY: Evidence first.\nFIND: {risk}\nACTION: replace\n<<<TEXT\n{risk}\n{rule}\n>>>>"
+        out = apply_edits(old, parse_edits(reply)[1])
+        self.assertNotIn("<<<", out)
+        self.assertNotIn(">>>", out)
+        self.assertEqual([l for l in out.splitlines() if l not in old.splitlines()], [rule])
+
     def test_unknown_line_raises(self):
         with self.assertRaises(EditError):
             apply_edits(CARD, [("This line is not in the card at all", "after", "x")])

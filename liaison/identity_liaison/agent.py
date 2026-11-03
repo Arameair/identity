@@ -58,7 +58,7 @@ EDIT_BLOCK = re.compile(
     _LABEL.format(name="FIND") + r"(?P<find>[^\n]*)"
     + _LABEL.format(name="ACTION") + r"`?(?P<action>[A-Za-z]+)`?[^\n]*\n"
     + r"(?:[ \t>*_#-]*TEXT[*_ ]*:?[*_ ]*\n)?"
-    + r"\s*(?:<<<\s*TEXT[^\n]*\n(?P<text>.*?)\n?\s*TEXT\s*>>>"
+    + r"\s*(?:<<<\s*TEXT[^\n]*\n(?P<text>.*?)\n?[ \t]*(?:TEXT)?[ \t]*>{3,}"
     + r"|```[\w-]*[ \t]*\n(?P<fenced>.*?)\n\s*```"
     + r"|(?P<loose>.*?)(?=\n[ \t>*_#-]*FIND[*_ ]*[:\-]|\Z))",
     re.S | re.I,
@@ -122,10 +122,33 @@ def parse_edits(reply: str) -> tuple[str, list[tuple[str, str, str]]]:
     return summary, edits
 
 
+MARKER_ONLY = re.compile(r"^\s*(?:<<<\s*\w*|\w*\s*>{3,}|```[\w-]*)\s*$")
+
+
+def _clean_text(text: str) -> list[str]:
+    """Edit text minus stray format markers and lines the model repeated within it."""
+    out, seen = [], set()
+    for l in text.strip("\n").split("\n"):
+        if MARKER_ONLY.match(l):
+            continue
+        key = _norm(l)
+        if key and key in seen and len(key) >= 20:
+            continue
+        seen.add(key)
+        out.append(l.rstrip())
+    while out and not out[0].strip():
+        out.pop(0)
+    while out and not out[-1].strip():
+        out.pop()
+    return out
+
+
 def apply_edits(old: str, edits: list[tuple[str, str, str]]) -> str:
     lines = old.rstrip("\n").split("\n")
     for find, action, text in edits:
-        new_lines = [l.rstrip() for l in text.strip("\n").split("\n")]
+        new_lines = _clean_text(text)
+        if not new_lines:
+            new_lines = [""]
         if not any(l.strip() for l in new_lines) and action != "replace":
             continue
         # Don't add text the card already contains.
@@ -136,6 +159,12 @@ def apply_edits(old: str, edits: list[tuple[str, str, str]]) -> str:
         if idx is None:  # FIND: END  -> append at the end
             idx, action = len(lines) - 1, "after"
         if action == "replace":
+            # Don't let a replacement re-add lines that already exist elsewhere in the card.
+            others = {_norm(l) for j, l in enumerate(lines) if j != idx and l.strip()}
+            new_lines = [l for l in new_lines if not l.strip() or _norm(l) not in others] or [""]
+            # A retyped copy of the FIND line keeps the card's exact original wording/formatting.
+            anchor = lines[idx]
+            new_lines = [anchor if l.strip() and _norm(l) == _norm(anchor) else l for l in new_lines]
             lines[idx:idx + 1] = new_lines
             continue
         tight = _kind(lines[idx]) == _kind(new_lines[0]) != "other"
@@ -436,6 +465,12 @@ class Agent:
                     self.log("  model reply (for debugging):\n" + reply[-600:])
                     raise EditError("The model's reply had no FIND/ACTION/TEXT edit. Nothing was written.")
             new = clean_card(new, old)
+            stray = [l for l in new.splitlines()
+                     if re.search(r"<<<|>>>|^\s*FIND\s*:|^\s*ACTION\s*:", l) and l not in (old or "").splitlines()]
+            if stray:
+                self.log("  model reply (for debugging):\n" + reply[-600:])
+                raise EditError(f"The result still contained reply-format text (“{stray[0].strip()[:60]}”). "
+                                "Nothing was written.")
             p = Proposal(target, old, old_sha, new, summary)
             if old is not None and new.strip() == old.strip():
                 p.skipped = "the model made no change"

@@ -1,3 +1,6 @@
 secrets/
 config/
 models/
+build/
+*.egg-info/
+__pycache__/
