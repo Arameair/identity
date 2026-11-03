@@ -111,14 +111,17 @@ def cmd_once(args) -> int:
 
 def cmd_run(args) -> int:
     cfg = _load(args)
-    agent = _agent(args, cfg)
+    agent = None
     pulse = int(cfg["run"]["pulse_seconds"])
     print(f"identity-liaison {__version__} watching {', '.join(cfg['github']['instruction_repos'])} "
-          f"every {pulse}s. Ctrl+C to stop.")
+          f"every {pulse}s (model {cfg['model']['url']}, mode {cfg['write']['mode']}). Ctrl+C to stop.")
     try:
         while True:
             stamp = time.strftime("%H:%M:%S")
             try:
+                # Set up inside the loop so a missing token is reported each pulse
+                # instead of crashing (and restart-looping) the container.
+                agent = agent or _agent(args, cfg)
                 n = agent.pulse()
                 print(f"[{stamp}] pulse: {n} instruction(s)")
             except Exception as e:  # noqa: BLE001 — keep the loop alive

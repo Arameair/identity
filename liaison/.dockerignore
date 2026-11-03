@@ -1,0 +1,8 @@
+secrets/
+config/
+models/
+notebooks/
+tests/
+**/__pycache__/
+*.egg-info/
+build/

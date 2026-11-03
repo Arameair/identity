@@ -30,6 +30,11 @@ The Go Identity service is **not touched**. The Liaison lives in `liaison/` and 
 | `identity-liaison check` against real GitHub | **Actual GitHub**, fixture model | Linux container | Signed in as Arameair; identity and nemotronTASS reachable | PASS |
 | `identity-liaison read Arameair/identity@teams:teams/TEAM_LIAISON.md` | **Actual GitHub read** | Linux container | Printed the real Team Liaison charter | PASS |
 | `ask` preview: glob read of nemotronTASS `cards/*.md` on the foundation branch + change TEAM_LIAISON.md | Actual reads, **fixture model**, no writes | Linux container | Diff shown; nothing written | PASS (model is fixture) |
+| Docker image build + `--version` | Actual image; **stand-in base** (`python:3.12-alpine` and ghcr are blocked from the build sandbox, so a local Python 3.13 rootfs was used via `BASE=`) | Linux container, Docker 29.9 | Built; runs as UID 1000, read-only FS | PASS (stand-in base) |
+| `compose.yaml` wiring: Liaison → `model` service by name, healthcheck gate, `init` writes `/config/config.toml` | Fixture model in place of llama.cpp image | Docker Compose 5.6 | `PASS model at http://model:8081` | PASS (fixture model) |
+| `compose.external-model.yaml` in container against **real GitHub** | Actual GitHub (no `liaison` issues existed, so nothing written), fixture model | Docker, host network | `check` all PASS; `once --dry-run` handled 0; `run` pulsed every 5s | PASS |
+| Missing/empty token in container | Actual | Docker | Logs `pulse failed: … is empty` each pulse; container stays Up (no restart loop) | PASS |
+| `./docker-run.sh` end to end with real `python:3.12-alpine` + `llama.cpp:server-cuda` images | Actual | Owner WSL | — | **NOT RUN** |
 | Real Nemotron 3 Nano 4B produces a usable card in the `<<<FILE` format | Actual | Owner WSL | — | **NOT RUN** |
 | Real issue → real PR on GitHub | Actual | Owner WSL | — | **NOT RUN** |
 | `install.sh` on owner WSL | Actual | Owner WSL | — | **NOT RUN** |
@@ -38,10 +43,10 @@ Fixture results do not prove that the real model follows the reply format or wri
 
 ## One owner acceptance test
 
-1. `curl -fsSL https://raw.githubusercontent.com/Arameair/identity/experiment/github-liaison-agent-20261103/liaison/install.sh | bash`, then `identity-liaison check`. Both lines should say PASS.
-2. With the model running, open an issue in Arameair/identity labelled `liaison`. Use the example in `liaison/README.md` (change `teams/TEAM_LIAISON.md` on the `teams` branch).
-3. Run `identity-liaison once --dry-run`. A diff should print and GitHub should be unchanged.
-4. Run `identity-liaison once`. The issue should get WORKING, then DONE with a PR link, and the PR diff should match the request. The `teams` branch must be unchanged until you merge.
+1. `git clone -b experiment/github-liaison-agent-20261103 https://github.com/Arameair/identity.git ~/identity-liaison && cd ~/identity-liaison/liaison && ./docker-run.sh check`. GitHub and the model should both say PASS. (Use `--external` if your TASS stack's model is already running.) Without Docker: `install.sh`, then `identity-liaison check`.
+2. Open an issue in Arameair/identity labelled `liaison`. Use the example in `liaison/README.md` (change `teams/TEAM_LIAISON.md` on the `teams` branch).
+3. Run `./docker-run.sh dry-run` (or `identity-liaison once --dry-run`). A diff should print and GitHub should be unchanged.
+4. Run `./docker-run.sh` and watch `./docker-run.sh logs` (or `identity-liaison once`). The issue should get WORKING, then DONE with a PR link, and the PR diff should match the request. The `teams` branch must be unchanged until you merge.
 5. Record PASS / FAIL / NOT RUN and the actual output below.
 
 ## Failures and unknowns

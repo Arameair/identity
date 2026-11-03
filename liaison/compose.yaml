@@ -1,0 +1,70 @@
+# Identity Liaison + local Nemotron in Docker.
+#   ./docker-run.sh                       (recommended: checks setup, then starts)
+#   docker compose up -d --build          (by hand)
+# No NVIDIA GPU?   add  -f compose.yaml -f compose.cpu.yaml
+# Model already running (e.g. your TASS stack)?  use compose.external-model.yaml instead.
+services:
+  model:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    init: true
+    command:
+      - --model
+      - /models/${LIAISON_MODEL_FILE:-NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf}
+      - --alias
+      - nemotron-3-nano-4b
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8081"
+      - --ctx-size
+      - "${LIAISON_CTX:-8192}"
+      - --gpu-layers
+      - "${LIAISON_GPU_LAYERS:-99}"
+    volumes:
+      - type: bind
+        source: ${TASS_MODEL_DIR:-./models}
+        target: /models
+        read_only: true
+    # Loopback only, on a different port from your TASS stack's 18081.
+    ports:
+      - "127.0.0.1:18082:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  liaison:
+    build: .
+    image: identity-liaison:local
+    init: true
+    depends_on:
+      model:
+        condition: service_healthy
+    environment:
+      IDENTITY_LIAISON_MODEL_URL: http://model:8081
+      IDENTITY_LIAISON_MODE: ${LIAISON_MODE:-pr}
+      IDENTITY_LIAISON_REPOS: ${LIAISON_REPOS:-Arameair/identity,Arameair/nemotronTASS}
+      IDENTITY_LIAISON_OWNERS: ${LIAISON_OWNERS:-Arameair}
+      IDENTITY_LIAISON_PULSE: ${LIAISON_PULSE:-300}
+    user: "${LIAISON_UID:-1000}:${LIAISON_GID:-1000}"
+    volumes:
+      # Only this container gets the GitHub token.
+      - ./secrets/github_token:/run/secrets/github_token:ro
+      # Optional: edit config/config.toml for allow-lists etc. (env above still wins)
+      - ./config:/config
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

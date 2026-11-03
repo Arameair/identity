@@ -1,0 +1,16 @@
+# No NVIDIA GPU:  docker compose -f compose.yaml -f compose.cpu.yaml up -d --build
+services:
+  model:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - --model
+      - /models/${LIAISON_MODEL_FILE:-NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf}
+      - --alias
+      - nemotron-3-nano-4b
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8081"
+      - --ctx-size
+      - "${LIAISON_CTX:-8192}"
+    deploy: !reset {}

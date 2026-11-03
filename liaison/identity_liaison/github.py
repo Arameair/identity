@@ -22,6 +22,16 @@ class GitHubError(RuntimeError):
 def find_token(configured: str = "") -> str:
     if configured:
         return configured
+    token_file = os.environ.get("GITHUB_TOKEN_FILE")
+    if token_file:
+        try:
+            with open(token_file, encoding="utf-8") as f:
+                token = f.read().strip()
+        except OSError as e:
+            raise RuntimeError(f"Cannot read GITHUB_TOKEN_FILE ({token_file}): {e.strerror}") from None
+        if not token:
+            raise RuntimeError(f"GITHUB_TOKEN_FILE ({token_file}) is empty")
+        return token
     for name in ("GITHUB_TOKEN", "GH_TOKEN"):
         if os.environ.get(name):
             return os.environ[name]

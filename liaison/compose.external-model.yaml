@@ -1,0 +1,28 @@
+# Liaison only, using a model that is ALREADY running on this computer.
+#   docker compose -f compose.external-model.yaml up -d --build
+# Default: your TASS Docker stack's model at 127.0.0.1:18081.
+# Native llama.cpp in WSL instead?  LIAISON_MODEL_URL=http://127.0.0.1:8081
+# Host networking lets the container reach services bound to 127.0.0.1.
+# (Docker Desktop: turn on Settings > Resources > Network > "Enable host networking".)
+services:
+  liaison:
+    build: .
+    image: identity-liaison:local
+    init: true
+    network_mode: host
+    environment:
+      IDENTITY_LIAISON_MODEL_URL: ${LIAISON_MODEL_URL:-http://127.0.0.1:18081}
+      IDENTITY_LIAISON_MODE: ${LIAISON_MODE:-pr}
+      IDENTITY_LIAISON_REPOS: ${LIAISON_REPOS:-Arameair/identity,Arameair/nemotronTASS}
+      IDENTITY_LIAISON_OWNERS: ${LIAISON_OWNERS:-Arameair}
+      IDENTITY_LIAISON_PULSE: ${LIAISON_PULSE:-300}
+    user: "${LIAISON_UID:-1000}:${LIAISON_GID:-1000}"
+    volumes:
+      - ./secrets/github_token:/run/secrets/github_token:ro
+      - ./config:/config
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

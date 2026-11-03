@@ -32,6 +32,29 @@ def _merge(base: dict, extra: dict) -> dict:
     return out
 
 
+# Environment variables win over the config file (used by the Docker container).
+ENV = {
+    "IDENTITY_LIAISON_MODEL_URL": ("model", "url", str),
+    "IDENTITY_LIAISON_MODE": ("write", "mode", str),
+    "IDENTITY_LIAISON_REPOS": ("github", "instruction_repos", "list"),
+    "IDENTITY_LIAISON_OWNERS": ("github", "owners", "list"),
+    "IDENTITY_LIAISON_PULSE": ("run", "pulse_seconds", int),
+}
+
+
+def _apply_env(data: dict) -> None:
+    for name, (section, key, kind) in ENV.items():
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            continue
+        if kind == "list":
+            data[section][key] = [x.strip() for x in raw.split(",") if x.strip()]
+        else:
+            data[section][key] = kind(raw)
+    if data["write"]["mode"] not in ("pr", "direct"):
+        raise ValueError(f"write mode must be \"pr\" or \"direct\", not {data['write']['mode']!r}")
+
+
 class Config:
     def __init__(self, data: dict, path: Path | None = None):
         self.data = data
@@ -44,6 +67,7 @@ class Config:
         if path.exists():
             with open(path, "rb") as f:
                 base = _merge(base, tomllib.load(f))
+        _apply_env(base)
         return cls(base, path)
 
     def __getitem__(self, section: str) -> dict:

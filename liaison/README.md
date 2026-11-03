@@ -6,7 +6,35 @@ It grew out of the nemotronTASS Lab 23 notebook (`notebooks/lab23_source.ipynb`)
 
 > **Experimental.** Branch `experiment/github-liaison-agent-20261103`, not promoted to `alpha`. See [the experiment report](../docs/LIAISON_AGENT_20261103.md) for what has and hasn't been tested.
 
-## Install (WSL / Linux)
+## Run it in Docker (recommended)
+
+You need Docker (WSL or Docker Desktop), the Nemotron GGUF file, and GitHub CLI signed in (`gh auth login`).
+
+```bash
+git clone -b experiment/github-liaison-agent-20261103 https://github.com/Arameair/identity.git ~/identity-liaison
+cd ~/identity-liaison/liaison
+./docker-run.sh
+```
+
+That starts two containers: **Nemotron** (llama.cpp, NVIDIA GPU, loopback port 18082) and **the Liaison**, which checks GitHub every 5 minutes. On first run the script:
+
+- saves your `gh` token to `secrets/github_token`. Only the Liaison container can read it.
+- finds the model in `./models` or `~/nemotronTass/models`. Point it somewhere else with `TASS_MODEL_DIR=/path ./docker-run.sh`.
+- writes `config/config.toml`, which you can edit for allow-lists.
+
+| Command | What it does |
+| --- | --- |
+| `./docker-run.sh` | Start model + Liaison (GPU) |
+| `./docker-run.sh --cpu` | Same, no GPU |
+| `./docker-run.sh --external` | Liaison only, using the model your **TASS Docker stack** already runs (`127.0.0.1:18081`). For native llama.cpp use `LIAISON_MODEL_URL=http://127.0.0.1:8081 ./docker-run.sh --external` |
+| `./docker-run.sh dry-run` | Show what it *would* do with waiting issues; writes nothing |
+| `./docker-run.sh check` | PASS/FAIL for GitHub and the model |
+| `./docker-run.sh logs` | Watch it work |
+| `./docker-run.sh stop` | Stop everything |
+
+Add `--cpu` or `--external` to `dry-run`, `check` or `stop` too if you started that way. You can set these before the command: `LIAISON_MODE=direct`, `LIAISON_PULSE=60`, `LIAISON_REPOS=Arameair/identity`, `LIAISON_CTX=8192`.
+
+## Install without Docker (WSL / Linux)
 
 Needs Python 3.11+, your local llama.cpp model on `127.0.0.1:8081`, and GitHub CLI signed in (`gh auth login`).
 
