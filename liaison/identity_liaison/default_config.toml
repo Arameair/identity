@@ -62,6 +62,14 @@ pulse_seconds = 30
 # Most recent messages kept in the conversation sent to the model.
 max_history = 12
 
+[sync]
+# Mirror repo files into a local folder for the Thought Processor workspace.
+# Off when repo is empty.
+repo = ""
+branch = ""
+paths = ["mind/*.md", "library/*"]
+dest = "/shared/mirror"
+
 [run]
 # How often `identity-liaison run` checks GitHub (the "pulse").
 pulse_seconds = 300

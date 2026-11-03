@@ -419,3 +419,31 @@ class SideChatTightContextTests(Base):
         system = self.model_srv.calls[-1]["messages"][0]["content"]
         self.assertIn("Checks every 30 seconds", system)
         self.assertNotIn("filler words", system)
+
+
+class MirrorTests(Base):
+    def test_mirror_add_update_remove(self):
+        import json
+        import tempfile
+        from identity_liaison.sync import Mirror
+        repo = "Arameair/Developmnt"
+        self.state.add_file(repo, "main", "mind/who.md", "# Who\nI am TASS.\n")
+        self.state.add_file(repo, "main", "library/01-look.md", "# Look\n```python\nprint(1)\n```\n")
+        self.state.add_file(repo, "main", "README.md", "not mirrored\n")
+        with tempfile.TemporaryDirectory() as d:
+            self.cfg.data["sync"].update(repo=repo, dest=d)
+            m = Mirror(self.cfg, self.gh, log=self.logs.append)
+            self.assertEqual(sorted(m.pulse()), ["library/01-look.md", "mind/who.md"])
+            self.assertEqual(Path(d, "files/mind/who.md").read_text(), "# Who\nI am TASS.\n")
+            self.assertFalse(Path(d, "files/README.md").exists())
+            reads = self.state.blob_reads
+            self.assertEqual(m.pulse(), [])               # unchanged: no downloads
+            self.assertEqual(self.state.blob_reads, reads)
+            self.state.add_file(repo, "main", "mind/who.md", "# Who\nI am TASS, curious.\n")
+            del self.state.files[repo]["main"]["library/01-look.md"]
+            self.assertEqual(sorted(m.pulse()), ["library/01-look.md", "mind/who.md"])
+            self.assertIn("curious", Path(d, "files/mind/who.md").read_text())
+            self.assertFalse(Path(d, "files/library/01-look.md").exists())
+            manifest = json.loads(Path(d, "manifest.json").read_text())
+            self.assertEqual(list(manifest["files"]), ["mind/who.md"])
+            self.assertEqual(sorted(manifest["last_changed"]), ["library/01-look.md", "mind/who.md"])

@@ -10,6 +10,7 @@ from pathlib import Path
 from . import __version__
 from .agent import Agent
 from .chat import SideChat
+from .sync import Mirror
 from .config import Config, default_path, write_default
 from .github import GitHub, find_token
 from .instructions import FileRef, Instruction
@@ -121,32 +122,52 @@ def cmd_chat_once(args) -> int:
     return 0
 
 
+def cmd_sync_once(args) -> int:
+    cfg = _load(args)
+    if not cfg["sync"]["repo"]:
+        print("Sync is off: set [sync] repo (or IDENTITY_LIAISON_SYNC_REPO).")
+        return 1
+    changed = Mirror(cfg, _github(cfg)).pulse()
+    print(f"Synced {cfg['sync']['repo']} -> {cfg['sync']['dest']}: {len(changed)} changed")
+    return 0
+
+
 def cmd_run(args) -> int:
     cfg = _load(args)
-    agent = chat = None
+    agent = chat = mirror = None
+    sync_repo = cfg["sync"]["repo"]
     pulse = int(cfg["run"]["pulse_seconds"])
     chat_repos = cfg["chat"]["repos"]
     chat_pulse = int(cfg["chat"]["pulse_seconds"]) if chat_repos else pulse
-    tick = min(pulse, chat_pulse)
     print(f"identity-liaison {__version__} (model {cfg['model']['url']}, mode {cfg['write']['mode']})")
     print(f"  instructions: {', '.join(cfg['github']['instruction_repos'])} every {pulse}s")
     if chat_repos:
         print(f"  side chat:    {', '.join(chat_repos)} (label '{cfg['chat']['label']}') every {chat_pulse}s")
+    if sync_repo:
+        print(f"  mirror:       {sync_repo} {cfg['sync']['paths']} -> {cfg['sync']['dest']} every {chat_pulse}s")
     print("Ctrl+C to stop.")
-    next_task = next_chat = 0.0
+    next_task = next_fast = 0.0
+    fast = bool(chat_repos or sync_repo)
     try:
         while True:
             now = time.monotonic()
             stamp = time.strftime("%H:%M:%S")
-            if chat_repos and now >= next_chat:
-                next_chat = now + chat_pulse
-                try:
-                    chat = chat or _chat(args, cfg)
-                    n = chat.pulse()
-                    if n:
-                        print(f"[{stamp}] side chat: replied {n}")
-                except Exception as e:  # noqa: BLE001 — keep the loop alive
-                    print(f"[{stamp}] side chat failed: {e}")
+            if fast and now >= next_fast:
+                next_fast = now + chat_pulse
+                if sync_repo:
+                    try:
+                        mirror = mirror or Mirror(cfg, _github(cfg))
+                        mirror.pulse()
+                    except Exception as e:  # noqa: BLE001 — keep the loop alive
+                        print(f"[{stamp}] mirror failed: {e}")
+                if chat_repos:
+                    try:
+                        chat = chat or _chat(args, cfg)
+                        n = chat.pulse()
+                        if n:
+                            print(f"[{stamp}] side chat: replied {n}")
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[{stamp}] side chat failed: {e}")
             if now >= next_task:
                 next_task = now + pulse
                 try:
@@ -155,9 +176,10 @@ def cmd_run(args) -> int:
                     agent = agent or _agent(args, cfg)
                     n = agent.pulse()
                     print(f"[{stamp}] pulse: {n} instruction(s)")
-                except Exception as e:  # noqa: BLE001 — keep the loop alive
+                except Exception as e:  # noqa: BLE001
                     print(f"[{stamp}] pulse failed: {e}")
-            time.sleep(max(1.0, min(next_chat if chat_repos else next_task, next_task) - time.monotonic()))
+            wake = min(next_fast, next_task) if fast else next_task
+            time.sleep(max(1.0, wake - time.monotonic()))
     except KeyboardInterrupt:
         print("\nStopped.")
     return 0
@@ -201,6 +223,9 @@ def main(argv=None) -> int:
         s.add_argument("--dry-run", action="store_true",
                        help="read and think, but don't comment, label or write anything")
         s.set_defaults(fn=cmd_once if name == "once" else cmd_run)
+
+    s = sub.add_parser("sync-once", help="mirror the [sync] repo files once, then exit")
+    s.set_defaults(fn=cmd_sync_once)
 
     s = sub.add_parser("chat-once", help="answer waiting side chat messages once, then exit")
     s.add_argument("--dry-run", action="store_true", help="print replies instead of posting them")

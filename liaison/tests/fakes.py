@@ -106,7 +106,16 @@ def start_fake_github(state: FakeGitHubState):
             m = re.match(r"^/git/trees/(.+)$", rest)
             if m:
                 ref = m.group(1)
-                return self._send(200, {"tree": [{"path": k, "type": "blob"} for k in branches.get(ref, {})]})
+                return self._send(200, {"tree": [{"path": k, "type": "blob", "sha": _sha(v), "size": len(v.encode())}
+                                                 for k, v in branches.get(ref, {}).items()]})
+            m = re.match(r"^/git/blobs/(\w+)$", rest)
+            if m:
+                for files in branches.values():
+                    for v in files.values():
+                        if _sha(v) == m.group(1):
+                            state.blob_reads = getattr(state, "blob_reads", 0) + 1
+                            return self._send(200, {"content": base64.b64encode(v.encode()).decode()})
+                return self._send(404, {"message": "Not Found"})
             m = re.match(r"^/git/ref/heads/(.+)$", rest)
             if m:
                 if m.group(1) not in branches:
