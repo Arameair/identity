@@ -73,6 +73,13 @@ branch = ""
 paths = ["mind/*.md", "library/*", "projects/*"]
 dest = "/shared/mirror"
 
+[direct]
+# Talk to the running TASS from GitHub: issues with this label in these repos are forwarded to the
+# workspace inbox; TASS's replies come back as comments (via the outbox). Off when repos is empty.
+repos = []
+label = "tass"
+inbox = ""
+
 [outbox]
 # Requests the workspace writes after the owner approves them (e.g. a TASS mind change).
 # The Liaison turns each into a pull request; nothing is committed to a base branch directly.

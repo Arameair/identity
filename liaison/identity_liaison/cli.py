@@ -10,6 +10,7 @@ from pathlib import Path
 from . import __version__
 from .agent import Agent
 from .chat import SideChat
+from .direct import Direct
 from .outbox import Outbox
 from .sync import Mirror, sources_from
 from .config import Config, default_path, write_default
@@ -135,7 +136,8 @@ def cmd_sync_once(args) -> int:
 
 def cmd_run(args) -> int:
     cfg = _load(args)
-    agent = chat = mirror = outbox = None
+    agent = chat = mirror = outbox = direct = None
+    direct_on = bool(cfg["direct"]["repos"] and cfg["direct"]["inbox"])
     sync_repo = bool(sources_from(cfg))
     outbox_dir = cfg["outbox"]["dir"]
     pulse = int(cfg["run"]["pulse_seconds"])
@@ -147,11 +149,13 @@ def cmd_run(args) -> int:
         print(f"  side chat:    {', '.join(chat_repos)} (label '{cfg['chat']['label']}') every {chat_pulse}s")
     if sync_repo:
         print(f"  mirror:       {'; '.join(str(x) for x in sources_from(cfg))} -> {cfg['sync']['dest']} every {chat_pulse}s")
+    if direct_on:
+        print(f"  direct:       issues labelled '{cfg['direct']['label']}' in {', '.join(cfg['direct']['repos'])} -> TASS every {chat_pulse}s")
     if outbox_dir:
         print(f"  outbox:       {outbox_dir} (owner-approved requests -> pull requests) every {chat_pulse}s")
     print("Ctrl+C to stop.")
     next_task = next_fast = 0.0
-    fast = bool(chat_repos or sync_repo or outbox_dir)
+    fast = bool(chat_repos or sync_repo or outbox_dir or direct_on)
     try:
         while True:
             now = time.monotonic()
@@ -164,6 +168,12 @@ def cmd_run(args) -> int:
                         mirror.pulse()
                     except Exception as e:  # noqa: BLE001 — keep the loop alive
                         print(f"[{stamp}] mirror failed: {e}")
+                if direct_on:
+                    try:
+                        direct = direct or Direct(cfg, _github(cfg))
+                        direct.pulse()
+                    except Exception as e:  # noqa: BLE001
+                        print(f"[{stamp}] direct failed: {e}")
                 if outbox_dir:
                     try:
                         outbox = outbox or Outbox(cfg, _github(cfg))

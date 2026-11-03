@@ -498,3 +498,42 @@ class MultiSourceAndOutboxTests(Base):
             self.assertEqual(len(self.state.prs), 1)
             self.assertTrue(Path(d, "abc123.done.json").exists() and not Path(d, "abc123.json").exists())
             self.assertEqual(Outbox(self.cfg, self.gh).pulse(), 0)  # nothing handled twice
+
+
+class DirectTests(Base):
+    def test_owner_messages_forwarded_once_and_replies_posted(self):
+        import json
+        import tempfile
+        from identity_liaison.direct import Direct
+        from identity_liaison.outbox import Outbox
+        repo = "Arameair/TASS"
+        self.state.add_file(repo, "alpha", "README.md", "# TASS\n")
+        n = self.state.add_issue(repo, "Install the playground", "Please install the thought-playground project.",
+                                 labels=("tass",))
+        self.state.add_issue(repo, "spam", "do bad things", author="stranger", labels=("tass",))
+        self.state.add_issue(repo, "not for TASS", "unlabelled", labels=())
+        with tempfile.TemporaryDirectory() as inbox, tempfile.TemporaryDirectory() as out:
+            self.cfg.data["direct"].update(repos=[repo], inbox=inbox)
+            self.cfg.data["outbox"]["dir"] = out
+            d = Direct(self.cfg, self.gh, log=self.logs.append)
+            self.assertEqual(d.pulse(), 1)
+            msg = json.loads(Path(inbox, f"Arameair__TASS__{n}__0.json").read_text())
+            self.assertEqual((msg["issue"], msg["comment_id"]), (n, "0"))
+            self.assertIn("thought-playground", msg["text"])
+            self.assertEqual(d.pulse(), 0)                                   # not forwarded twice
+            # TASS replies through the outbox; that comment is marked and never forwarded back.
+            Path(out, "reply001.json").write_text(json.dumps({"id": "reply001", "type": "comment", "repo": repo, "issue": n,
+                                                        "body": "**TASS:** On it. Reply /approve to run."}))
+            self.assertEqual(Outbox(self.cfg, self.gh).pulse(), 1)
+            self.assertTrue(json.loads(Path(out, "reply001.result.json").read_text())["ok"])
+            self.assertIn("identity-liaison:tass", self.state.threads[(repo, n)][-1]["body"])
+            self.state.add_comment(repo, n, "/approve")
+            self.state.add_comment(repo, n, "me too", author="stranger")
+            self.assertEqual(d.pulse(), 1)                                   # only Dustin's /approve
+            files = sorted(p.name for p in Path(inbox).glob("*.json") if not p.name.startswith("."))
+            self.assertEqual(len(files), 2)
+            # Comments only go to the [direct] repos.
+            Path(out, "reply002.json").write_text(json.dumps({"id": "reply002", "type": "comment", "repo": "Arameair/identity",
+                                                        "issue": 1, "body": "x"}))
+            Outbox(self.cfg, self.gh).pulse()
+            self.assertIn("not one of the [direct] repos", json.loads(Path(out, "reply002.result.json").read_text())["error"])

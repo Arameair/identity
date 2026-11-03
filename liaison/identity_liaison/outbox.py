@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 from .config import Config
+from .direct import MARK as DIRECT_MARK
 from .github import GitHub, GitHubError
 
 ID = re.compile(r"^[A-Za-z0-9_-]{4,40}$")
@@ -60,6 +61,8 @@ class Outbox:
         return done
 
     def handle(self, rid: str, req: dict) -> str:
+        if req.get("type") == "comment":
+            return self.comment(req)
         repo, path, content = req["repo"], req["path"].lstrip("/"), req["content"]
         if not isinstance(content, str) or len(content.encode()) > MAX_CONTENT:
             raise ValueError("content missing or too large")
@@ -82,3 +85,12 @@ class Outbox:
                 f"(see the workspace audit log)\n\nMerging this changes how TASS thinks within about 30 seconds. "
                 "Nothing here was tested; it's text for TASS's mind.")
         return self.gh.create_pr(repo, branch, base, title, body)["html_url"]
+
+    def comment(self, req: dict) -> str:
+        """TASS's reply to a message Dustin sent from GitHub: post it on that issue."""
+        repo, issue, body = req["repo"], int(req["issue"]), req["body"]
+        if repo not in self.cfg["direct"]["repos"]:
+            raise ValueError(f"{repo} is not one of the [direct] repos")
+        if not isinstance(body, str) or not body.strip() or len(body) > 60000:
+            raise ValueError("comment body missing or too long")
+        return self.gh.comment(repo, issue, f"{DIRECT_MARK}\n{body}").get("html_url", f"{repo}#{issue}")

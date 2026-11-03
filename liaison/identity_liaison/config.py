@@ -46,6 +46,8 @@ ENV = {
     "IDENTITY_LIAISON_SYNC_PATHS": ("sync", "paths", "list"),
     "IDENTITY_LIAISON_SYNC_SOURCES": ("sync", "sources", "semilist"),
     "IDENTITY_LIAISON_OUTBOX": ("outbox", "dir", str),
+    "IDENTITY_LIAISON_DIRECT_REPOS": ("direct", "repos", "list"),
+    "IDENTITY_LIAISON_INBOX": ("direct", "inbox", str),
     "IDENTITY_LIAISON_WRITE_ALLOW": ("write", "allow", "semilist_add"),
 }
 
