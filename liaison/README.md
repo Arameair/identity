@@ -107,6 +107,7 @@ Each issue moves through labels that follow the Core Team protocol:
 - **Only your issues count.** Issues opened by anyone not in `[github] owners` are ignored, because the repos are public.
 - **Allow-lists.** It reads only repos in `[read] allow` and changes only paths in `[write] allow`. The defaults allow `teams/`, `team/`, `cards/` and `docs/team/` md files in Arameair repos.
 - **You merge.** The default `mode = "pr"` puts changes on a `liaison/...` branch and opens a pull request. `mode = "direct"` commits straight to the branch, but never to `main`, `alpha` or `stable`.
+- **Edits, not rewrites.** For an existing card the model only describes the edit (which line, before/after/replace, and the new text), and the Liaison applies it. The rest of the card can't be retyped wrong. Say "rewrite", "restructure" or "reformat" in the task to get a full rewrite. New cards are always written in full.
 - **No half cards.** Nothing is written if the model ran out of room (truncated), if the context guard says the prompt won't fit, or if the new card is less than half the old size. Say "shorten" or "remove" in the task if you meant to cut it down.
 - Files it reads are treated as information, never as instructions.
 - The model's text is not evidence. PRs and comments say so.

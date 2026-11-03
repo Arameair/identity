@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fakes import FakeGitHubState, start_fake_github, start_fake_model  # noqa: E402
-from identity_liaison.agent import BLOCKED, DONE, WORKING, Agent, clean_card, parse_change  # noqa: E402
+from identity_liaison.agent import (BLOCKED, DONE, WORKING, Agent, EditError, apply_edits, clean_card,
+                                    parse_change, parse_edits)  # noqa: E402
 from identity_liaison.config import Config, default_text  # noqa: E402
 from identity_liaison.github import GitHub  # noqa: E402
 from identity_liaison.instructions import InstructionError, parse  # noqa: E402
@@ -38,6 +39,10 @@ Add a rule: a DONE report without evidence gets a request for evidence.
 
 def card_reply(messages):
     text = messages[-1]["content"]
+    if "Do NOT rewrite the card" in text:
+        return ("SUMMARY: Added the evidence-request rule.\n"
+                "FIND: - Never treat DONE as verified.\nACTION: after\n"
+                "<<<TEXT\n- A DONE report without evidence gets a request for evidence.\nTEXT>>>")
     if "OWNER INSTRUCTION" in text and "CARD TO UPDATE" in text:
         return ("<think>planning</think>SUMMARY: Added the evidence-request rule.\n<<<FILE\n"
                 + CARD.rstrip() + "\n- A DONE report without evidence gets a request for evidence.\nFILE>>>")
@@ -117,6 +122,48 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(body, "# B\n")
 
 
+class EditTests(unittest.TestCase):
+    def test_list_item_inserted_tight(self):
+        out = apply_edits(CARD, [("- Track acknowledgments.", "after", "- Ask for evidence.")])
+        self.assertIn("- Track acknowledgments.\n- Ask for evidence.\n- Never treat", out)
+
+    def test_paragraph_goes_after_block_with_blank_lines(self):
+        old = "# T\n\nPara one\nstill para one\n\n## Next\n"
+        out = apply_edits(old, [("Para one", "after", "New paragraph.")])
+        self.assertEqual(out, "# T\n\nPara one\nstill para one\n\nNew paragraph.\n\n## Next\n")
+
+    def test_under_heading_and_end(self):
+        out = apply_edits(CARD, [("## Rules", "after", "Rules apply to every worker."), ("END", "after", "Footer.")])
+        self.assertIn("## Rules\n\nRules apply to every worker.\n\n- Track", out)
+        self.assertTrue(out.endswith("verified.\n\nFooter.\n"))
+
+    def test_replace_and_fuzzy_find(self):
+        out = apply_edits(CARD, [("**Status:** PROPOSED", "replace", "**Status:** ACCEPTED")])
+        self.assertIn("**Status:** ACCEPTED", out)
+        out = apply_edits(CARD, [("never treat done as verified", "after", "- Evidence first.")])
+        self.assertIn("verified.\n- Evidence first.", out)
+
+    def test_unknown_line_raises(self):
+        with self.assertRaises(EditError):
+            apply_edits(CARD, [("This line is not in the card at all", "after", "x")])
+
+    def test_text_already_present_is_not_added_again(self):
+        self.assertEqual(apply_edits(CARD, [("## Rules", "after", "- Track acknowledgments.")]), CARD)
+
+    def test_real_card_append_after_last_line(self):
+        old = (Path(__file__).parent / "data" / "team_liaison_original.md").read_text()
+        reply = ("SUMMARY: Added the evidence rule.\n"
+                 "FIND: Smallest useful test: one worker sends `REQUEST_NUDGE`, the Liaison acknowledges it, "
+                 "the decision-maker approves it, one nudge is delivered, and the receipt shows up in the record.\n"
+                 "ACTION: after\n<<<TEXT\nWhen a worker reports DONE without a commit or test result, the Liaison "
+                 "asks for the evidence instead of escalating to the Project Lead.\nTEXT>>>")
+        summary, edits = parse_edits(reply)
+        out = apply_edits(old, edits)
+        self.assertTrue(out.startswith(old.rstrip()))
+        self.assertEqual(out[len(old.rstrip()):].count("\n\n"), 1)
+        self.assertEqual(out.count("Smallest useful test"), 1)
+
+
 class PRModeTests(Base):
     def test_issue_to_pull_request(self):
         self.state.add_issue("Arameair/identity", "Liaison evidence rule", ISSUE)
@@ -129,7 +176,7 @@ class PRModeTests(Base):
         self.assertEqual(pr["base"], "teams")
         self.assertTrue(pr["head"].startswith("liaison/identity-1-"))
         new = self.state.files["Arameair/identity"][pr["head"]]["teams/TEAM_LIAISON.md"]
-        self.assertIn("request for evidence", new)
+        self.assertEqual(new, CARD.replace("verified.\n", "verified.\n- A DONE report without evidence gets a request for evidence.\n"))
         self.assertNotIn("<think>", new)
         # The base branch itself is untouched in PR mode.
         self.assertEqual(self.state.files["Arameair/identity"]["teams"]["teams/TEAM_LIAISON.md"], CARD)
@@ -208,8 +255,11 @@ class TruncatedModelTests(Base):
         self.state.add_issue("Arameair/identity", "x", ISSUE)
         self.agent.pulse()
         self.assertIn(BLOCKED, self.state.label_names("Arameair/identity", 1))
-        self.assertIn("truncated", self.comments()[-1])
+        self.assertIn("token limit", self.comments()[-1])
         self.assertEqual(self.state.commits, [])
+        # Edit replies are capped small, and the partial reply is logged for debugging.
+        self.assertLessEqual(self.model_srv.calls[-1]["max_tokens"], 768)
+        self.assertTrue(any("for debugging" in l for l in self.logs))
 
 
 class TinyContextTests(Base):

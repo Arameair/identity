@@ -17,7 +17,9 @@ THINK = re.compile(r"<think>.*?</think>", re.S)
 
 
 class ModelError(RuntimeError):
-    pass
+    def __init__(self, message: str, partial: str = ""):
+        super().__init__(message)
+        self.partial = partial  # what the model wrote before failing (for logs only)
 
 
 class Model:
@@ -29,6 +31,7 @@ class Model:
         self.margin = int(cfg.get("safety_margin", 256))
         self.min_output = int(cfg.get("min_output_tokens", 512))
         self.thinking = bool(cfg.get("thinking", False))
+        self.temperature = float(cfg.get("temperature", 0.3))
 
     def _call(self, path: str, payload=None, timeout: int | None = None):
         data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -64,7 +67,7 @@ class Model:
 
     # --- generation ---------------------------------------------------------
 
-    def chat(self, messages: list[dict]) -> tuple[str, dict]:
+    def chat(self, messages: list[dict], max_tokens: int | None = None) -> tuple[str, dict]:
         used, ctx, exact = self.measure(messages)
         available = ctx - used - self.margin
         if available < self.min_output:
@@ -73,10 +76,12 @@ class Model:
                 f"only {max(available, 0)} left for the answer (need {self.min_output}). "
                 "Read fewer files or raise the server context (-c)."
             )
+        limit = min(available, max_tokens) if max_tokens else available
         payload = {
             "model": self.name,
             "messages": messages,
-            "max_tokens": available,
+            "max_tokens": limit,
+            "temperature": self.temperature,
             "stream": False,
         }
         if not self.thinking:
@@ -88,9 +93,10 @@ class Model:
         except (urllib.error.URLError, OSError) as e:
             raise ModelError(f"Model not reachable at {self.url}: {e}") from None
         choice = result["choices"][0]
-        if choice.get("finish_reason") == "length":
-            raise ModelError("Model output was truncated; nothing was written.")
         text = choice.get("message", {}).get("content") or ""
+        if choice.get("finish_reason") == "length":
+            raise ModelError(f"Model output ran past its {limit}-token limit (it was probably repeating itself); "
+                             "nothing was written.", partial=text)
         text = THINK.sub("", text).strip()
         if not text:
             raise ModelError("Model returned no visible reply.")

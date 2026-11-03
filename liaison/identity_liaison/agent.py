@@ -39,6 +39,120 @@ SUMMARY: <one sentence saying what you changed>
 <the complete updated card in Markdown>
 FILE>>>"""
 
+EDIT_FORMAT = """Do NOT rewrite the card. Describe only the edit; the program will apply it to the card for you.
+Put the change in the section where it belongs, in the card's own style. Do not label it as new.
+Reply in exactly this format and nothing else:
+SUMMARY: <one sentence saying what you changed>
+FIND: <one line copied exactly from the current card, where the change goes>
+ACTION: <after | before | replace>
+<<<TEXT
+<the new Markdown text to put there>
+TEXT>>>
+Only if the instruction needs several separate changes, repeat FIND, ACTION and TEXT for each."""
+
+# Words in the owner's task that ask for a whole-card rewrite instead of an edit.
+REWRITE_WORDS = ("rewrite", "restructure", "reorganize", "reorganise", "reformat", "start over")
+
+EDIT_BLOCK = re.compile(
+    r"FIND:\s*(?P<find>[^\n]*)\n\s*ACTION:\s*(?P<action>\w+)[^\n]*\n\s*<<<TEXT[^\n]*\n(?P<text>.*?)\n?\s*TEXT>>>",
+    re.S | re.I,
+)
+
+
+class EditError(ModelError):
+    pass
+
+
+def _norm(line: str) -> str:
+    line = line.strip().strip("`\"'")
+    line = re.sub(r"^(?:[-*+]\s+|\d+[.)]\s+|>\s*|#+\s*)", "", line)
+    return " ".join(line.replace("**", "").split()).lower()
+
+
+def _kind(line: str) -> str:
+    s = line.strip()
+    if re.match(r"^(?:[-*+]|\d+[.)])\s", s):
+        return "list"
+    if s.startswith("|"):
+        return "table"
+    return "other"
+
+
+def _find_line(lines: list[str], find: str) -> int | None:
+    target = find.strip()
+    if not target or target.upper() in ("END", "END OF CARD", "(END)"):
+        return None
+    for i, l in enumerate(lines):
+        if l.strip() == target.strip("`"):
+            return i
+    nt = _norm(target)
+    hits = [i for i, l in enumerate(lines) if l.strip() and _norm(l) == nt]
+    if not hits and len(nt) >= 15:
+        hits = [i for i, l in enumerate(lines) if nt in _norm(l)]
+    if not hits:
+        normed = {i: _norm(l) for i, l in enumerate(lines) if l.strip()}
+        close = difflib.get_close_matches(nt, list(normed.values()), n=1, cutoff=0.85)
+        hits = [i for i, v in normed.items() if close and v == close[0]]
+    if len(hits) >= 1:
+        return hits[0]
+    raise EditError(f"The model pointed at a line that isn't in the card: “{target[:120]}”. Nothing was written.")
+
+
+def parse_edits(reply: str) -> tuple[str, list[tuple[str, str, str]]]:
+    m = re.search(r"SUMMARY:\s*(.+)", reply)
+    summary = m.group(1).strip() if m else "Updated card."
+    edits = []
+    for b in EDIT_BLOCK.finditer(reply):
+        action = b.group("action").lower()
+        if action not in ("after", "before", "replace"):
+            raise EditError(f"Unknown ACTION `{action}` in the model's reply. Nothing was written.")
+        text = b.group("text").strip("\n")
+        inner = re.fullmatch(r"```(?:markdown|md)?\s*\n(.*?)\n```", text.strip(), re.S)
+        edits.append((b.group("find").strip(), action, inner.group(1) if inner else text))
+    return summary, edits
+
+
+def apply_edits(old: str, edits: list[tuple[str, str, str]]) -> str:
+    lines = old.rstrip("\n").split("\n")
+    for find, action, text in edits:
+        new_lines = [l.rstrip() for l in text.strip("\n").split("\n")]
+        if not any(l.strip() for l in new_lines) and action != "replace":
+            continue
+        # Don't add text the card already contains.
+        have = {_norm(l) for l in lines if l.strip()}
+        if action != "replace" and all(_norm(l) in have for l in new_lines if l.strip()):
+            continue
+        idx = _find_line(lines, find)
+        if idx is None:  # FIND: END  -> append at the end
+            idx, action = len(lines) - 1, "after"
+        if action == "replace":
+            lines[idx:idx + 1] = new_lines
+            continue
+        tight = _kind(lines[idx]) == _kind(new_lines[0]) != "other"
+        if action == "before":
+            pos = idx
+            if tight:
+                lines[pos:pos] = new_lines
+            else:
+                pad_before = [""] if pos > 0 and lines[pos - 1].strip() else []
+                lines[pos:pos] = pad_before + new_lines + [""]
+            continue
+        pos = idx + 1
+        if not tight:
+            # Insert after the whole block (paragraph/list) the FIND line belongs to,
+            # unless that line is a heading.
+            if not lines[idx].lstrip().startswith("#"):
+                while pos < len(lines) and lines[pos].strip():
+                    pos += 1
+            after = [""] if pos < len(lines) and lines[pos].strip() else []
+            lines[pos:pos] = [""] + new_lines + after
+        else:
+            lines[pos:pos] = new_lines
+    out = "\n".join(lines)
+    out = re.sub(r"\n{3,}", "\n\n", out) if "\n\n\n" not in old else out
+    return out.strip("\n") + "\n"
+
+
 SHRINK_WORDS = ("remove", "delete", "shorten", "trim", "rewrite", "replace", "condense", "cut")
 
 
@@ -279,7 +393,9 @@ class Agent:
                 raise InstructionError(f"`{target.ref}` is protected; direct writes are refused. Use mode = \"pr\".")
             current = self.gh.read_file(target.repo, target.ref, target.path)
             old, old_sha = (current if current else (None, None))
-            self.log(f"  THINK {target} ({'new card' if old is None else f'{len(old)} chars'})")
+            full = old is None or any(w in instr.task.lower() for w in REWRITE_WORDS)
+            self.log(f"  THINK {target} ({'new card' if old is None else f'{len(old)} chars'}, "
+                     f"{'full rewrite' if full else 'edit'})")
             messages = [
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content":
@@ -287,11 +403,28 @@ class Agent:
                     f"CARD TO UPDATE: {target}\n=== current content ===\n"
                     f"{old.strip() if old else '(this card does not exist yet; write a new one)'}\n"
                     f"=== end of current content ===\n\n"
-                    f"OWNER INSTRUCTION:\n{instr.task}\n\n{CHANGE_FORMAT}"},
+                    f"OWNER INSTRUCTION:\n{instr.task}\n\n{CHANGE_FORMAT if full else EDIT_FORMAT}"},
             ]
-            reply, info = self.model.chat(messages)
+            # Cap the reply so a model stuck repeating itself fails in seconds, not minutes.
+            cap_tokens = (len(old or "") // 3 + 1024) if full else 768
+            try:
+                reply, info = self.model.chat(messages, max_tokens=cap_tokens)
+            except ModelError as e:
+                if e.partial:
+                    self.log("  model reply (last 600 chars, for debugging):\n" + e.partial[-600:])
+                raise
             result.model_info.append(info)
-            summary, new = parse_change(reply)
+            if full:
+                summary, new = parse_change(reply)
+            else:
+                summary, edits = parse_edits(reply)
+                if edits:
+                    new = apply_edits(old, edits)
+                elif "<<<FILE" in reply:
+                    summary, new = parse_change(reply)  # model sent a whole card anyway
+                else:
+                    self.log("  model reply (for debugging):\n" + reply[-600:])
+                    raise EditError("The model's reply had no FIND/ACTION/TEXT edit. Nothing was written.")
             new = clean_card(new, old)
             p = Proposal(target, old, old_sha, new, summary)
             if old is not None and new.strip() == old.strip():

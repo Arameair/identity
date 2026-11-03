@@ -47,6 +47,8 @@ safety_margin = 256
 min_output_tokens = 512
 # false asks Nemotron to answer without a long thinking pass.
 thinking = false
+# Lower = steadier, less likely to ramble or repeat. 0.3 suits card edits.
+temperature = 0.3
 
 [run]
 # How often `identity-liaison run` checks GitHub (the "pulse").
