@@ -16,6 +16,8 @@ cd ~/identity-liaison/liaison
 ./docker-run.sh
 ```
 
+Run it as yourself, without `sudo`. If Docker on your computer needs sudo, the script runs only the docker commands with sudo and asks for your password once. It also shows how to skip that in future (`sudo usermod -aG docker $USER`, then reopen WSL). Typing `sudo ./docker-run.sh` also works: it still uses your own `gh` login, home folder and file ownership, not root's. If Docker isn't started yet, it tells you how (`sudo service docker start` in WSL).
+
 That starts two containers: **Nemotron** (llama.cpp, NVIDIA GPU, loopback port 18082) and **the Liaison**, which checks GitHub every 5 minutes. On first run the script:
 
 - saves your `gh` token to `secrets/github_token`. Only the Liaison container can read it.

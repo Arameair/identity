@@ -6,7 +6,11 @@
 # (Docker Desktop: turn on Settings > Resources > Network > "Enable host networking".)
 services:
   liaison:
-    build: .
+    build:
+      context: .
+      args:
+        BASE: ${LIAISON_BASE:-python:3.12-alpine}
+        PIP_FLAGS: ${LIAISON_PIP_FLAGS:-}
     image: identity-liaison:local
     init: true
     network_mode: host
