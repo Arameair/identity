@@ -53,8 +53,14 @@ Only if the instruction needs several separate changes, repeat FIND, ACTION and 
 # Words in the owner's task that ask for a whole-card rewrite instead of an edit.
 REWRITE_WORDS = ("rewrite", "restructure", "reorganize", "reorganise", "reformat", "start over")
 
+_LABEL = r"(?:^|\n)[ \t>*_#-]*{name}[*_ ]*[:\-][*_ ]*"
 EDIT_BLOCK = re.compile(
-    r"FIND:\s*(?P<find>[^\n]*)\n\s*ACTION:\s*(?P<action>\w+)[^\n]*\n\s*<<<TEXT[^\n]*\n(?P<text>.*?)\n?\s*TEXT>>>",
+    _LABEL.format(name="FIND") + r"(?P<find>[^\n]*)"
+    + _LABEL.format(name="ACTION") + r"`?(?P<action>[A-Za-z]+)`?[^\n]*\n"
+    + r"(?:[ \t>*_#-]*TEXT[*_ ]*:?[*_ ]*\n)?"
+    + r"\s*(?:<<<\s*TEXT[^\n]*\n(?P<text>.*?)\n?\s*TEXT\s*>>>"
+    + r"|```[\w-]*[ \t]*\n(?P<fenced>.*?)\n\s*```"
+    + r"|(?P<loose>.*?)(?=\n[ \t>*_#-]*FIND[*_ ]*[:\-]|\Z))",
     re.S | re.I,
 )
 
@@ -99,16 +105,20 @@ def _find_line(lines: list[str], find: str) -> int | None:
 
 
 def parse_edits(reply: str) -> tuple[str, list[tuple[str, str, str]]]:
-    m = re.search(r"SUMMARY:\s*(.+)", reply)
-    summary = m.group(1).strip() if m else "Updated card."
+    m = re.search(r"SUMMARY[*_ ]*:[*_ ]*(.+)", reply, re.I)
+    summary = m.group(1).strip().strip("*_ ") if m else "Updated card."
     edits = []
     for b in EDIT_BLOCK.finditer(reply):
         action = b.group("action").lower()
         if action not in ("after", "before", "replace"):
             raise EditError(f"Unknown ACTION `{action}` in the model's reply. Nothing was written.")
-        text = b.group("text").strip("\n")
+        text = next(g for g in (b.group("text"), b.group("fenced"), b.group("loose")) if g is not None)
+        text = text.strip("\n")
         inner = re.fullmatch(r"```(?:markdown|md)?\s*\n(.*?)\n```", text.strip(), re.S)
-        edits.append((b.group("find").strip(), action, inner.group(1) if inner else text))
+        find = b.group("find").strip().strip("*_").strip()
+        if (find[:1] == find[-1:]) and find[:1] in ("`", '"', "'") and len(find) > 1:
+            find = find[1:-1]
+        edits.append((find, action, inner.group(1) if inner else text))
     return summary, edits
 
 

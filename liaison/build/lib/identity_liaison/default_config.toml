@@ -1,0 +1,69 @@
+# Identity Liaison configuration
+# Edit this file, then run:  identity-liaison check
+
+[github]
+# Repos the Liaison watches for instruction issues.
+instruction_repos = ["Arameair/identity", "Arameair/nemotronTASS", "Arameair/Developmnt"]
+# Issues need this label to be picked up.
+label = "liaison"
+# ONLY issues opened by these GitHub logins are obeyed.
+# Your repos are public: anyone can open an issue, so keep this list short.
+owners = ["Arameair"]
+# Leave empty to use GITHUB_TOKEN / GH_TOKEN, or `gh auth token`.
+token = ""
+api_url = "https://api.github.com"
+
+[read]
+# Repos the Liaison may read md files from. "*" works as a wildcard.
+allow = ["Arameair/*"]
+# Largest number of files one instruction may read.
+max_files = 12
+
+[write]
+# Card files the Liaison may change, written as  owner/repo@branch:path
+# "*" is a wildcard. Anything not matched here is refused.
+allow = [
+  "Arameair/*@*:teams/*.md",       # identity / TASS / Thought-* `teams` branches
+  "Arameair/*@*:team/*.md",        # nemotronTASS team role cards
+  "Arameair/*@*:cards/*.md",       # nemotronTASS entity cards (TASS.md, Chief of Staff)
+  "Arameair/*@*:docs/team/*.md",   # nemotronTASS team handoff notes
+]
+# "pr"     = commit to a new liaison/... branch and open a pull request (you merge it)
+# "direct" = commit straight onto the branch named in the instruction
+mode = "pr"
+# Never committed to directly, even in "direct" mode (PRs into them are fine).
+protected_branches = ["main", "alpha", "stable"]
+# Largest number of cards one instruction may change.
+max_changes = 5
+
+[model]
+# OpenAI-compatible server. llama.cpp gives exact token counts (context guard).
+url = "http://127.0.0.1:8081"
+name = "local"
+timeout_seconds = 600
+# Used only when the server does not report its context size.
+context_fallback = 8192
+safety_margin = 256
+min_output_tokens = 512
+# false asks Nemotron to answer without a long thinking pass.
+thinking = false
+# Lower = steadier, less likely to ramble or repeat. 0.3 suits card edits.
+temperature = 0.3
+
+[chat]
+# Side chat: open issues with this label are conversations with TASS.
+# Comment on the issue and TASS replies in the thread.
+repos = ["Arameair/Developmnt"]
+label = "liaison-chat"
+# md files TASS reads before answering, in the chat issue's own repo (default branch).
+knowledge = ["side-chat/*.md"]
+# How often to check for new comments.
+pulse_seconds = 30
+# Most recent messages kept in the conversation sent to the model.
+max_history = 12
+
+[run]
+# How often `identity-liaison run` checks GitHub (the "pulse").
+pulse_seconds = 300
+# Most instructions handled per pulse.
+max_per_pulse = 5

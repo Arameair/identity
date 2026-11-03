@@ -143,6 +143,17 @@ class EditTests(unittest.TestCase):
         out = apply_edits(CARD, [("never treat done as verified", "after", "- Evidence first.")])
         self.assertIn("verified.\n- Evidence first.", out)
 
+    def test_tolerant_edit_formats(self):
+        variants = [
+            "**SUMMARY:** Added it.\n**FIND:** `- Track acknowledgments.`\n**ACTION:** after\n<<<TEXT\n- Ask for evidence.\nTEXT>>>",
+            "SUMMARY: Added it.\nFIND: \"- Track acknowledgments.\"\nACTION: After\nTEXT:\n```markdown\n- Ask for evidence.\n```",
+            "SUMMARY: Added it.\n- FIND: - Track acknowledgments.\n- ACTION: after\nTEXT:\n- Ask for evidence.",
+        ]
+        for v in variants:
+            summary, edits = parse_edits(v)
+            self.assertEqual(summary, "Added it.")
+            self.assertIn("- Track acknowledgments.\n- Ask for evidence.\n", apply_edits(CARD, edits), v)
+
     def test_unknown_line_raises(self):
         with self.assertRaises(EditError):
             apply_edits(CARD, [("This line is not in the card at all", "after", "x")])

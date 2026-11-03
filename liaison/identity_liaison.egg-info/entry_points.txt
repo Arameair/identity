@@ -1,0 +1,2 @@
+[console_scripts]
+identity-liaison = identity_liaison.cli:main
