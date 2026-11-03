@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fakes import FakeGitHubState, start_fake_github, start_fake_model  # noqa: E402
-from identity_liaison.agent import BLOCKED, DONE, WORKING, Agent, parse_change  # noqa: E402
+from identity_liaison.agent import BLOCKED, DONE, WORKING, Agent, clean_card, parse_change  # noqa: E402
 from identity_liaison.config import Config, default_text  # noqa: E402
 from identity_liaison.github import GitHub  # noqa: E402
 from identity_liaison.instructions import InstructionError, parse  # noqa: E402
@@ -92,6 +92,23 @@ class ParseTests(unittest.TestCase):
             parse("t", "read:\n- not a ref\n")
         with self.assertRaises(InstructionError):
             parse("t", "change:\n- Arameair/x:teams/*.md\ntask: go")
+
+    def test_real_pr26_output_is_cleaned(self):
+        # Real Nemotron 3 Nano 4B output from issue #25 / PR #26 (2026-11-03):
+        # it duplicated the last paragraph and echoed the prompt's end marker.
+        data = Path(__file__).parent / "data"
+        old = (data / "team_liaison_original.md").read_text()
+        raw = (data / "pr26_model_output.md").read_text()
+        out = clean_card(raw, old)
+        self.assertNotIn("=== end of current content ===", out)
+        self.assertEqual(out.count("Smallest useful test:"), old.count("Smallest useful test:"))
+        self.assertIn("asks for the evidence instead of escalating", out)
+        # Everything else in the original card survives untouched.
+        self.assertTrue(out.startswith(old.rstrip()))
+
+    def test_clean_card_keeps_exact_text_when_nothing_to_fix(self):
+        text = "# A\n\n\n- one\n- two\n"
+        self.assertEqual(clean_card(text, "# A\n"), text)
 
     def test_parse_change_fallbacks(self):
         s, body = parse_change("SUMMARY: x\n```markdown\n# A\n```")

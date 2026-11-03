@@ -31,6 +31,8 @@ ANSWER_FORMAT = "Answer the owner directly in Markdown. Base your answer on the 
 
 CHANGE_FORMAT = """Rewrite the card so it carries out the owner instruction.
 Keep everything the instruction does not ask you to change: headings, links, IDs and status lines.
+Put new text in the section where it belongs, written in the card's own style. Do not label it as new.
+Do not repeat any existing paragraph, and do not copy the === marker lines.
 Reply in exactly this format and nothing else:
 SUMMARY: <one sentence saying what you changed>
 <<<FILE
@@ -90,6 +92,33 @@ def parse_change(reply: str) -> tuple[str, str]:
     if not body:
         raise ModelError("Model returned an empty card.")
     return summary, body + "\n"
+
+
+MARKER_LINE = re.compile(r"^\s*===\s*(?:end of )?current content\s*===\s*$|^\s*===\s*\S+/\S+.*===\s*$", re.I)
+
+
+def clean_card(new: str, old: str | None) -> str:
+    """Remove prompt markers the model echoed and paragraphs it duplicated."""
+    lines = [l for l in new.splitlines() if not MARKER_LINE.match(l)]
+    marker_removed = len(lines) != len(new.splitlines())
+    paragraphs = re.split(r"\n\s*\n", "\n".join(lines).strip())
+    allowed: dict[str, int] = {}
+    for p in re.split(r"\n\s*\n", (old or "").strip()):
+        key = " ".join(p.split())
+        allowed[key] = allowed.get(key, 0) + 1
+    seen: dict[str, int] = {}
+    kept = []
+    for p in paragraphs:
+        key = " ".join(p.split())
+        seen[key] = seen.get(key, 0) + 1
+        # Drop an extra copy of a substantial paragraph beyond what the card already had
+        # (a brand-new paragraph may appear once).
+        if len(key) >= 30 and seen[key] > max(allowed.get(key, 0), 1):
+            continue
+        kept.append(p)
+    if not marker_removed and len(kept) == len(paragraphs):
+        return new  # nothing to fix: keep the model's exact spacing
+    return "\n\n".join(kept).strip() + "\n"
 
 
 def _clip(text: str, limit: int = 60000) -> str:
@@ -263,6 +292,7 @@ class Agent:
             reply, info = self.model.chat(messages)
             result.model_info.append(info)
             summary, new = parse_change(reply)
+            new = clean_card(new, old)
             p = Proposal(target, old, old_sha, new, summary)
             if old is not None and new.strip() == old.strip():
                 p.skipped = "the model made no change"

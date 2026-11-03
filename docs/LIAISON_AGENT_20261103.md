@@ -35,8 +35,8 @@ The Go Identity service is **not touched**. The Liaison lives in `liaison/` and 
 | `compose.external-model.yaml` in container against **real GitHub** | Actual GitHub (no `liaison` issues existed, so nothing written), fixture model | Docker, host network | `check` all PASS; `once --dry-run` handled 0; `run` pulsed every 5s | PASS |
 | Missing/empty token in container | Actual | Docker | Logs `pulse failed: … is empty` each pulse; container stays Up (no restart loop) | PASS |
 | `./docker-run.sh` end to end with real `python:3.12-alpine` + `llama.cpp:server-cuda` images | Actual | Owner WSL (DESKTOP-HEK2HFN), Docker via sudo | Owner console 2026-11-03 07:56: image built, model container Healthy (32.5s), `check`: GitHub signed in as Arameair, both instruction repos reachable, `model at http://model:8081: context 8192 tokens`; Liaison running, pulse 300s | PASS |
-| Real Nemotron 3 Nano 4B produces a usable card in the `<<<FILE` format | Actual | Owner WSL | — | **NOT RUN** |
-| Real issue → real PR on GitHub | Actual | Owner WSL | — | **NOT RUN** |
+| Real issue → answer (issue #24) | **Actual** GitHub + real Nemotron 3 Nano 4B | Owner WSL, Docker | WORKING 14:10:06Z → DONE 14:11:04Z; 1149/8192 prompt tokens; 3-bullet answer grounded in TEAM_LIAISON.md | PASS |
+| Real issue → card PR (issue #25 → PR #26) | **Actual** GitHub + real Nemotron | Owner WSL, Docker | Rule added, nothing dropped, `teams` untouched; BUT model duplicated the last paragraph and echoed `=== end of current content ===` | FAIL → fixed in code (marker strip + duplicate-paragraph removal, prompt tightened); regression test uses the real PR #26 output; cleaned diff = rule only. PR #26 not to be merged. Re-run pending |
 | `install.sh` on owner WSL | Actual | Owner WSL | — | NOT RUN (Docker used instead) |
 
 Fixture results do not prove that the real model follows the reply format or writes good cards.
