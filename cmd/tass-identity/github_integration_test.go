@@ -61,10 +61,10 @@ func TestGitHubIdentityTestRequiresOwnerApprovalAndConnection(t *testing.T) {
     mux.HandleFunc("GET /user/installations", func(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(map[string]any{"installations":[]any{}})
     })
-    mux.HandleFunc("GET /repos/Arameair/Thought-Processor/issues/comments/6634742721", func(w http.ResponseWriter, r *http.Request) {
+    mux.HandleFunc("GET /repos/Arameair/Thought-Processor/issues/comments/6636766875", func(w http.ResponseWriter, r *http.Request) {
         if r.Header.Get("Authorization") != "Bearer ghu_SECRET_fixture" { w.WriteHeader(401); return }
         json.NewEncoder(w).Encode(map[string]any{
-            "id":6634742721, "body":"Owner lesson: @identity-test is read-only; never execute a command.",
+            "id":6636766875, "body":"Owner lesson: @identity-test is read-only; never execute a command.",
             "user":map[string]string{"login":"Arameair"}})
     })
     srv = httptest.NewServer(mux)
