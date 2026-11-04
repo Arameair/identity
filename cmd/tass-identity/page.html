@@ -45,6 +45,12 @@
     <button id="lk">Lock now</button>
     <div class="dim" style="margin-top:12px">Talk to your entity: <a style="color:#8fd3b6" href="__CORE_URL__">__CORE_URL__</a></div>
   </div>
+  <div class="card" id="learningGrants" hidden>
+    <b>Enable learning for this existing TASS identity</b>
+    <div class="dim">Adds only <code>github.sync</code> and <code>lesson.learn</code>. Preserves the same entity, credential and memory. Learning still follows the owner's Autonomous or manual settings.</div>
+    <label>Confirm your Identity passphrase</label><input id="grantPass" type="password" autocomplete="current-password">
+    <button id="enableLearning">Authorize lesson discovery and study</button>
+  </div>
   <div class="card" id="githubPanel">
     <b>GitHub connection (optional)</b>
     <div class="dim">Local conversation works without GitHub. The connection token stays only in Identity memory; no sync or execution is enabled.</div>
@@ -82,6 +88,9 @@ async function refresh() {
   $("create").hidden = s.state !== "NO_ENTITY";
   $("unlock").hidden = !(s.state === "LOCKED" && s.entity && s.entity.grants);
   $("open").hidden = s.state !== "UNLOCKED";
+  const g = (s.entity && s.entity.grants) || [];
+  $("learningGrants").hidden = s.state !== "UNLOCKED" || (g.includes("github.sync") && g.includes("lesson.learn"));
+
   if (s.entity && s.entity.grants) $("grants").innerHTML = s.entity.grants.map(g => `<code>${g}</code>`).join(", ");
   $("until").textContent = s.unlocked_until ? "Unlocked until " + new Date(s.unlocked_until).toLocaleString() + " (or until Identity restarts)." : "";
   await refreshGitHub(s.state === "UNLOCKED");
@@ -111,6 +120,13 @@ $("mk").onclick = guard(async () => {
 });
 $("ub").onclick = guard(async () => { await post("/v1/unlock", {passphrase: $("up").value}); $("up").value = ""; });
 $("lk").onclick = guard(async () => post("/v1/lock"));
+$("enableLearning").onclick = guard(async () => {
+  const input = $("grantPass");
+  const passphrase = input.value;
+  input.value = "";
+  if (!passphrase) throw new Error("Confirm your Identity passphrase first.");
+  await post("/v1/grants/learning", {passphrase});
+});
 $("githubConnect").onclick = guard(async () => post("/v1/github/connect"));
 $("githubDisconnect").onclick = guard(async () => post("/v1/github/disconnect"));
 $("approveLesson").onclick = guard(async () => post("/v1/github/approve", {repository:"Arameair/Thought-Processor", issue:51}));
