@@ -10,7 +10,7 @@ import (
     "time"
 )
 
-const identityTestSource = "/repos/Arameair/Thought-Processor/issues/comments/6634742721"
+const identityTestSource = "/repos/Arameair/Thought-Processor/issues/comments/6636766875"
 
 func (c *Client) ReadIdentityTestLesson() (string, error) {
     c.mu.Lock()
@@ -36,7 +36,7 @@ func (c *Client) ReadIdentityTestLesson() (string, error) {
     if code != 200 {
         return "", errors.New("GitHub did not permit this issue-comment read")
     }
-    if out.ID != 6634742721 || out.User.Login != "Arameair" ||
+    if out.ID != 6636766875 || out.User.Login != "Arameair" ||
         !strings.Contains(out.Body, "@identity-test") ||
         len(out.Body) == 0 || len(out.Body) > 8192 {
         return "", errors.New("GitHub lesson provenance or size did not match pinned source")
