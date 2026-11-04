@@ -1,0 +1,23 @@
+name: tass-identity-github-tests
+on:
+  push:
+    branches: ["experiment/tass-github-lesson-20261104"]
+    paths: ["cmd/tass-identity/**", "internal/github/**", ".github/workflows/tass-identity-github-tests.yml"]
+  pull_request:
+    paths: ["cmd/tass-identity/**", "internal/github/**", ".github/workflows/tass-identity-github-tests.yml"]
+permissions:
+  contents: read
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Vet and race tests including GitHub device-flow fixture
+        run: |
+          go vet ./cmd/tass-identity ./internal/github ./internal/entity
+          go test -race -count=1 ./cmd/tass-identity ./internal/github ./internal/entity
+      - name: Build the container Identity binary
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/tass-identity ./cmd/tass-identity
