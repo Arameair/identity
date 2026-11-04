@@ -77,3 +77,27 @@ func TestOwnerRoutesAndServiceRoutes(t *testing.T) {
 		t.Fatal("locked must deny")
 	}
 }
+
+func TestLearningGrantsEndpointRequiresOwnerProof(t *testing.T) {
+	st, _ := entity.Open(t.TempDir(), time.Hour)
+	h := routes(st, map[string]string{engineKey: "core"}, "page-secret")
+	ownerHeader := map[string]string{"X-Identity-Page": "page-secret"}
+	body := map[string]string{"passphrase":"correct horse battery"}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", ownerHeader, body); code != 403 {
+		t.Fatalf("nonexistent entity should be refused: %d", code)
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/entity", ownerHeader,
+		map[string]string{"name":"TASS", "passphrase":"correct horse battery"}); code != 201 { t.Fatal("create") }
+	if code, _ := req(t, h, "POST", "identity:8796", "/v1/grants/learning", ownerHeader, body); code != 403 { t.Fatal("not owner host") }
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", nil, body); code != 403 { t.Fatal("CSRF token missing") }
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", ownerHeader,
+		map[string]string{"passphrase":"wrong password"}); code != 403 { t.Fatal("incorrect passphrase") }
+	if code, response := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", ownerHeader, body); code != 200 || response["state"] != "UNLOCKED" {
+		t.Fatalf("grant: %d %v", code, response)
+	}
+	_, a := req(t, h, "POST", "identity:8796", "/v1/authorize",
+		map[string]string{"Authorization":"Bearer "+engineKey}, map[string]string{"action":"lesson.learn"})
+	if a["allow"] != true { t.Fatalf("grant not usable: %v", a) }
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/lock", ownerHeader, nil)
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", ownerHeader, body); code != 403 { t.Fatal("locked entity") }
+}
