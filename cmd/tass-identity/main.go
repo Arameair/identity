@@ -266,6 +266,26 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 200, s)
 		}
 	}))
+	// Explicit, narrowly-scoped consent for existing entities created before the
+	// learning grants existed. Only the local owner page can request it, and a
+	// fresh passphrase check inside the store proves owner authorization.
+	mux.HandleFunc("POST /v1/grants/learning", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct { Passphrase string `json:"passphrase"` }
+		if !decode(w, r, &in) {
+			return
+		}
+		s, err := st.EnableLearningGrants(in.Passphrase)
+		switch {
+		case errors.Is(err, entity.ErrThrottled):
+			writeJSON(w, 429, map[string]string{"error": err.Error()})
+		case err != nil:
+			log.Printf("learning grant request refused: %v", err)
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+		default:
+			log.Printf("owner enabled learning grants for %s", s.Entity.EntityID)
+			writeJSON(w, 200, s)
+		}
+	}))
 	mux.HandleFunc("POST /v1/lock", owner(func(w http.ResponseWriter, r *http.Request) {
 		st.Lock()
 		approved.Lock()
