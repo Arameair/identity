@@ -43,7 +43,25 @@
     <div>Granted actions: <span id="grants"></span></div>
     <div class="dim" id="until"></div>
     <button id="lk">Lock now</button>
-    <div class="dim" style="margin-top:12px">Talk to your entity: <a style="color:#8fd3b6" href="http://127.0.0.1:8795/">http://127.0.0.1:8795</a></div>
+    <div class="dim" style="margin-top:12px">Talk to your entity: <a style="color:#8fd3b6" href="__CORE_URL__">__CORE_URL__</a></div>
+  </div>
+  <div class="card" id="githubPanel">
+    <b>GitHub connection (optional)</b>
+    <div class="dim">Local conversation works without GitHub. The connection token stays only in Identity memory; no sync or execution is enabled.</div>
+    <div>Status: <strong id="githubStatus">checking</strong> <span id="githubAccount"></span></div>
+    <button id="githubConnect">Connect GitHub</button>
+    <button id="githubDisconnect">Disconnect GitHub</button>
+    <div id="githubDevice" hidden>
+      <p>Use GitHub's device sign-in page. Enter this one-time code (shown here only): <strong id="githubCode"></strong></p>
+      <a id="githubVerify" target="_blank" rel="noopener noreferrer" style="color:#8fd3b6">Open GitHub authorization</a>
+      <div class="dim">After authorizing in GitHub, connection status updates here.</div>
+    </div>
+    <div id="githubApprove" hidden>
+      <p><b>Approve one read-only lesson</b></p>
+      <div class="dim">Arameair/Thought-Processor · Issue #51 · @identity-test. Reading is not execution permission.</div>
+      <button id="approveLesson">Approve lesson #51 for TASS</button>
+      <div class="dim" id="lessonApproval">Not approved</div>
+    </div>
   </div>
   <div id="err" class="err"></div>
 </main>
@@ -66,6 +84,25 @@ async function refresh() {
   $("open").hidden = s.state !== "UNLOCKED";
   if (s.entity && s.entity.grants) $("grants").innerHTML = s.entity.grants.map(g => `<code>${g}</code>`).join(", ");
   $("until").textContent = s.unlocked_until ? "Unlocked until " + new Date(s.unlocked_until).toLocaleString() + " (or until Identity restarts)." : "";
+  await refreshGitHub(s.state === "UNLOCKED");
+}
+async function refreshGitHub(unlocked) {
+  const r = await fetch("/v1/github/status");
+  if (!r.ok) { $("githubStatus").textContent = "unavailable"; return; }
+  const d = await r.json();
+  const g = d.github;
+  $("githubStatus").textContent = g.status + " (" + g.mode + ")";
+  $("githubAccount").textContent = g.account ? " · " + g.account.login : "";
+  $("githubConnect").hidden = !unlocked || g.status === "verified" || g.status === "waiting";
+  $("githubDisconnect").hidden = g.status === "signed_out" || g.status === "not_configured";
+  $("githubDevice").hidden = g.status !== "waiting";
+  if (g.status === "waiting") {
+    $("githubCode").textContent = g.user_code;
+    $("githubVerify").href = g.verify_url;
+  }
+  $("githubApprove").hidden = !unlocked || g.status !== "verified";
+  $("lessonApproval").textContent = d.approved ? "Approved for read-only reference" : "Not approved";
+  $("approveLesson").disabled = !!d.approved;
 }
 function guard(fn) { return async () => { $("err").textContent = ""; try { await fn(); } catch (e) { $("err").textContent = e.message; } refresh(); }; }
 $("mk").onclick = guard(async () => {
@@ -74,6 +111,9 @@ $("mk").onclick = guard(async () => {
 });
 $("ub").onclick = guard(async () => { await post("/v1/unlock", {passphrase: $("up").value}); $("up").value = ""; });
 $("lk").onclick = guard(async () => post("/v1/lock"));
+$("githubConnect").onclick = guard(async () => post("/v1/github/connect"));
+$("githubDisconnect").onclick = guard(async () => post("/v1/github/disconnect"));
+$("approveLesson").onclick = guard(async () => post("/v1/github/approve", {repository:"Arameair/Thought-Processor", issue:51}));
 refresh(); setInterval(refresh, 5000);
 </script>
 </body>
