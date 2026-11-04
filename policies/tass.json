@@ -1,0 +1,13 @@
+{
+  "identity": "TASS",
+  "owner": "Arameair",
+  "obey": ["Arameair"],
+  "tass_md": "Arameair/TASS@live:tass.md",
+  "allow": {
+    "model.request": true,
+    "github.read_messages": true,
+    "github.reply": true,
+    "tass_md.sync": true,
+    "tass_md.conflict_pr": true
+  }
+}
