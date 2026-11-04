@@ -41,7 +41,7 @@ func TestExistingEntityOwnerEnablesOnlyLearningGrants(t *testing.T) {
 	if _, err := s.EnableLearningGrants("correct horse battery"); err != nil { t.Fatalf("idempotent: %v", err) }
 	if st := s.State(); len(st.Entity.Grants) != len(old)+2 { t.Fatalf("duplicate grant: %v", st.Entity.Grants) }
 	s.Lock()
-	if _, err := s.EnableLearningGrants("correct horse battery"); err != ErrNotUsable { t.Fatalf("locked must deny: %v", err) }
+	if _, err := s.EnableLearningGrants("correct horse battery"); err != ErrLocked { t.Fatalf("locked must deny with a clear reason: %v", err) }
 	if d := s.Authorize("core", "lesson.learn", "", ""); d.Allow { t.Fatal("locked but allowed") }
 	if b, _ := os.ReadFile(filepath.Join(dir, "decisions.jsonl")); !strings.Contains(string(b), "grants.enable_learning") || strings.Contains(string(b), "correct horse battery") {
 		t.Fatal("audit absent or passphrase leaked")

@@ -59,6 +59,7 @@ var (
 	ErrBadPass     = errors.New("wrong passphrase")
 	ErrThrottled   = errors.New("too many wrong passphrases: wait a little and try again")
 	ErrNotUsable   = errors.New("this entity can't be unlocked")
+	ErrLocked      = errors.New("Identity is locked: unlock it with your passphrase first, then enable learning")
 	nameRe         = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N} ._'-]{0,39}$`)
 	errDamagedBase = "entity is LOCKED: "
 )
@@ -296,7 +297,7 @@ func (s *Store) EnableLearningGrants(passphrase string) (State, error) {
 	}
 	now := s.Now()
 	if !now.Before(s.until) {
-		return State{}, ErrNotUsable
+		return State{}, ErrLocked
 	}
 	wait := time.Duration(0)
 	if s.fails >= 3 {

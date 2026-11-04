@@ -101,3 +101,27 @@ func TestLearningGrantsEndpointRequiresOwnerProof(t *testing.T) {
 	req(t, h, "POST", "127.0.0.1:8796", "/v1/lock", ownerHeader, nil)
 	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/learning", ownerHeader, body); code != 403 { t.Fatal("locked entity") }
 }
+
+// The learning card must say what changes (including that github.sync can write the
+// entity's document), report its own result next to the button, and keep the
+// unrelated Issue #51 reference approval clearly separate from TASS's lessons.
+func TestLearningCardExplainsChangeAndSeparatesIssue51(t *testing.T) {
+	b, err := page.ReadFile("page.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := string(b)
+	for _, want := range []string{
+		`id="grantMsg"`, `id="grantDone"`, "This can write his document to that repository",
+		"Nothing was sent to Identity", "Identity refused it: ", "never stored",
+		"Separate developer test (not TASS's lessons)",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("learning card is missing %q", want)
+		}
+	}
+	if strings.Contains(p, `input.value = "";
+  if (!passphrase)`) {
+		t.Error("the passphrase must not be cleared before it is checked/sent")
+	}
+}
