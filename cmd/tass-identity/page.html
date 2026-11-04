@@ -14,7 +14,8 @@
   button { margin-top:14px; font:inherit; color:#e9e4dc; background:#1d252d; border:1px solid #3a4652; border-radius:8px; padding:8px 16px; cursor:pointer; }
   .state { font:600 13px ui-monospace, Consolas, monospace; padding:3px 9px; border-radius:6px; border:1px solid; }
   .UNLOCKED { color:#8fd3b6; } .LOCKED { color:#f2b866; } .NO_ENTITY { color:#8f9ba5; }
-  .err { color:#ff8a80; margin-top:10px; } code { font-size:12.5px; }
+  .err { color:#ff8a80; margin-top:10px; } .ok { color:#8fd3b6; margin-top:10px; } code { font-size:12.5px; }
+  ul.perm { margin:8px 0 0; padding-left:20px; font-size:13.5px; } ul.perm li { margin:4px 0; }
 </style>
 </head>
 <body>
@@ -42,14 +43,21 @@
   <div class="card" id="open" hidden>
     <div>Granted actions: <span id="grants"></span></div>
     <div class="dim" id="until"></div>
+    <div class="ok" id="grantDone" hidden></div>
     <button id="lk">Lock now</button>
     <div class="dim" style="margin-top:12px">Talk to your entity: <a style="color:#8fd3b6" href="__CORE_URL__">__CORE_URL__</a></div>
   </div>
   <div class="card" id="learningGrants" hidden>
-    <b>Enable learning for this existing TASS identity</b>
-    <div class="dim">Adds only <code>github.sync</code> and <code>lesson.learn</code>. Preserves the same entity, credential and memory. Learning still follows the owner's Autonomous or manual settings.</div>
-    <label>Confirm your Identity passphrase</label><input id="grantPass" type="password" autocomplete="current-password">
-    <button id="enableLearning">Authorize lesson discovery and study</button>
+    <b>Enable learning for this TASS</b>
+    <div class="dim">This adds two permissions to the same identity. Nothing else changes: same ID, credential, memory and document.</div>
+    <ul class="perm">
+      <li><code>github.sync</code> — read lessons from the GitHub repository set for this installation, and keep his document (<code>tass.md</code>) in sync with it. <b>This can write his document to that repository.</b></li>
+      <li><code>lesson.learn</code> — study a lesson and answer its checks. With Autonomous off, nothing counts as learned until you press Approve in TASS.</li>
+    </ul>
+    <div class="dim" style="margin-top:8px">Identity asks for your passphrase again because this changes what TASS is allowed to do. It is checked here and never stored.</div>
+    <label for="grantPass">Your Identity passphrase</label><input id="grantPass" type="password" autocomplete="current-password">
+    <button id="enableLearning">Enable learning</button>
+    <div id="grantMsg" class="err" role="status" aria-live="polite"></div>
   </div>
   <div class="card" id="githubPanel">
     <b>GitHub connection (optional)</b>
@@ -63,8 +71,8 @@
       <div class="dim">After authorizing in GitHub, connection status updates here.</div>
     </div>
     <div id="githubApprove" hidden>
-      <p><b>Approve one read-only lesson</b></p>
-      <div class="dim">Arameair/Thought-Processor · Issue #51 · @identity-test. Reading is not execution permission.</div>
+      <p><b>Separate developer test (not TASS's lessons)</b></p>
+      <div class="dim">Arameair/Thought-Processor · Issue #51 · @identity-test reference approval. It has nothing to do with Enable learning or the lessons TASS studies; you don't need it for teaching TASS.</div>
       <button id="approveLesson">Approve lesson #51 for TASS</button>
       <div class="dim" id="lessonApproval">Not approved</div>
     </div>
@@ -120,13 +128,32 @@ $("mk").onclick = guard(async () => {
 });
 $("ub").onclick = guard(async () => { await post("/v1/unlock", {passphrase: $("up").value}); $("up").value = ""; });
 $("lk").onclick = guard(async () => post("/v1/lock"));
-$("enableLearning").onclick = guard(async () => {
-  const input = $("grantPass");
-  const passphrase = input.value;
-  input.value = "";
-  if (!passphrase) throw new Error("Confirm your Identity passphrase first.");
-  await post("/v1/grants/learning", {passphrase});
-});
+async function enableLearning() {
+  const input = $("grantPass"), msg = $("grantMsg"), btn = $("enableLearning");
+  msg.className = "err"; msg.textContent = "";
+  if (!input.value) {
+    msg.textContent = "Type your passphrase in the box above first. Nothing was sent to Identity.";
+    input.focus();
+    return;
+  }
+  btn.disabled = true; msg.className = "dim"; msg.textContent = "Checking with Identity…";
+  try {
+    const s = await post("/v1/grants/learning", {passphrase: input.value});
+    const g = (s.entity && s.entity.grants) || [];
+    $("grantDone").textContent = "Learning enabled at " + new Date().toLocaleTimeString() + ": " +
+      ["github.sync", "lesson.learn"].filter(a => g.includes(a)).join(" and ") + " granted. Open TASS and press Find lessons.";
+    $("grantDone").hidden = false;
+    msg.textContent = "";
+  } catch (e) {
+    msg.className = "err";
+    msg.textContent = "Identity refused it: " + e.message + ". Nothing was changed.";
+  } finally {
+    input.value = ""; btn.disabled = false;
+  }
+  refresh();
+}
+$("enableLearning").onclick = enableLearning;
+$("grantPass").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); enableLearning(); } };
 $("githubConnect").onclick = guard(async () => post("/v1/github/connect"));
 $("githubDisconnect").onclick = guard(async () => post("/v1/github/disconnect"));
 $("approveLesson").onclick = guard(async () => post("/v1/github/approve", {repository:"Arameair/Thought-Processor", issue:51}));
