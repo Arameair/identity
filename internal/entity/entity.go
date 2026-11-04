@@ -280,6 +280,76 @@ func (s *Store) Lock() {
 	s.mu.Unlock()
 }
 
+// EnableLearningGrants is an explicit owner action for an existing, unlocked entity.
+// It changes ONLY github.sync and lesson.learn; it never re-creates the entity or
+// changes the credential/verifier. Reconfirm the owner's passphrase (not the page
+// CSRF token), throttle wrong attempts, persist atomically and record an audit line.
+func (s *Store) EnableLearningGrants(passphrase string) (State, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, err := s.load()
+	if err != nil {
+		return State{}, fmt.Errorf("%w: %v", ErrNotUsable, err)
+	}
+	if e == nil {
+		return State{}, ErrNoEntity
+	}
+	now := s.Now()
+	if !now.Before(s.until) {
+		return State{}, ErrNotUsable
+	}
+	wait := time.Duration(0)
+	if s.fails >= 3 {
+		wait = time.Duration(1<<min(s.fails-3, 8)) * time.Second
+	}
+	if now.Before(s.failedAt.Add(wait)) {
+		return State{}, ErrThrottled
+	}
+	if !e.Verifier.Check(passphrase) {
+		s.fails++
+		s.failedAt = now
+		return State{}, ErrBadPass
+	}
+	s.fails = 0
+	changed := false
+	for _, action := range []string{"github.sync", "lesson.learn"} {
+		if !contains(e.Grants, action) {
+			e.Grants = append(e.Grants, action)
+			changed = true
+		}
+	}
+	if changed {
+		b, err := json.MarshalIndent(e, "", "  ")
+		if err != nil {
+			return State{}, err
+		}
+		if err := writeFile(s.path("entity.json"), b); err != nil {
+			return State{}, err
+		}
+		d := Decision{ID: "dec_" + randHex(8), At: now.UTC(), Service: "owner",
+			Action: "grants.enable_learning", Detail: "github.sync,lesson.learn",
+			Allow: true, Reason: "owner passphrase confirmed; existing entity grants updated", EntityID: e.EntityID}
+		b, err = json.Marshal(d)
+		if err != nil {
+			return State{}, err
+		}
+		f, err := os.OpenFile(s.path("decisions.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			return State{}, fmt.Errorf("learning grants saved but audit failed: %w", err)
+		}
+		_, err = f.Write(append(b, '\n'))
+		closeErr := f.Close()
+		if err != nil {
+			return State{}, fmt.Errorf("learning grants saved but audit failed: %w", err)
+		}
+		if closeErr != nil {
+			return State{}, fmt.Errorf("learning grants saved but audit failed: %w", closeErr)
+		}
+	}
+	until := s.until
+	return State{State: Unlocked, Entity: e.public(), UnlockedUntil: &until}, nil
+}
+
 // Authorize answers whether service may do action for the entity now, and records the decision.
 func (s *Store) Authorize(service, action, detail, entityID string) Decision {
 	d := Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action, Detail: trim(detail, 200)}
