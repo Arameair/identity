@@ -172,6 +172,7 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 	var approved struct {
 		sync.Mutex
 		value bool
+		generation uint64 // invalidates in-flight fetch on connect/disconnect/lock
 	}
 	owner := func(h http.HandlerFunc) http.HandlerFunc { // the owner's page only: localhost + this page's token
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -269,6 +270,7 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 		st.Lock()
 		approved.Lock()
 		approved.value = false
+		approved.generation++
 		approved.Unlock()
 		log.Printf("locked by the owner")
 		writeJSON(w, 200, st.State())
@@ -286,6 +288,10 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 403, map[string]string{"error": "unlock your entity first"})
 			return
 		}
+		approved.Lock()
+		approved.value = false
+		approved.generation++
+		approved.Unlock()
 		if err := gh.Start(); err != nil {
 			writeJSON(w, 503, map[string]string{"error": "GitHub sign-in did not start; check the status"})
 			return
@@ -295,8 +301,9 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 	mux.HandleFunc("POST /v1/github/disconnect", owner(func(w http.ResponseWriter, r *http.Request) {
 		approved.Lock()
 		approved.value = false
-		approved.Unlock()
+		approved.generation++
 		gh.Disconnect() // memory-only token and pending device authorization cleared
+		approved.Unlock()
 		writeJSON(w, 200, map[string]string{"status": "signed_out"})
 	}))
 	mux.HandleFunc("POST /v1/github/approve", owner(func(w http.ResponseWriter, r *http.Request) {
@@ -315,6 +322,9 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 403, map[string]string{"error": "unlock TASS and connect GitHub first"})
 			return
 		}
+		approved.Lock()
+		generation := approved.generation
+		approved.Unlock()
 		if _, err := gh.ReadIdentityTestLesson(); err != nil {
 			writeJSON(w, 502, map[string]string{"error": "the lesson could not be read with this GitHub connection"})
 			return
@@ -324,6 +334,11 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			return
 		}
 		approved.Lock()
+		if approved.generation != generation || gh.View().Status != githubauth.Verified || st.State().State != entity.Unlocked {
+			approved.Unlock()
+			writeJSON(w, 403, map[string]string{"error": "GitHub session or Identity changed during approval"})
+			return
+		}
 		approved.value = true
 		approved.Unlock()
 		writeJSON(w, 200, map[string]any{"approved": true, "repository": in.Repository, "issue": in.Issue, "skill": "@identity-test"})
@@ -336,6 +351,7 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 		}
 		approved.Lock()
 		ok := approved.value
+		generation := approved.generation
 		approved.Unlock()
 		if !ok || gh.View().Status != githubauth.Verified {
 			writeJSON(w, 403, map[string]string{"error": "owner has not approved a connected GitHub lesson"})
@@ -346,8 +362,11 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 502, map[string]string{"error": "approved GitHub lesson unavailable"})
 			return
 		}
-		if st.State().State != entity.Unlocked {
-			writeJSON(w, 403, map[string]string{"error": "Identity locked during fetch"})
+		approved.Lock()
+		stillApproved := approved.value && approved.generation == generation && gh.View().Status == githubauth.Verified
+		approved.Unlock()
+		if st.State().State != entity.Unlocked || !stillApproved {
+			writeJSON(w, 403, map[string]string{"error": "Identity or GitHub permission changed during fetch"})
 			return
 		}
 		writeJSON(w, 200, map[string]any{"skill": "@identity-test", "repository": "Arameair/Thought-Processor",
