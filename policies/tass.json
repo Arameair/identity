@@ -1,0 +1,17 @@
+{
+  "identity": "TASS",
+  "owner": "Arameair",
+  "obey": ["Arameair"],
+  "tass_md": "Arameair/TASS@live:tass.md",
+  "offline_grant_hours": 24,
+  "note": "PROTOTYPE: a static policy file, not a live Identity grant. Merging changes to it is the authorization.",
+  "allow": {
+    "model.request": true,
+    "thought.process": true,
+    "action.read_tass": true,
+    "github.read_messages": true,
+    "github.reply": true,
+    "tass_md.sync": true,
+    "tass_md.conflict_pr": true
+  }
+}
