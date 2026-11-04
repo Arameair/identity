@@ -370,7 +370,7 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			return
 		}
 		writeJSON(w, 200, map[string]any{"skill": "@identity-test", "repository": "Arameair/Thought-Processor",
-			"issue": 51, "comment_id": 6634742721, "source": "https://github.com/Arameair/Thought-Processor/issues/51#issuecomment-6634742721",
+			"issue": 51, "comment_id": 6636766875, "source": "https://github.com/Arameair/Thought-Processor/issues/51#issuecomment-6636766875",
 			"mode": "reference_only", "body": body})
 	}))
 	mux.HandleFunc("POST /v1/authorize", service(func(w http.ResponseWriter, r *http.Request, svc string) {
