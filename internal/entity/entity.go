@@ -46,8 +46,12 @@ const (
 	Unlocked = "UNLOCKED"
 )
 
-// DefaultGrants: what a new entity may do once unlocked. No GitHub writes, no code execution.
-var DefaultGrants = []string{"conversation", "model.request", "thought.process", "pulse.run", "action.read_entity"}
+// DefaultGrants: what a new entity may do once unlocked. No code execution.
+//   github.sync   sync the entity's own document and read lessons, ONLY on the repository its owner
+//                 configured for this installation (nothing is configured by default)
+//   lesson.learn  study a lesson; it counts as learned only after the owner approves it
+var DefaultGrants = []string{"conversation", "model.request", "thought.process", "pulse.run", "action.read_entity",
+	"github.sync", "lesson.learn"}
 
 var (
 	ErrExists      = errors.New("an entity already exists on this installation; it is never replaced or re-created")
