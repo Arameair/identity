@@ -1,0 +1,252 @@
+// tass-identity: Identity for one TASS installation. It creates this installation's own entity,
+// unlocks it with the owner's passphrase, and answers other services' "may I?" questions.
+//
+//	tass-identity                  serve (default 0.0.0.0:8796 in a container; publish it on 127.0.0.1 only)
+//	tass-identity -healthcheck     container healthcheck
+//
+// Environment:
+//
+//	IDENTITY_DATA          entity.json, credential, decisions.jsonl          (default ~/.tass-identity)
+//	IDENTITY_SERVICE_KEYS  file with "service key" lines (core, engine)      (required to authorize anything)
+//	IDENTITY_LISTEN        listen address                                   (default 127.0.0.1:8796)
+//	IDENTITY_UNLOCK_HOURS  how long an unlock lasts                         (default 12)
+//
+// Owner routes (the page, create, unlock, lock) answer only requests addressed to localhost/127.0.0.1,
+// so other containers on the internal network can't use them. Service routes need a service key.
+package main
+
+import (
+	"crypto/rand"
+	"crypto/subtle"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Arameair/identity/internal/entity"
+)
+
+//go:embed page.html
+var page embed.FS
+
+var version = "dev"
+
+func env(k, d string) string {
+	if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+		return v
+	}
+	return d
+}
+
+func main() {
+	hc := flag.Bool("healthcheck", false, "container healthcheck")
+	flag.Parse()
+	listen := env("IDENTITY_LISTEN", "127.0.0.1:8796")
+	if *hc {
+		addr := strings.Replace(listen, "0.0.0.0", "127.0.0.1", 1)
+		r, err := (&http.Client{Timeout: 4 * time.Second}).Get("http://" + addr + "/v1/health")
+		if err != nil || r.StatusCode != 200 {
+			fmt.Println("not answering:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	log.SetFlags(log.Ltime)
+	home, _ := os.UserHomeDir()
+	hours, _ := strconv.ParseFloat(env("IDENTITY_UNLOCK_HOURS", "12"), 64)
+	if hours <= 0 {
+		hours = 12
+	}
+	st, err := entity.Open(env("IDENTITY_DATA", filepath.Join(home, ".tass-identity")), time.Duration(hours*float64(time.Hour)))
+	if err != nil {
+		log.Fatal(err)
+	}
+	keys, err := loadKeys(os.Getenv("IDENTITY_SERVICE_KEYS"))
+	if err != nil {
+		log.Fatalf("service keys: %v", err)
+	}
+	ln, err := net.Listen("tcp", listen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := st.State()
+	log.Printf("tass-identity %s on %s · %s · %d service key(s)", version, listen, s.State, len(keys))
+	log.Fatal((&http.Server{Handler: routes(st, keys, randHex(32)), ReadHeaderTimeout: 10 * time.Second}).Serve(ln))
+}
+
+func randHex(n int) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// loadKeys reads "service key" lines. Keys shorter than 32 characters are refused.
+func loadKeys(path string) (map[string]string, error) {
+	out := map[string]string{}
+	if path == "" {
+		return out, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		f := strings.Fields(l)
+		if len(f) == 0 || strings.HasPrefix(f[0], "#") {
+			continue
+		}
+		if len(f) != 2 || len(f[1]) < 32 {
+			return nil, fmt.Errorf("each line must be: <service> <key of 32+ characters>")
+		}
+		out[f[1]] = f[0]
+	}
+	return out, nil
+}
+
+func localHost(r *http.Request) bool {
+	h, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		h = r.Host
+	}
+	return h == "127.0.0.1" || h == "localhost" || h == "::1"
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(v)
+}
+
+func routes(st *entity.Store, keys map[string]string, pageToken string) http.Handler {
+	mux := http.NewServeMux()
+	owner := func(h http.HandlerFunc) http.HandlerFunc { // the owner's page only: localhost + this page's token
+		return func(w http.ResponseWriter, r *http.Request) {
+			if !localHost(r) {
+				writeJSON(w, 403, map[string]string{"error": "owner actions only from this computer's own page"})
+				return
+			}
+			if r.Method == http.MethodPost {
+				if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Identity-Page")), []byte(pageToken)) != 1 {
+					writeJSON(w, 403, map[string]string{"error": "reload Identity's page"})
+					return
+				}
+				if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+					writeJSON(w, 415, map[string]string{"error": "JSON only"})
+					return
+				}
+			}
+			h(w, r)
+		}
+	}
+	service := func(h func(w http.ResponseWriter, r *http.Request, svc string)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			k := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			for key, name := range keys {
+				if subtle.ConstantTimeCompare([]byte(k), []byte(key)) == 1 {
+					h(w, r, name)
+					return
+				}
+			}
+			writeJSON(w, 401, map[string]string{"error": "missing or wrong service key"})
+		}
+	}
+	mux.HandleFunc("GET /v1/health", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]string{"service": "tass-identity", "version": version, "state": st.State().State})
+	})
+	mux.HandleFunc("GET /v1/state", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, st.State()) })
+	mux.HandleFunc("GET /{$}", owner(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := page.ReadFile("page.html")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'")
+		w.Write([]byte(strings.Replace(string(b), "__PAGE_TOKEN__", pageToken, 1)))
+	}))
+	decode := func(w http.ResponseWriter, r *http.Request, v any) bool {
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(v); err != nil {
+			writeJSON(w, 400, map[string]string{"error": "bad request"})
+			return false
+		}
+		return true
+	}
+	mux.HandleFunc("POST /v1/entity", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Name       string `json:"name"`
+			Passphrase string `json:"passphrase"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		s, err := st.Create(in.Name, in.Passphrase)
+		if errors.Is(err, entity.ErrExists) {
+			writeJSON(w, 409, map[string]string{"error": err.Error()})
+			return
+		}
+		if err != nil {
+			writeJSON(w, 400, map[string]string{"error": err.Error()})
+			return
+		}
+		log.Printf("entity created: %s (%s)", s.Entity.EntityID, s.Entity.Name)
+		writeJSON(w, 201, s)
+	}))
+	mux.HandleFunc("POST /v1/unlock", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Passphrase string `json:"passphrase"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		s, err := st.Unlock(in.Passphrase)
+		switch {
+		case errors.Is(err, entity.ErrThrottled):
+			writeJSON(w, 429, map[string]string{"error": err.Error()})
+		case err != nil:
+			log.Printf("unlock refused: %v", err)
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+		default:
+			log.Printf("unlocked %s until %s", s.Entity.EntityID, s.UnlockedUntil.Format(time.RFC3339))
+			writeJSON(w, 200, s)
+		}
+	}))
+	mux.HandleFunc("POST /v1/lock", owner(func(w http.ResponseWriter, r *http.Request) {
+		st.Lock()
+		log.Printf("locked by the owner")
+		writeJSON(w, 200, st.State())
+	}))
+	mux.HandleFunc("POST /v1/authorize", service(func(w http.ResponseWriter, r *http.Request, svc string) {
+		var in struct {
+			Action   string `json:"action"`
+			EntityID string `json:"entity_id"`
+			Detail   string `json:"detail"`
+		}
+		if !decode(w, r, &in) || in.Action == "" {
+			if in.Action == "" {
+				writeJSON(w, 400, map[string]string{"error": "action is required"})
+			}
+			return
+		}
+		d := st.Authorize(svc, in.Action, in.Detail, in.EntityID)
+		s := st.State()
+		resp := map[string]any{"allow": d.Allow, "decision_id": d.ID, "reason": d.Reason, "entity_id": d.EntityID, "service": svc}
+		if s.Entity != nil {
+			resp["entity_name"] = s.Entity.Name
+		}
+		if s.UnlockedUntil != nil && d.Allow {
+			resp["valid_until"] = s.UnlockedUntil
+		}
+		writeJSON(w, 200, resp)
+	}))
+	return mux
+}

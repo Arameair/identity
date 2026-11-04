@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity</title>
+<style>
+  body { margin:0; background:#0f1316; color:#e9e4dc; font:15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width:560px; margin:48px auto; padding:0 20px; }
+  h1 { font:500 26px Georgia, serif; margin:0 0 4px; } .dim { color:#8f9ba5; font-size:13.5px; }
+  .card { background:#161c21; border:1px solid #27323b; border-radius:12px; padding:18px; margin:18px 0; }
+  label { display:block; margin:10px 0 4px; font-size:13.5px; color:#8f9ba5; }
+  input { width:100%; box-sizing:border-box; font:inherit; color:#e9e4dc; background:#0f1418; border:1px solid #27323b; border-radius:8px; padding:9px 10px; }
+  button { margin-top:14px; font:inherit; color:#e9e4dc; background:#1d252d; border:1px solid #3a4652; border-radius:8px; padding:8px 16px; cursor:pointer; }
+  .state { font:600 13px ui-monospace, Consolas, monospace; padding:3px 9px; border-radius:6px; border:1px solid; }
+  .UNLOCKED { color:#8fd3b6; } .LOCKED { color:#f2b866; } .NO_ENTITY { color:#8f9ba5; }
+  .err { color:#ff8a80; margin-top:10px; } code { font-size:12.5px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Identity</h1>
+  <div class="dim">This installation's identity. It decides what the Thought Processor and Thought Engine may do.</div>
+  <div class="card"><span id="state" class="state">…</span> <span id="who"></span><div id="reason" class="dim"></div></div>
+
+  <div class="card" id="create" hidden>
+    <b>Create my own entity</b>
+    <div class="dim">A new identity that belongs to this computer: a random ID, a credential saved here, and your passphrase (never stored, only a verifier). It can't be copied by knowing the passphrase alone.</div>
+    <label>Name</label><input id="name" maxlength="40" placeholder="e.g. Nova">
+    <label>Passphrase (12+ characters; a few words is easiest)</label><input id="p1" type="password" autocomplete="new-password">
+    <label>Passphrase again</label><input id="p2" type="password" autocomplete="new-password">
+    <button id="mk">Create my entity</button>
+  </div>
+
+  <div class="card" id="unlock" hidden>
+    <b>Unlock</b>
+    <div class="dim">While locked, nothing runs: no thinking, no pulse, no actions.</div>
+    <label>Passphrase</label><input id="up" type="password" autocomplete="current-password">
+    <button id="ub">Unlock</button>
+  </div>
+
+  <div class="card" id="open" hidden>
+    <div>Granted actions: <span id="grants"></span></div>
+    <div class="dim" id="until"></div>
+    <button id="lk">Lock now</button>
+    <div class="dim" style="margin-top:12px">Talk to your entity: <a style="color:#8fd3b6" href="http://127.0.0.1:8795/">http://127.0.0.1:8795</a></div>
+  </div>
+  <div id="err" class="err"></div>
+</main>
+<script>
+const TOKEN = "__PAGE_TOKEN__";
+const $ = id => document.getElementById(id);
+async function post(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json", "X-Identity-Page": TOKEN}, body: JSON.stringify(body || {})});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+async function refresh() {
+  const s = await (await fetch("/v1/state")).json();
+  $("state").textContent = s.state; $("state").className = "state " + s.state;
+  $("who").textContent = s.entity ? `${s.entity.name} · ${s.entity.entity_id}` : "";
+  $("reason").textContent = s.reason || "";
+  $("create").hidden = s.state !== "NO_ENTITY";
+  $("unlock").hidden = !(s.state === "LOCKED" && s.entity && s.entity.grants);
+  $("open").hidden = s.state !== "UNLOCKED";
+  if (s.entity && s.entity.grants) $("grants").innerHTML = s.entity.grants.map(g => `<code>${g}</code>`).join(", ");
+  $("until").textContent = s.unlocked_until ? "Unlocked until " + new Date(s.unlocked_until).toLocaleString() + " (or until Identity restarts)." : "";
+}
+function guard(fn) { return async () => { $("err").textContent = ""; try { await fn(); } catch (e) { $("err").textContent = e.message; } refresh(); }; }
+$("mk").onclick = guard(async () => {
+  if ($("p1").value !== $("p2").value) throw new Error("The two passphrases are different.");
+  await post("/v1/entity", {name: $("name").value, passphrase: $("p1").value}); $("p1").value = $("p2").value = "";
+});
+$("ub").onclick = guard(async () => { await post("/v1/unlock", {passphrase: $("up").value}); $("up").value = ""; });
+$("lk").onclick = guard(async () => post("/v1/lock"));
+refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>
