@@ -125,3 +125,54 @@ func TestLearningCardExplainsChangeAndSeparatesIssue51(t *testing.T) {
 		t.Error("the passphrase must not be cleared before it is checked/sent")
 	}
 }
+
+// #72: a skill run grant is separate from every other grant, only allowlisted skills can be
+// granted, enabling needs the passphrase again, and revoking takes effect at the next authorize.
+func TestSkillGrantEnableRevokeAndAllowlist(t *testing.T) {
+	st, _ := entity.Open(t.TempDir(), time.Hour)
+	h := routes(st, map[string]string{engineKey: "core"}, "page-secret")
+	owner := map[string]string{"X-Identity-Page": "page-secret"}
+	svc := map[string]string{"Authorization": "Bearer " + engineKey}
+	run := map[string]string{"action": "skill.run:lesson-workspace.list-lessons"}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/entity", owner, map[string]string{"name": "TASS", "passphrase": "correct horse battery"}); code != 201 {
+		t.Fatal("create")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, run); a["allow"] != false {
+		t.Fatal("a new entity must not be able to run skills by default")
+	}
+	ok := map[string]any{"skill": "lesson-workspace.list-lessons", "passphrase": "correct horse battery"}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "shell.run", "passphrase": "correct horse battery"}); code != 403 {
+		t.Fatal("non-allowlisted skill granted")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "lesson-workspace.list-lessons", "passphrase": "wrong"}); code != 403 {
+		t.Fatal("wrong passphrase enabled a skill")
+	}
+	if code, _ := req(t, h, "POST", "identity:8796", "/v1/grants/skill", owner, ok); code != 403 {
+		t.Fatal("skill grant from a non-owner host")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", nil, ok); code != 403 {
+		t.Fatal("skill grant without the page token")
+	}
+	if code, r := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, ok); code != 200 {
+		t.Fatalf("enable: %d %v", code, r)
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, run); a["allow"] != true {
+		t.Fatalf("granted skill not allowed: %v", a)
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, map[string]string{"action": "skill.discover"}); a["allow"] != true {
+		t.Fatal("skill.discover missing")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "lesson-workspace.list-lessons", "revoke": true}); code != 200 {
+		t.Fatal("revoke")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, run); a["allow"] != false {
+		t.Fatal("revoked skill still allowed")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, map[string]string{"action": "lesson.learn"}); a["allow"] != true {
+		t.Fatal("revoking a skill changed other grants")
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/lock", owner, nil)
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, ok); code != 403 {
+		t.Fatal("locked entity enabled a skill")
+	}
+}

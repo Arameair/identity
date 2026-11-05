@@ -286,6 +286,31 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 200, s)
 		}
 	}))
+	// Skill grants (#72): only allowlisted skills; enable re-checks the passphrase, revoke does not.
+	mux.HandleFunc("GET /v1/skills", owner(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"skills": entity.SkillList()})
+	}))
+	mux.HandleFunc("POST /v1/grants/skill", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Skill      string `json:"skill"`
+			Passphrase string `json:"passphrase"`
+			Revoke     bool   `json:"revoke"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		s, err := st.SetSkillGrant(in.Passphrase, in.Skill, !in.Revoke)
+		switch {
+		case errors.Is(err, entity.ErrThrottled):
+			writeJSON(w, 429, map[string]string{"error": err.Error()})
+		case err != nil:
+			log.Printf("skill grant request refused: %v", err)
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+		default:
+			log.Printf("owner %s skill %s for %s", map[bool]string{true: "revoked", false: "enabled"}[in.Revoke], in.Skill, s.Entity.EntityID)
+			writeJSON(w, 200, s)
+		}
+	}))
 	mux.HandleFunc("POST /v1/lock", owner(func(w http.ResponseWriter, r *http.Request) {
 		st.Lock()
 		approved.Lock()
