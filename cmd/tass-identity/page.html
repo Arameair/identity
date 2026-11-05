@@ -59,6 +59,13 @@
     <button id="enableLearning">Enable learning</button>
     <div id="grantMsg" class="err" role="status" aria-live="polite"></div>
   </div>
+  <div class="card" id="skillGrants" hidden>
+    <b>Skills TASS may run</b>
+    <div class="dim">A skill is one fixed operation built into TASS. It is not code from a lesson, a notebook or GitHub. Each skill has its own grant, and TASS still asks you before every run.</div>
+    <div id="skillList"></div>
+    <label for="skillPass">Your Identity passphrase (needed to enable; revoking doesn't need it)</label><input id="skillPass" type="password" autocomplete="current-password">
+    <div id="skillMsg" class="err" role="status" aria-live="polite"></div>
+  </div>
   <div class="card" id="githubPanel">
     <b>GitHub connection (optional)</b>
     <div class="dim">Local conversation works without GitHub. The connection token stays only in Identity memory; no sync or execution is enabled.</div>
@@ -101,6 +108,8 @@ async function refresh() {
 
   if (s.entity && s.entity.grants) $("grants").innerHTML = s.entity.grants.map(g => `<code>${g}</code>`).join(", ");
   $("until").textContent = s.unlocked_until ? "Unlocked until " + new Date(s.unlocked_until).toLocaleString() + " (or until Identity restarts)." : "";
+  if (!SKILLS.length) await loadSkills();
+  renderSkills(s);
   await refreshGitHub(s.state === "UNLOCKED");
 }
 async function refreshGitHub(unlocked) {
@@ -154,6 +163,25 @@ async function enableLearning() {
 }
 $("enableLearning").onclick = enableLearning;
 $("grantPass").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); enableLearning(); } };
+let SKILLS = [];
+async function loadSkills() { try { SKILLS = (await (await fetch("/v1/skills", {headers: {"X-Identity-Page": TOKEN}})).json()).skills || []; } catch (e) { SKILLS = []; } }
+function renderSkills(st) {
+  const unlocked = st.state === "UNLOCKED", g = (st.entity && st.entity.grants) || [];
+  $("skillGrants").hidden = !unlocked;
+  $("skillList").innerHTML = SKILLS.map(k => `<div style="margin:6px 0"><code>@${k.id}</code> — ${k.purpose}<br><span class="dim">grant <code>${k.grant}</code>: <b>${g.includes(k.grant) ? "GRANTED" : "not granted"}</b></span>
+    ${g.includes(k.grant) ? `<button data-revoke-skill="${k.id}">Revoke</button>` : `<button data-enable-skill="${k.id}">Enable this skill</button>`}</div>`).join("") || "(no skills)";
+}
+$("skillList").onclick = async ev => {
+  const en = ev.target.dataset.enableSkill, rv = ev.target.dataset.revokeSkill, msg = $("skillMsg");
+  if (!en && !rv) return;
+  msg.className = "err"; msg.textContent = "";
+  if (en && !$("skillPass").value) { msg.textContent = "Type your passphrase first. Nothing was sent to Identity."; return; }
+  try {
+    await post("/v1/grants/skill", {skill: en || rv, passphrase: $("skillPass").value, revoke: !!rv});
+    msg.className = "ok"; msg.textContent = (en ? "Enabled " : "Revoked ") + "@" + (en || rv) + " at " + new Date().toLocaleTimeString() + ".";
+  } catch (e) { msg.textContent = "Identity refused it: " + e.message + ". Nothing was changed."; }
+  $("skillPass").value = ""; refresh();
+};
 $("githubConnect").onclick = guard(async () => post("/v1/github/connect"));
 $("githubDisconnect").onclick = guard(async () => post("/v1/github/disconnect"));
 $("approveLesson").onclick = guard(async () => post("/v1/github/approve", {repository:"Arameair/Thought-Processor", issue:51}));
