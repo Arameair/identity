@@ -60,7 +60,7 @@
     <div id="grantMsg" class="err" role="status" aria-live="polite"></div>
   </div>
   <div class="card" id="skillGrants" hidden>
-    <b>Skills TASS may run</b>
+    <b>Skills and junctions TASS may use</b>
     <div class="dim">A skill is one fixed operation built into TASS. It is not code from a lesson, a notebook or GitHub. Each skill has its own grant, and TASS still asks you before every run.</div>
     <div id="skillList"></div>
     <label for="skillPass">Your Identity passphrase (needed to enable; revoking doesn't need it)</label><input id="skillPass" type="password" autocomplete="current-password">
@@ -168,7 +168,7 @@ async function loadSkills() { try { SKILLS = (await (await fetch("/v1/skills", {
 function renderSkills(st) {
   const unlocked = st.state === "UNLOCKED", g = (st.entity && st.entity.grants) || [];
   $("skillGrants").hidden = !unlocked;
-  $("skillList").innerHTML = SKILLS.map(k => `<div style="margin:6px 0"><code>@${k.id}</code> — ${k.purpose}<br><span class="dim">grant <code>${k.grant}</code>: <b>${g.includes(k.grant) ? "GRANTED" : "not granted"}</b></span>
+  $("skillList").innerHTML = SKILLS.map(k => `<div style="margin:6px 0"><code>${k.id.startsWith("junction.") ? "junction " : "@"}${k.id}</code> — ${k.purpose}<br><span class="dim">grant <code>${k.grant}</code>: <b>${g.includes(k.grant) ? "GRANTED" : "not granted"}</b></span>
     ${g.includes(k.grant) ? `<button data-revoke-skill="${k.id}">Revoke</button>` : `<button data-enable-skill="${k.id}">Enable this skill</button>`}</div>`).join("") || "(no skills)";
 }
 $("skillList").onclick = async ev => {

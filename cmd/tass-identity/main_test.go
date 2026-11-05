@@ -176,3 +176,37 @@ func TestSkillGrantEnableRevokeAndAllowlist(t *testing.T) {
 		t.Fatal("locked entity enabled a skill")
 	}
 }
+
+// Junction grant (Thought-Processor #82 P2): separate from skill grants in both directions.
+func TestJunctionGrantIsSeparateFromSkillGrants(t *testing.T) {
+	st, _ := entity.Open(t.TempDir(), time.Hour)
+	h := routes(st, map[string]string{engineKey: "core"}, "page-secret")
+	owner := map[string]string{"X-Identity-Page": "page-secret"}
+	svc := map[string]string{"Authorization": "Bearer " + engineKey}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/entity", owner, map[string]string{"name": "TASS", "passphrase": "correct horse battery"})
+	junction := map[string]string{"action": "junction.read:lesson-metadata"}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, junction); a["allow"] != false {
+		t.Fatal("junction allowed by default")
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "lesson-workspace.list-lessons", "passphrase": "correct horse battery"})
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, junction); a["allow"] != false {
+		t.Fatal("a skill grant implied the junction grant")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "junction.lesson-metadata", "passphrase": "correct horse battery"}); code != 200 {
+		t.Fatal("enable junction")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, junction); a["allow"] != true {
+		t.Fatal("junction grant not effective")
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "lesson-workspace.list-lessons", "revoke": true})
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, junction); a["allow"] != true {
+		t.Fatal("revoking the skill removed the junction grant")
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "junction.lesson-metadata", "revoke": true})
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, junction); a["allow"] != false {
+		t.Fatal("junction revoke not effective")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, map[string]string{"action": "skill.run:junction.lesson-metadata"}); a["allow"] != false {
+		t.Fatal("junction id produced a skill.run grant")
+	}
+}
