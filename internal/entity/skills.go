@@ -18,11 +18,21 @@ import (
 //	skill.run:<skill id>                Core may run exactly that skill, after the owner approves the request
 var KnownSkills = map[string]string{
 	"lesson-workspace.list-lessons": "list the lesson files in TASS's local, read-only lesson workspace (no code runs)",
+	// Information junction (Thought-Processor #82 P2): a fixed, read-only Go handler the Core's
+	// 20-second loop may use without a per-run approval once the owner grants it here.
+	"junction.lesson-metadata": "let TASS's 20-second loop read one lesson's metadata (title, goal, checks) through a fixed read-only handler; no code runs, nothing is written",
 }
 
 const SkillDiscover = "skill.discover"
 
-func SkillRunGrant(id string) string { return "skill.run:" + id }
+// SkillRunGrant is the grant a known entry needs. Junctions use their own grant name so that
+// a junction grant never implies a skill run (and the reverse).
+func SkillRunGrant(id string) string {
+	if strings.HasPrefix(id, "junction.") {
+		return "junction.read:" + strings.TrimPrefix(id, "junction.")
+	}
+	return "skill.run:" + id
+}
 
 var ErrUnknownSkill = errors.New("unknown skill: Identity only grants skills on its allowlist")
 
@@ -78,7 +88,11 @@ func (s *Store) SetSkillGrant(passphrase, skill string, enable bool) (State, err
 	before := strings.Join(e.Grants, ",")
 	run := SkillRunGrant(skill)
 	if enable {
-		for _, g := range []string{SkillDiscover, run} {
+		add := []string{SkillDiscover, run}
+		if strings.HasPrefix(skill, "junction.") {
+			add = []string{run} // a junction is not a skill: no skill.discover
+		}
+		for _, g := range add {
 			if !contains(e.Grants, g) {
 				e.Grants = append(e.Grants, g)
 			}
