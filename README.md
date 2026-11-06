@@ -4,7 +4,7 @@
 
 ## Current Go TASS integration
 
-The integrated candidate [Thought-Processor PR #88](https://github.com/Arameair/Thought-Processor/pull/88) pins Identity `7da7f7c5bbecc42d3a7e9316a2037243eda10b88`, the [junction grant candidate PR #40](https://github.com/Arameair/identity/pull/40). It is experimental; no new security boundary is production-certified and the owner has not accepted the full combined local stack. [Current cross-repo source and release map](https://github.com/Arameair/Thought-Processor/blob/docs/current-go-stack-index-20261106/core/docs/CURRENT_GO_STACK_20261106.md).
+The integrated candidate [Thought-Processor PR #88](https://github.com/Arameair/Thought-Processor/pull/88) pins Identity `7da7f7c5bbecc42d3a7e9316a2037243eda10b88`, the [junction grant candidate PR #40](https://github.com/Arameair/identity/pull/40). It is experimental; no new security boundary is production-certified and the owner has not accepted the full combined local stack. [Current cross-repo source and release map](https://github.com/Arameair/Thought-Processor/blob/af59e7d9213170669eddd4f269ba1f1b50c427e9/core/docs/CURRENT_GO_STACK_20261106.md).
 
 - **Identity** owns canonical entity IDs, authenticated service identities, explicit narrowly-scoped capability grants and access decisions.
 - **Thought Engine** owns thought/cycle execution and must check permissions at ingress and point of use. A matching display name is **not** an identity proof. [Thought-engine #17](https://github.com/Arameair/Thought-engine/issues/17) remains open.
