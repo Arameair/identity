@@ -1,6 +1,6 @@
 # Identity documentation
 
-**UPDATE (2026-11-06):** The older P0/P1 documents below remain historical references. For the Go TASS candidate's pinned Identity version, current acceptance status, and cross-entity risks, start at the [November Go integration map](https://github.com/Arameair/Thought-Processor/blob/docs/current-go-stack-index-20261106/core/docs/CURRENT_GO_STACK_20261106.md). No full identity security certification or two-install isolation PASS is claimed.
+**UPDATE (2026-11-06):** The older P0/P1 documents below remain historical references. For the Go TASS candidate's pinned Identity version, current acceptance status, and cross-entity risks, start at the [November Go integration map](https://github.com/Arameair/Thought-Processor/blob/af59e7d9213170669eddd4f269ba1f1b50c427e9/core/docs/CURRENT_GO_STACK_20261106.md). No full identity security certification or two-install isolation PASS is claimed.
 
 **Current scope:** [Identity](../README.md) is the independent identity/authorization authority; [Thought Processor](https://github.com/Arameair/Thought-Processor) is the intended user and administrator interface. **No production security or released runnable application is claimed.**
 
