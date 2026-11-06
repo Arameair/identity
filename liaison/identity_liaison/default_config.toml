@@ -64,11 +64,26 @@ max_history = 12
 
 [sync]
 # Mirror repo files into a local folder for the Thought Processor workspace.
-# Off when repo is empty.
+# sources: "owner/repo[@branch]:pattern,pattern" — the first source is the identity's own repo.
+#   e.g. ["Arameair/TASS@alpha:mind/*.md", "Arameair/Developmnt:library/*,projects/*"]
+# (Older single-repo form: repo + paths.) Off when both are empty.
+sources = []
 repo = ""
 branch = ""
 paths = ["mind/*.md", "library/*", "projects/*"]
 dest = "/shared/mirror"
+
+[direct]
+# Talk to the running TASS from GitHub: issues with this label in these repos are forwarded to the
+# workspace inbox; TASS's replies come back as comments (via the outbox). Off when repos is empty.
+repos = []
+label = "tass"
+inbox = ""
+
+[outbox]
+# Requests the workspace writes after the owner approves them (e.g. a TASS mind change).
+# The Liaison turns each into a pull request; nothing is committed to a base branch directly.
+dir = ""
 
 [run]
 # How often `identity-liaison run` checks GitHub (the "pulse").
