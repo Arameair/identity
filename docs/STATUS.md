@@ -1,4 +1,6 @@
-# Identity — implementation status and evidence ledger
+# Identity — October 27 historical evidence ledger
+
+**UPDATE (November 6, 2026): This page is historical.** Its P0/P1 branches, fixture tests and suggested next owner trial are **not** the active Go TASS installation or current Identity acceptance. Read the [pinned current Go stack index](https://github.com/Arameair/Thought-Processor/blob/af59e7d9213170669eddd4f269ba1f1b50c427e9/core/docs/CURRENT_GO_STACK_20261106.md). The [current Identity junction candidate PR #40](https://github.com/Arameair/identity/pull/40) remains draft; source-authentication [#15](https://github.com/Arameair/identity/issues/15), multi-identity isolation [#30](https://github.com/Arameair/identity/issues/30), and Engine canonical-ID routing [#17](https://github.com/Arameair/Thought-engine/issues/17) are **not owner accepted**. This October snapshot is preserved solely for evidence, not deployment instructions.
 
 **Reviewed October 27, 2026.** These are **distinct**: implemented code, tests reported by a developer, observed owner operation, design agreement, and release approval. This is not a security certification.
 
@@ -47,7 +49,7 @@
 4. **Legacy Engine/Worker routes:** older Engine local access and Worker history/read paths require canonical Identity checks before real use. See [Identity #15](https://github.com/Arameair/identity/issues/15), [Engine #3](https://github.com/Arameair/Thought-engine/issues/3), [Worker #3](https://github.com/Arameair/fast-ai-worker/issues/3).
 5. **October 27 approved design:** Identity alone authorizes protected work; Processor is the UI/control point; Engine references Identity's canonical IDs and owns thought data; identity-scoped grants enable routine autonomous operations, but feature suggestions and availability do not confer permissions. See [shared decisions](https://github.com/Arameair/Thought-Processor/issues/20).
 
-## Next verification gate
+## Historical next verification gate (not the current Go acceptance plan)
 
 Follow the [matched P1 trial](https://github.com/Arameair/Thought-Processor/blob/experiment/p1-cleanup-claude-20261026/docs/P1/START_HERE.md) with fresh disposable profiles. Record platform, exact commits, GitHub real vs fixture mode, Admin enrollment, persistent installation ID, denial before permission, allow after permission, revocation, Identity outage, restart, redacted logs, problems and **owner KEEP / REVISE / REJECT**.
 
