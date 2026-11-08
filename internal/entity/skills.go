@@ -25,12 +25,16 @@ var KnownSkills = map[string]string{
 	// Cognition Thought in Core's local journal. It never processes or sends a nudge and is not
 	// implied by thought.process (a default grant) or by any skill or junction grant.
 	"cognition.nudge-draft": "let the owner save manual nudge DRAFTS on Cognition Thoughts (local record only; nothing is processed, sent or run)",
+	// Stage 2 (Thought-Processor #100): the owner may PROCESS one nudge to TASS himself at a time,
+	// confirming each run on the page. Each run uses a bound, single-use decision (bound.go).
+	"cognition.nudge-process": "let the owner process ONE confirmed nudge at a time: one model request that develops the chosen Thought by one note (each run is confirmed on the page and uses a single-use approval)",
 }
 
 // ownerGrants: allowlisted entries that are neither skills nor junctions, with their own grant
 // names. Enabling one never adds skill.discover.
 var ownerGrants = map[string]string{
-	"cognition.nudge-draft": "cognition.nudge.draft",
+	"cognition.nudge-draft":   "cognition.nudge.draft",
+	"cognition.nudge-process": "cognition.nudge.process",
 }
 
 const SkillDiscover = "skill.discover"

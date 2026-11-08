@@ -101,6 +101,8 @@ type Decision struct {
 }
 
 type Store struct {
+	bound     *boundTable // bound single-use decisions (bound.go), memory only
+	boundOnce sync.Once
 	dir       string
 	unlockFor time.Duration
 	Now       func() time.Time
@@ -355,7 +357,10 @@ func (s *Store) EnableLearningGrants(passphrase string) (State, error) {
 func (s *Store) Authorize(service, action, detail, entityID string) Decision {
 	d := Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action, Detail: trim(detail, 200)}
 	st := s.State()
+	_, isBound := BoundActions[action]
 	switch {
+	case isBound: // never through the unbound path: see MintBound / RedeemBound
+		d.Reason = action + " requires a bound decision (binding), not a plain authorization"
 	case st.State != Unlocked:
 		d.Reason = st.State + ": " + st.Reason
 	case entityID != "" && entityID != st.Entity.EntityID:
