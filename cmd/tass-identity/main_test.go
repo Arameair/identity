@@ -210,3 +210,43 @@ func TestJunctionGrantIsSeparateFromSkillGrants(t *testing.T) {
 		t.Fatal("junction id produced a skill.run grant")
 	}
 }
+
+// Nudge draft grant (Thought-Processor #96): not a default, not implied by thought.process or any
+// skill/junction grant; enable needs the passphrase; revoke is immediate.
+func TestNudgeDraftGrantIsSeparateAndNotDefault(t *testing.T) {
+	st, _ := entity.Open(t.TempDir(), time.Hour)
+	h := routes(st, map[string]string{engineKey: "core"}, "page-secret")
+	owner := map[string]string{"X-Identity-Page": "page-secret"}
+	svc := map[string]string{"Authorization": "Bearer " + engineKey}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/entity", owner, map[string]string{"name": "TASS", "passphrase": "correct horse battery"})
+	draft := map[string]string{"action": "cognition.nudge.draft", "detail": "thought-processor:cognition.nudge.draft thought_1"}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, map[string]string{"action": "thought.process"}); a["allow"] != true {
+		t.Fatal("thought.process should be a default grant")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, draft); a["allow"] != false {
+		t.Fatal("nudge drafts allowed by default")
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "lesson-workspace.list-lessons", "passphrase": "correct horse battery"})
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "junction.lesson-metadata", "passphrase": "correct horse battery"})
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, draft); a["allow"] != false {
+		t.Fatal("a skill or junction grant implied the nudge draft grant")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "cognition.nudge-draft", "passphrase": "wrong passphrase!!"}); code == 200 {
+		t.Fatal("enabled without the right passphrase")
+	}
+	if code, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "cognition.nudge-draft", "passphrase": "correct horse battery"}); code != 200 {
+		t.Fatal("enable nudge drafts")
+	}
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, draft); a["allow"] != true {
+		t.Fatal("nudge draft grant not effective")
+	}
+	for _, other := range []string{"skill.run:cognition.nudge-draft", "cognition.nudge.process", "skill.run:lesson-workspace.list-lessons-x"} {
+		if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, map[string]string{"action": other}); a["allow"] != false {
+			t.Fatalf("nudge draft grant implied %s", other)
+		}
+	}
+	req(t, h, "POST", "127.0.0.1:8796", "/v1/grants/skill", owner, map[string]any{"skill": "cognition.nudge-draft", "revoke": true})
+	if _, a := req(t, h, "POST", "identity:8796", "/v1/authorize", svc, draft); a["allow"] != false {
+		t.Fatal("nudge draft revoke not effective")
+	}
+}

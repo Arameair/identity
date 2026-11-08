@@ -21,6 +21,16 @@ var KnownSkills = map[string]string{
 	// Information junction (Thought-Processor #82 P2): a fixed, read-only Go handler the Core's
 	// 20-second loop may use without a per-run approval once the owner grants it here.
 	"junction.lesson-metadata": "let TASS's 20-second loop read one lesson's metadata (title, goal, checks) through a fixed read-only handler; no code runs, nothing is written",
+	// Manual nudge drafts (Thought-Processor #96): the owner may SAVE a nudge draft on a real
+	// Cognition Thought in Core's local journal. It never processes or sends a nudge and is not
+	// implied by thought.process (a default grant) or by any skill or junction grant.
+	"cognition.nudge-draft": "let the owner save manual nudge DRAFTS on Cognition Thoughts (local record only; nothing is processed, sent or run)",
+}
+
+// ownerGrants: allowlisted entries that are neither skills nor junctions, with their own grant
+// names. Enabling one never adds skill.discover.
+var ownerGrants = map[string]string{
+	"cognition.nudge-draft": "cognition.nudge.draft",
 }
 
 const SkillDiscover = "skill.discover"
@@ -28,6 +38,9 @@ const SkillDiscover = "skill.discover"
 // SkillRunGrant is the grant a known entry needs. Junctions use their own grant name so that
 // a junction grant never implies a skill run (and the reverse).
 func SkillRunGrant(id string) string {
+	if g, ok := ownerGrants[id]; ok {
+		return g
+	}
 	if strings.HasPrefix(id, "junction.") {
 		return "junction.read:" + strings.TrimPrefix(id, "junction.")
 	}
@@ -89,8 +102,8 @@ func (s *Store) SetSkillGrant(passphrase, skill string, enable bool) (State, err
 	run := SkillRunGrant(skill)
 	if enable {
 		add := []string{SkillDiscover, run}
-		if strings.HasPrefix(skill, "junction.") {
-			add = []string{run} // a junction is not a skill: no skill.discover
+		if _, owner := ownerGrants[skill]; owner || strings.HasPrefix(skill, "junction.") {
+			add = []string{run} // a junction or owner grant is not a skill: no skill.discover
 		}
 		for _, g := range add {
 			if !contains(e.Grants, g) {
