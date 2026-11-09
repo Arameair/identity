@@ -1,25 +1,39 @@
-# Identity — authorization and data ownership
+# Identity
 
-**Current status (November 6, 2026):** Identity is the canonical authority for installation/entity identities, scoped grants, lock/unlock and revocation. This public `main` remains a documentation entry, **not a shipped production identity provider**. Historical P0/P1 alpha test results remain valid only for their recorded commit and environment.
+**An experimental local-first authority for companion identities and permissions.**
 
-## Current Go TASS integration
+Identity separates **who may act** from **the software or AI model proposing an action**. It is designed to issue and verify bounded owner-approved permissions for other services, without storing all of their private thoughts or taking over their execution.
 
-The integrated candidate [Thought-Processor PR #88](https://github.com/Arameair/Thought-Processor/pull/88) pins Identity `7da7f7c5bbecc42d3a7e9316a2037243eda10b88`, the [junction grant candidate PR #40](https://github.com/Arameair/identity/pull/40). It is experimental; no new security boundary is production-certified and the owner has not accepted the full combined local stack. [Current cross-repo source and release map](https://github.com/Arameair/Thought-Processor/blob/af59e7d9213170669eddd4f269ba1f1b50c427e9/core/docs/CURRENT_GO_STACK_20261106.md).
+> **Project status — November 9, 2026:** Working research and integration prototypes, **not a production-ready identity provider**. Public `main` is a documentation entry point, not the latest runnable Go service. Newer code, independent reviews and owner-host acceptance are tracked in experimental branches and draft pull requests.
 
-- **Identity** owns canonical entity IDs, authenticated service identities, explicit narrowly-scoped capability grants and access decisions.
-- **Thought Engine** owns thought/cycle execution and must check permissions at ingress and point of use. A matching display name is **not** an identity proof. [Thought-engine #17](https://github.com/Arameair/Thought-engine/issues/17) remains open.
-- **Thought Processor/Core** handles human control, supervised learning and Cognition/Development UI; it cannot mint grants from a model, lesson, GitHub comment or a UI toggle.
-- **TASS** owns its descriptive mind and approved lesson source; optional GitHub sync is not a substitute for security or ownership.
-- **KYSSA / future companions:** separate independent user-controlled data and permissions are a design goal, **not yet a validated two-install privacy property**. [#30](https://github.com/Arameair/identity/issues/30) has the isolation and synthetic test plan; no real KYSSA account or private data must be modified without her owner's consent.
+## What Identity is responsible for
 
-## Known gaps and required tests
+- **Canonical identity and ownership:** Track distinct entities and authorized services; a matching name is not proof that two entities are the same.
+- **Explicit grants:** Limit permission to a specific requester, operation and target. Authentication or a reachable local port alone is not authorization.
+- **Lock, revoke and deny:** Protected work must not proceed when required authority is unavailable or withdrawn.
+- **Service enforcement:** The receiving service must verify the decision too. A chat message, model response, GitHub issue, Markdown document or visual graph cannot grant itself permission.
 
-[Identity #15](https://github.com/Arameair/identity/issues/15) covers authenticating observations and checking grants before queued dispatch; [Thought Processor #47](https://github.com/Arameair/Thought-Processor/issues/47) documents limitations of localhost page tokens. Separate file permissions are **not** the same as encrypted storage. A new installation must use its own IDs, secrets, storage and optional GitHub account; two entities with identical names must not share records. Revoked/locked/unavailable Identity must fail closed for protected actions.
+Identity does **not** generate Thoughts, execute skills or choose the companion's goals. Those behaviors belong to other components and require their own execution evidence.
 
-**Current acceptance:** [Core #89](https://github.com/Arameair/Thought-Processor/issues/89) proves one real authorized operation and Cognition trace first; then [Core #90](https://github.com/Arameair/Thought-Processor/issues/90) verifies portable synthetic independent installations. There is **no authorization to deploy or grant broader abilities** here.
+## Current development evidence
 
-## Historical documentation and source code
+The current system experiments combine Identity with a local Go Thought Engine and the [Thought Processor owner interface](https://github.com/Arameair/Thought-Processor). Historical Alpha and P1 experiments include permission and pairing tests, but their results must not be generalized to every newer candidate.
 
-Older P0/P1 admin-enrollment, separate launcher, experimental pairing and independent Feature/Fast Worker designs can be inspected via [the archived Git history](https://github.com/Arameair/identity/commits/main/) and [docs](docs/README.md). They should **not** be used as current startup instructions or assumptions about the Go one-app candidate. The public documentation-only `main` is distinct from experimental runnable code.
+The current supervised-nudge work is documented in [Thought Processor issue #100](https://github.com/Arameair/Thought-Processor/issues/100): it requires owner-bound permission for each proposed nudge and an independently checked Stop operation. **The accepted design is not proof that the full implementation or live behavior passed testing.**
 
-Release policy: branch/PR review, exact pin, tests and owner approval before merge; documentation edits do not constitute release acceptance.
+[Owner acceptance #89](https://github.com/Arameair/Thought-Processor/issues/89) and [portability review #90](https://github.com/Arameair/Thought-Processor/issues/90) track the wider end-to-end proof needed for reproducible execution and independent installations.
+
+## Security limitations
+
+This is **not** an Internet-exposed login service, a certified identity platform, or a guarantee of isolation between same-OS-user processes. Localhost browser tokens, local file permissions, and a passphrase are not by themselves complete operating-system isolation or encryption. Multi-companion privacy, recovery, permission revocation under failure and safe owner-machine deployment require further validation.
+
+Avoid putting real credentials, private owner records, prompts or execution journals in public test reports. No README, issue or PR authorizes a live grant or service restart.
+
+## Source, history and review
+
+- [Thought Processor overview](https://github.com/Arameair/Thought-Processor) — human-facing control plane and current milestone.
+- [Identity documentation](docs/README.md) — historical designs and scope.
+- [November 6 pinned integration snapshot](https://github.com/Arameair/Thought-Processor/blob/af59e7d9213170669eddd4f269ba1f1b50c427e9/core/docs/CURRENT_GO_STACK_20261106.md) — dated reference, **not** a live status feed.
+- [Identity documentation review](https://github.com/Arameair/identity/pull/41) — draft for owner review.
+
+Earlier P0/P1 source, tests and decisions remain accessible through Git history. **No stable public installation or production-security claim is made.**
