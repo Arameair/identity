@@ -47,3 +47,10 @@ For the older October 25 standalone Identity UI experiment, see the [historical 
 **Project direction and release decisions:** [Arameair](https://github.com/Arameair). This is a human-directed, AI-assisted software effort; AI-generated proposals and tests are attributed as appropriate in commits, issues and evidence reports. See [contributors, sources and attribution](docs/CREDITS.md) and [AI collaboration policy](docs/AI_COLLABORATION.md). Names of third-party technologies or services imply **neither affiliation nor endorsement**.
 
 **Release policy:** Experiments do not promote themselves. `alpha`, `stable` and executable releases require explicit owner approval. Documentation updates here do **not** approve or release code.
+
+
+## Repository and release convention — proposed
+
+TASS is adopting a **gradual, review-only** cross-repository convention: `main` is the understandable project entry point and eventual accepted source baseline; `experiment/*` holds unpromoted work; `stable` will mean a version the owner has personally used, verified and approved for others to try. Cross-repository releases additionally require a manifest of exact compatible component SHAs and real acceptance evidence. **Current branches may not yet follow these definitions; no branch or release is promoted by this note.**
+
+See the [draft shared policy and migration checklist](https://github.com/Arameair/Thought-Processor/pull/118). Existing security, authorization, deployment and Stage 3 acceptance requirements remain unchanged.
