@@ -24,6 +24,9 @@ import (
 var BoundActions = map[string]bool{
 	"cognition.nudge.process": true,  // run one nudge: owner grant cognition.nudge-process
 	"cognition.nudge.stop":    false, // stop one submitted nudge: UNLOCKED only (owner decision D15)
+	// Stage 3B (Thought-Processor #120, owner decision D7): run ONE arm of one isolated experiment.
+	// Its own owner grant, cognition.experiment-run; never implied by, or shared with, the nudge grants.
+	"cognition.experiment.run": true,
 }
 
 // BoundTTL is how long a minted decision may wait to be redeemed.

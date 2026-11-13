@@ -27,14 +27,18 @@ var KnownSkills = map[string]string{
 	"cognition.nudge-draft": "let the owner save manual nudge DRAFTS on Cognition Thoughts (local record only; nothing is processed, sent or run)",
 	// Stage 2 (Thought-Processor #100): the owner may PROCESS one nudge to TASS himself at a time,
 	// confirming each run on the page. Each run uses a bound, single-use decision (bound.go).
-	"cognition.nudge-process": "let the owner process ONE confirmed nudge at a time: one model request that develops the chosen Thought by one note (each run is confirmed on the page and uses a single-use approval)",
+	// Stage 3B (Thought-Processor #120, D7): the owner may RUN one arm of an isolated A/B experiment at a
+	// time. Not a default; separate from nudge processing; each arm uses its own bound, single-use decision.
+	"cognition.experiment-run": "let the owner run ONE arm of an isolated instruction experiment at a time: one model request whose reply is kept apart from the Thought (nothing is saved into the Thought; each arm is confirmed on the page and uses a single-use approval)",
+	"cognition.nudge-process":  "let the owner process ONE confirmed nudge at a time: one model request that develops the chosen Thought by one note (each run is confirmed on the page and uses a single-use approval)",
 }
 
 // ownerGrants: allowlisted entries that are neither skills nor junctions, with their own grant
 // names. Enabling one never adds skill.discover.
 var ownerGrants = map[string]string{
-	"cognition.nudge-draft":   "cognition.nudge.draft",
-	"cognition.nudge-process": "cognition.nudge.process",
+	"cognition.nudge-draft":    "cognition.nudge.draft",
+	"cognition.nudge-process":  "cognition.nudge.process",
+	"cognition.experiment-run": "cognition.experiment.run",
 }
 
 const SkillDiscover = "skill.discover"
