@@ -7,7 +7,8 @@
 // Environment:
 //
 //	IDENTITY_DATA          entity.json, credential, decisions.jsonl          (default ~/.tass-identity)
-//	IDENTITY_SERVICE_KEYS  file with "service key" lines (core, engine)      (required to authorize anything)
+//	IDENTITY_SERVICE_KEYS  file with "service key" lines (core, engine, and optionally discord-door,
+//	                       which may only redeem discord.reply)              (required to authorize anything)
 //	IDENTITY_LISTEN        listen address                                   (default 127.0.0.1:8796)
 //	IDENTITY_UNLOCK_HOURS  how long an unlock lasts                         (default 12)
 //	IDENTITY_CORE_URL      owner-facing local Core link (loopback only)     (default 127.0.0.1:8795)
@@ -429,6 +430,12 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			if in.Action == "" {
 				writeJSON(w, 400, map[string]string{"error": "action is required"})
 			}
+			return
+		}
+		if entity.RedeemOnly(svc) {
+			// A redeem-only service (the Discord door) can neither obtain decisions nor ask
+			// for plain authorizations: its key works on /v1/decisions/redeem and nowhere else.
+			writeJSON(w, 403, map[string]string{"error": svc + " may only redeem bound decisions"})
 			return
 		}
 		if _, isBound := entity.BoundActions[in.Action]; isBound || in.Binding != "" {
