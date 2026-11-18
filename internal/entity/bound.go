@@ -8,7 +8,8 @@ package entity
 // redeem it, once, before it expires. Redeeming re-checks that the entity is still UNLOCKED, still
 // the same entity, and (for actions that need one) that the grant is still held at that moment.
 // A redeemed decision can be CHECKED again by the Engine (same rules, not consumed) at its later
-// points of use; that is how a revocation mid-run is seen.
+// points of use; that is how a revocation mid-run is seen. Actions in SinglePointOfUse
+// (discord.reply) cannot be checked at all: their one redemption is their only point of use.
 //
 // Bound decisions live in memory only: an Identity restart forgets all of them, which fails closed
 // (nothing can be redeemed). Every mint, redeem and check is appended to decisions.jsonl.
@@ -53,6 +54,15 @@ const (
 // The service that performs the effect redeems; nobody else can.
 var BoundRedeemers = map[string]string{
 	DiscordReply: DoorService,
+}
+
+// SinglePointOfUse: bound actions whose effect happens once, at the moment of redemption, so a
+// redeemed decision must never answer allow again. A CHECK (consume=false) is refused for them
+// outright: otherwise the redeemer could re-ask "check" after its one redemption and receive
+// allow=true again for as long as the decision stays in memory (the discord.reply check bypass,
+// identity #47 audit). Actions not listed keep the Engine's established redeem-then-check flow.
+var SinglePointOfUse = map[string]bool{
+	DiscordReply: true,
 }
 
 // redeemerFor is the one service that may redeem (or check) a decision for action.
@@ -175,6 +185,11 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		Binding: binding, Mode: mode, For: decisionID}
 	if want := redeemerFor(action); service != want {
 		d.Reason = "only " + want + " may " + mode + " " + action
+		s.auditBound(d)
+		return d
+	}
+	if !consume && SinglePointOfUse[action] {
+		d.Reason = action + " has a single point of use: it can be redeemed once and never checked"
 		s.auditBound(d)
 		return d
 	}

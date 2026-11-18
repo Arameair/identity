@@ -108,7 +108,8 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// loadKeys reads "service key" lines. Keys shorter than 32 characters are refused.
+// loadKeys reads "service key" lines. Keys shorter than 32 characters are refused, and so is a
+// key that appears on more than one line.
 func loadKeys(path string) (map[string]string, error) {
 	out := map[string]string{}
 	if path == "" {
@@ -125,6 +126,12 @@ func loadKeys(path string) (map[string]string, error) {
 		}
 		if len(f) != 2 || len(f[1]) < 32 {
 			return nil, fmt.Errorf("each line must be: <service> <key of 32+ characters>")
+		}
+		if prev, dup := out[f[1]]; dup {
+			// One key must name one service. A shared key would silently collapse two services
+			// into whichever line came last (e.g. the redeem-only discord-door becoming core).
+			// Refuse the whole file rather than guess; the key itself is never printed.
+			return nil, fmt.Errorf("the same key is listed more than once (services %q and %q); every service needs its own key", prev, f[0])
 		}
 		out[f[1]] = f[0]
 	}
