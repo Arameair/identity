@@ -286,6 +286,31 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			writeJSON(w, 200, s)
 		}
 	}))
+	// Skill grants (#72): only allowlisted skills; enable re-checks the passphrase, revoke does not.
+	mux.HandleFunc("GET /v1/skills", owner(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"skills": entity.SkillList()})
+	}))
+	mux.HandleFunc("POST /v1/grants/skill", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Skill      string `json:"skill"`
+			Passphrase string `json:"passphrase"`
+			Revoke     bool   `json:"revoke"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		s, err := st.SetSkillGrant(in.Passphrase, in.Skill, !in.Revoke)
+		switch {
+		case errors.Is(err, entity.ErrThrottled):
+			writeJSON(w, 429, map[string]string{"error": err.Error()})
+		case err != nil:
+			log.Printf("skill grant request refused: %v", err)
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+		default:
+			log.Printf("owner %s skill %s for %s", map[bool]string{true: "revoked", false: "enabled"}[in.Revoke], in.Skill, s.Entity.EntityID)
+			writeJSON(w, 200, s)
+		}
+	}))
 	mux.HandleFunc("POST /v1/lock", owner(func(w http.ResponseWriter, r *http.Request) {
 		st.Lock()
 		approved.Lock()
@@ -398,11 +423,23 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			Action   string `json:"action"`
 			EntityID string `json:"entity_id"`
 			Detail   string `json:"detail"`
+			Binding  string `json:"binding"`
 		}
 		if !decode(w, r, &in) || in.Action == "" {
 			if in.Action == "" {
 				writeJSON(w, 400, map[string]string{"error": "action is required"})
 			}
+			return
+		}
+		if _, isBound := entity.BoundActions[in.Action]; isBound || in.Binding != "" {
+			// Stage 2: a bound, single-use decision (only Core may obtain one).
+			bd := st.MintBound(svc, in.Action, in.Binding, in.Detail, in.EntityID)
+			resp := map[string]any{"allow": bd.Allow, "decision_id": bd.ID, "reason": bd.Reason, "entity_id": bd.EntityID,
+				"service": svc, "binding": bd.Binding}
+			if bd.Allow {
+				resp["expires_at"] = bd.ExpiresAt
+			}
+			writeJSON(w, 200, resp)
 			return
 		}
 		d := st.Authorize(svc, in.Action, in.Detail, in.EntityID)
@@ -415,6 +452,21 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			resp["valid_until"] = s.UnlockedUntil
 		}
 		writeJSON(w, 200, resp)
+	}))
+	// Stage 2: the Engine redeems (consumes) or checks a bound decision Core obtained.
+	mux.HandleFunc("POST /v1/decisions/redeem", service(func(w http.ResponseWriter, r *http.Request, svc string) {
+		var in struct {
+			DecisionID string `json:"decision_id"`
+			Action     string `json:"action"`
+			Binding    string `json:"binding"`
+			Check      bool   `json:"check"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		bd := st.RedeemBound(svc, in.DecisionID, in.Action, in.Binding, !in.Check)
+		writeJSON(w, 200, map[string]any{"allow": bd.Allow, "decision_id": bd.ID, "for_decision": in.DecisionID,
+			"reason": bd.Reason, "entity_id": bd.EntityID, "service": svc, "mode": bd.Mode})
 	}))
 	return mux
 }
