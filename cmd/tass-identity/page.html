@@ -168,7 +168,7 @@ async function loadSkills() { try { SKILLS = (await (await fetch("/v1/skills", {
 function renderSkills(st) {
   const unlocked = st.state === "UNLOCKED", g = (st.entity && st.entity.grants) || [];
   $("skillGrants").hidden = !unlocked;
-  $("skillList").innerHTML = SKILLS.map(k => `<div style="margin:6px 0"><code>${k.id.startsWith("junction.") ? "junction " : k.id.startsWith("cognition.") ? "" : "@"}${k.id}</code> — ${k.purpose}<br><span class="dim">grant <code>${k.grant}</code>: <b>${g.includes(k.grant) ? "GRANTED" : "not granted"}</b></span>
+  $("skillList").innerHTML = SKILLS.map(k => `<div style="margin:6px 0"><code>${k.id.startsWith("junction.") ? "junction " : (k.id.startsWith("cognition.") || k.id.startsWith("discord.")) ? "" : "@"}${k.id}</code> — ${k.purpose}<br><span class="dim">grant <code>${k.grant}</code>: <b>${g.includes(k.grant) ? "GRANTED" : "not granted"}</b></span>
     ${g.includes(k.grant) ? `<button data-revoke-skill="${k.id}">Revoke</button>` : `<button data-enable-skill="${k.id}">Enable this skill</button>`}</div>`).join("") || "(no skills)";
 }
 $("skillList").onclick = async ev => {

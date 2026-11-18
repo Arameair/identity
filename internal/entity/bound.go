@@ -3,11 +3,13 @@ package entity
 // Bound, single-use decisions (Thought-Processor Stage 2, design rev 4 §2).
 //
 // Some actions are only ever allowed for ONE exact thing: a binding (sha256 hex of the exact tuple
-// the caller computed) is required. Core may obtain ("mint") such a decision; only the Engine may
+// the caller computed) is required. Core may obtain ("mint") such a decision; only the Engine (or,
+// for an action listed in BoundRedeemers, the service that performs that effect) may
 // redeem it, once, before it expires. Redeeming re-checks that the entity is still UNLOCKED, still
 // the same entity, and (for actions that need one) that the grant is still held at that moment.
 // A redeemed decision can be CHECKED again by the Engine (same rules, not consumed) at its later
-// points of use; that is how a revocation mid-run is seen.
+// points of use; that is how a revocation mid-run is seen. Actions in SinglePointOfUse
+// (discord.reply) cannot be checked at all: their one redemption is their only point of use.
 //
 // Bound decisions live in memory only: an Identity restart forgets all of them, which fails closed
 // (nothing can be redeemed). Every mint, redeem and check is appended to decisions.jsonl.
@@ -27,6 +29,10 @@ var BoundActions = map[string]bool{
 	// Stage 3B (Thought-Processor #120, owner decision D7): run ONE arm of one isolated experiment.
 	// Its own owner grant, cognition.experiment-run; never implied by, or shared with, the nudge grants.
 	"cognition.experiment.run": true,
+	// Discord Milestone A (identity #46, Thought-Processor #127): send ONE exact reply to ONE exact
+	// inbound Discord message. Its own owner grant, discord.reply; not a default and never implied by
+	// any other grant. Redeemed by the Discord door, not the Engine (see BoundRedeemers).
+	DiscordReply: true,
 }
 
 // BoundTTL is how long a minted decision may wait to be redeemed.
@@ -34,9 +40,49 @@ var BoundTTL = 120 * time.Second
 
 const (
 	MintService   = "core"
-	RedeemService = "engine"
+	RedeemService = "engine" // redeems every bound action that has no entry in BoundRedeemers
 	maxBound      = 1000
+
+	// DiscordReply is the bound action for one outbound Discord reply.
+	DiscordReply = "discord.reply"
+	// DoorService is the Discord door's service name in the service-key file. The door is the
+	// transport that actually posts, so it (and only it) redeems discord.reply at the point of use.
+	DoorService = "discord-door"
 )
+
+// BoundRedeemers: bound actions that are redeemed by a service other than the Engine.
+// The service that performs the effect redeems; nobody else can.
+var BoundRedeemers = map[string]string{
+	DiscordReply: DoorService,
+}
+
+// SinglePointOfUse: bound actions whose effect happens once, at the moment of redemption, so a
+// redeemed decision must never answer allow again. A CHECK (consume=false) is refused for them
+// outright: otherwise the redeemer could re-ask "check" after its one redemption and receive
+// allow=true again for as long as the decision stays in memory (the discord.reply check bypass,
+// identity #47 audit). Actions not listed keep the Engine's established redeem-then-check flow.
+var SinglePointOfUse = map[string]bool{
+	DiscordReply: true,
+}
+
+// redeemerFor is the one service that may redeem (or check) a decision for action.
+func redeemerFor(action string) string {
+	if svc, ok := BoundRedeemers[action]; ok {
+		return svc
+	}
+	return RedeemService
+}
+
+// RedeemOnly reports whether service exists solely to redeem bound decisions. Such a service may
+// use no other service route: it cannot ask for plain authorizations or read anything else.
+func RedeemOnly(service string) bool {
+	for _, svc := range BoundRedeemers {
+		if svc == service {
+			return true
+		}
+	}
+	return false
+}
 
 type bound struct {
 	d         Decision
@@ -127,8 +173,9 @@ func (s *Store) MintBound(service, action, binding, detail, entityID string) Bou
 	return d
 }
 
-// RedeemBound: only the Engine; consumes the decision. consume=false is a CHECK of an already
-// redeemed decision (same rules, the decision must have been redeemed before).
+// RedeemBound: only the action's redeemer (the Engine, or the service named in BoundRedeemers);
+// consumes the decision. consume=false is a CHECK of an already redeemed decision (same rules, the
+// decision must have been redeemed before).
 func (s *Store) RedeemBound(service, decisionID, action, binding string, consume bool) BoundDecision {
 	mode := "redeem"
 	if !consume {
@@ -136,8 +183,13 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 	}
 	d := BoundDecision{Decision: Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action},
 		Binding: binding, Mode: mode, For: decisionID}
-	if service != RedeemService {
-		d.Reason = "only " + RedeemService + " may " + mode + " " + action
+	if want := redeemerFor(action); service != want {
+		d.Reason = "only " + want + " may " + mode + " " + action
+		s.auditBound(d)
+		return d
+	}
+	if !consume && SinglePointOfUse[action] {
+		d.Reason = action + " has a single point of use: it can be redeemed once and never checked"
 		s.auditBound(d)
 		return d
 	}

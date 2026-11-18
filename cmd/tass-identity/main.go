@@ -7,7 +7,8 @@
 // Environment:
 //
 //	IDENTITY_DATA          entity.json, credential, decisions.jsonl          (default ~/.tass-identity)
-//	IDENTITY_SERVICE_KEYS  file with "service key" lines (core, engine)      (required to authorize anything)
+//	IDENTITY_SERVICE_KEYS  file with "service key" lines (core, engine, and optionally discord-door,
+//	                       which may only redeem discord.reply)              (required to authorize anything)
 //	IDENTITY_LISTEN        listen address                                   (default 127.0.0.1:8796)
 //	IDENTITY_UNLOCK_HOURS  how long an unlock lasts                         (default 12)
 //	IDENTITY_CORE_URL      owner-facing local Core link (loopback only)     (default 127.0.0.1:8795)
@@ -107,7 +108,8 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// loadKeys reads "service key" lines. Keys shorter than 32 characters are refused.
+// loadKeys reads "service key" lines. Keys shorter than 32 characters are refused, and so is a
+// key that appears on more than one line.
 func loadKeys(path string) (map[string]string, error) {
 	out := map[string]string{}
 	if path == "" {
@@ -124,6 +126,12 @@ func loadKeys(path string) (map[string]string, error) {
 		}
 		if len(f) != 2 || len(f[1]) < 32 {
 			return nil, fmt.Errorf("each line must be: <service> <key of 32+ characters>")
+		}
+		if prev, dup := out[f[1]]; dup {
+			// One key must name one service. A shared key would silently collapse two services
+			// into whichever line came last (e.g. the redeem-only discord-door becoming core).
+			// Refuse the whole file rather than guess; the key itself is never printed.
+			return nil, fmt.Errorf("the same key is listed more than once (services %q and %q); every service needs its own key", prev, f[0])
 		}
 		out[f[1]] = f[0]
 	}
@@ -429,6 +437,12 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			if in.Action == "" {
 				writeJSON(w, 400, map[string]string{"error": "action is required"})
 			}
+			return
+		}
+		if entity.RedeemOnly(svc) {
+			// A redeem-only service (the Discord door) can neither obtain decisions nor ask
+			// for plain authorizations: its key works on /v1/decisions/redeem and nowhere else.
+			writeJSON(w, 403, map[string]string{"error": svc + " may only redeem bound decisions"})
 			return
 		}
 		if _, isBound := entity.BoundActions[in.Action]; isBound || in.Binding != "" {

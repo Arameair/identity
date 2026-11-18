@@ -31,6 +31,10 @@ var KnownSkills = map[string]string{
 	// time. Not a default; separate from nudge processing; each arm uses its own bound, single-use decision.
 	"cognition.experiment-run": "let the owner run ONE arm of an isolated instruction experiment at a time: one model request whose reply is kept apart from the Thought (nothing is saved into the Thought; each arm is confirmed on the page and uses a single-use approval)",
 	"cognition.nudge-process":  "let the owner process ONE confirmed nudge at a time: one model request that develops the chosen Thought by one note (each run is confirmed on the page and uses a single-use approval)",
+	// Discord Milestone A (identity #46): the entity may ANSWER its owner's Discord messages. Not a
+	// default. Every reply still needs its own bound, single-use decision that the Discord door
+	// redeems just before it posts (bound.go); this grant alone sends nothing.
+	DiscordReply: "let the entity REPLY to its owner's messages in the one configured Discord channel, without asking you for each reply (each reply uses its own single-use approval, checked again just before it is sent; revoking stops replies at once; it never starts a conversation by itself)",
 }
 
 // ownerGrants: allowlisted entries that are neither skills nor junctions, with their own grant
@@ -39,6 +43,7 @@ var ownerGrants = map[string]string{
 	"cognition.nudge-draft":    "cognition.nudge.draft",
 	"cognition.nudge-process":  "cognition.nudge.process",
 	"cognition.experiment-run": "cognition.experiment.run",
+	DiscordReply:               DiscordReply,
 }
 
 const SkillDiscover = "skill.discover"
