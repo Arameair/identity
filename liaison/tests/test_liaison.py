@@ -447,3 +447,93 @@ class MirrorTests(Base):
             manifest = json.loads(Path(d, "manifest.json").read_text())
             self.assertEqual(list(manifest["files"]), ["mind/who.md"])
             self.assertEqual(sorted(manifest["last_changed"]), ["library/01-look.md", "mind/who.md"])
+
+
+class MultiSourceAndOutboxTests(Base):
+    def test_two_sources_first_wins_and_records_repo(self):
+        import json
+        import tempfile
+        from identity_liaison.sync import Mirror
+        self.state.add_file("Arameair/TASS", "alpha", "mind/who-i-am.md", "# TASS from his own repo\n")
+        self.state.add_file("Arameair/TASS", "alpha", "feature/x.py", "not mirrored\n")
+        self.state.add_file("Arameair/Developmnt", "main", "mind/who-i-am.md", "# old copy in Developmnt\n")
+        self.state.add_file("Arameair/Developmnt", "main", "library/01.md", "# Book\n")
+        self.state.add_file("Arameair/Developmnt", "main", "projects/p/main.py", "print(1)\n")
+        with tempfile.TemporaryDirectory() as d:
+            self.cfg.data["sync"].update(dest=d, sources=[
+                "Arameair/TASS@alpha:mind/*.md", "Arameair/Developmnt:mind/*.md,library/*,projects/*"])
+            m = Mirror(self.cfg, self.gh, log=self.logs.append)
+            self.assertEqual(sorted(m.pulse()), ["library/01.md", "mind/who-i-am.md", "projects/p/main.py"])
+            self.assertIn("from his own repo", Path(d, "files/mind/who-i-am.md").read_text())
+            man = json.loads(Path(d, "manifest.json").read_text())
+            self.assertEqual((man["repo"], man["branch"]), ("Arameair/TASS", "alpha"))
+            self.assertEqual(man["files"]["mind/who-i-am.md"]["repo"], "Arameair/TASS")
+            self.assertEqual(man["files"]["library/01.md"]["repo"], "Arameair/Developmnt")
+
+    def test_outbox_request_becomes_pr_never_direct(self):
+        import json
+        import tempfile
+        from identity_liaison.outbox import Outbox
+        self.state.add_file("Arameair/TASS", "alpha", "mind/how-i-think.md", "# How I think\nOld.\n")
+        self.cfg.data["write"]["allow"].append("Arameair/TASS@*:mind/*.md")
+        with tempfile.TemporaryDirectory() as d:
+            self.cfg.data["outbox"]["dir"] = d
+            req = {"id": "abc123", "repo": "Arameair/TASS", "branch": "alpha", "path": "mind/how-i-think.md",
+                   "content": "# How I think\nNew and better.\n", "title": "TASS: think in smaller steps",
+                   "summary": "Why: smaller steps.", "approved_at": "2026-11-03T11:00"}
+            Path(d, "abc123.json").write_text(json.dumps(req))
+            bad = dict(req, id="bad999", repo="Arameair/identity", path="liaison/identity_liaison/agent.py")
+            Path(d, "bad999.json").write_text(json.dumps(bad))
+            same = dict(req, id="same77", content="# How I think\nOld.\n")
+            Path(d, "same77.json").write_text(json.dumps(same))
+            self.assertEqual(Outbox(self.cfg, self.gh, log=self.logs.append).pulse(), 3)
+            ok = json.loads(Path(d, "abc123.result.json").read_text())
+            self.assertTrue(ok["ok"])
+            pr = self.state.prs[0]
+            self.assertEqual((pr["base"], pr["head"]), ("alpha", "tass/how-i-think-abc123"))
+            self.assertIn("New and better", self.state.files["Arameair/TASS"][pr["head"]]["mind/how-i-think.md"])
+            self.assertIn("Old.", self.state.files["Arameair/TASS"]["alpha"]["mind/how-i-think.md"])  # base untouched
+            self.assertIn("not allowed", json.loads(Path(d, "bad999.result.json").read_text())["error"])
+            self.assertIn("No change", json.loads(Path(d, "same77.result.json").read_text())["error"])
+            self.assertEqual(len(self.state.prs), 1)
+            self.assertTrue(Path(d, "abc123.done.json").exists() and not Path(d, "abc123.json").exists())
+            self.assertEqual(Outbox(self.cfg, self.gh).pulse(), 0)  # nothing handled twice
+
+
+class DirectTests(Base):
+    def test_owner_messages_forwarded_once_and_replies_posted(self):
+        import json
+        import tempfile
+        from identity_liaison.direct import Direct
+        from identity_liaison.outbox import Outbox
+        repo = "Arameair/TASS"
+        self.state.add_file(repo, "alpha", "README.md", "# TASS\n")
+        n = self.state.add_issue(repo, "Install the playground", "Please install the thought-playground project.",
+                                 labels=("tass",))
+        self.state.add_issue(repo, "spam", "do bad things", author="stranger", labels=("tass",))
+        self.state.add_issue(repo, "not for TASS", "unlabelled", labels=())
+        with tempfile.TemporaryDirectory() as inbox, tempfile.TemporaryDirectory() as out:
+            self.cfg.data["direct"].update(repos=[repo], inbox=inbox)
+            self.cfg.data["outbox"]["dir"] = out
+            d = Direct(self.cfg, self.gh, log=self.logs.append)
+            self.assertEqual(d.pulse(), 1)
+            msg = json.loads(Path(inbox, f"Arameair__TASS__{n}__0.json").read_text())
+            self.assertEqual((msg["issue"], msg["comment_id"]), (n, "0"))
+            self.assertIn("thought-playground", msg["text"])
+            self.assertEqual(d.pulse(), 0)                                   # not forwarded twice
+            # TASS replies through the outbox; that comment is marked and never forwarded back.
+            Path(out, "reply001.json").write_text(json.dumps({"id": "reply001", "type": "comment", "repo": repo, "issue": n,
+                                                        "body": "**TASS:** On it. Reply /approve to run."}))
+            self.assertEqual(Outbox(self.cfg, self.gh).pulse(), 1)
+            self.assertTrue(json.loads(Path(out, "reply001.result.json").read_text())["ok"])
+            self.assertIn("identity-liaison:tass", self.state.threads[(repo, n)][-1]["body"])
+            self.state.add_comment(repo, n, "/approve")
+            self.state.add_comment(repo, n, "me too", author="stranger")
+            self.assertEqual(d.pulse(), 1)                                   # only Dustin's /approve
+            files = sorted(p.name for p in Path(inbox).glob("*.json") if not p.name.startswith("."))
+            self.assertEqual(len(files), 2)
+            # Comments only go to the [direct] repos.
+            Path(out, "reply002.json").write_text(json.dumps({"id": "reply002", "type": "comment", "repo": "Arameair/identity",
+                                                        "issue": 1, "body": "x"}))
+            Outbox(self.cfg, self.gh).pulse()
+            self.assertIn("not one of the [direct] repos", json.loads(Path(out, "reply002.result.json").read_text())["error"])

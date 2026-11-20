@@ -31,7 +31,10 @@ class FakeGitHubState:
         self.threads: dict[tuple[str, int], list[dict]] = {}
 
     def add_comment(self, repo, n, body, author=None):
-        self.threads.setdefault((repo, n), []).append({"user": {"login": author or self.login}, "body": body})
+        self.comment_seq = getattr(self, "comment_seq", 1000) + 1
+        self.threads.setdefault((repo, n), []).append({"id": self.comment_seq, "user": {"login": author or self.login},
+                                                       "body": body,
+                                                       "html_url": f"https://github.com/{repo}/issues/{n}#c{self.comment_seq}"})
 
     def add_file(self, repo, branch, path, text):
         self.files.setdefault(repo, {}).setdefault(branch, {})[path] = text

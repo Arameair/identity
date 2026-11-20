@@ -44,6 +44,11 @@ ENV = {
     "IDENTITY_LIAISON_SYNC_REPO": ("sync", "repo", str),
     "IDENTITY_LIAISON_SYNC_DEST": ("sync", "dest", str),
     "IDENTITY_LIAISON_SYNC_PATHS": ("sync", "paths", "list"),
+    "IDENTITY_LIAISON_SYNC_SOURCES": ("sync", "sources", "semilist"),
+    "IDENTITY_LIAISON_OUTBOX": ("outbox", "dir", str),
+    "IDENTITY_LIAISON_DIRECT_REPOS": ("direct", "repos", "list"),
+    "IDENTITY_LIAISON_INBOX": ("direct", "inbox", str),
+    "IDENTITY_LIAISON_WRITE_ALLOW": ("write", "allow", "semilist_add"),
 }
 
 
@@ -54,6 +59,10 @@ def _apply_env(data: dict) -> None:
             continue
         if kind == "list":
             data[section][key] = [x.strip() for x in raw.split(",") if x.strip()]
+        elif kind == "semilist":
+            data[section][key] = [x.strip() for x in raw.split(";") if x.strip()]
+        elif kind == "semilist_add":
+            data[section][key] = list(data[section][key]) + [x.strip() for x in raw.split(";") if x.strip()]
         else:
             data[section][key] = kind(raw)
     if data["write"]["mode"] not in ("pr", "direct"):
