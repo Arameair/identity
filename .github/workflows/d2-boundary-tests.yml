@@ -1,0 +1,30 @@
+name: d2-boundary-tests
+# D2 P0 protected-profile boundary preflight. Runs ONLY the unprivileged tests on
+# disposable GitHub-hosted VMs: no secrets, read-only token, no ACL/account/service
+# changes. The opt-in acceptance harness (IDENTITY_D2_*) is NOT enabled here, so its
+# service / normal-user / WSL halves are skipped and remain UNVERIFIED.
+# Note: the hosted Windows runner user is an administrator, unlike the target setup.
+on:
+  push:
+    branches: ["experiment/d2-protected-profile-boundary-20261120"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  boundary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: vet
+        run: go vet ./internal/profile/...
+      - name: boundary tests (verbose)
+        run: go test -count=1 -v ./internal/profile/boundary
+      - name: full suite
+        run: go test -count=1 ./...
