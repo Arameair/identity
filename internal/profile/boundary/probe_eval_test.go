@@ -87,7 +87,20 @@ func wslOut(header string, n int, status func(i int, right string) string) strin
 	return b.String()
 }
 
-const goodHeader = "DISTRO Ubuntu-24.04\nWSLPATH /mnt/c/ProgramData/Arameair/TassIdentity\nMOUNT 9p C:\\134 /mnt/c\n"
+// goodHeader is complete, consistent mount evidence for the root through the
+// whole-drive 9p automount of C: at /mnt/c (device 0:70 → st_dev 70), as WSL 2
+// reports it. Every F3 negative below perturbs exactly one part of it.
+const (
+	goodRoot   = "/mnt/c/ProgramData/Arameair/TassIdentity"
+	rootMI     = "MI 1 0 8:32 / / rw,relatime - ext4 /dev/sdc rw\n"
+	driveMI    = "MI 70 1 0:70 / /mnt/c rw,noatime - 9p C:\\134 rw,aname=drvfs;path=C:\\;uid=1000;gid=1000\n"
+	goodHead0  = "DISTRO Ubuntu-24.04\nWSLPATH " + goodRoot + "\nDRIVE /mnt/c/\nREALDRIVE /mnt/c\nREALPARENT /mnt/c/ProgramData/Arameair\n"
+	goodDev    = "DEVDRIVE 70\nDEVPARENT 70\n"
+	goodHeader = goodHead0 + goodDev + rootMI + driveMI
+)
+
+// withMI appends mountinfo lines (mounted after the drive) to goodHeader-style evidence.
+func withMI(extra ...string) string { return goodHeader + strings.Join(extra, "") }
 
 func allDenied(int, string) string { return "DENIED ls: cannot open directory: Permission denied" }
 
@@ -101,7 +114,7 @@ func TestEvaluateWSL(t *testing.T) {
 		code   Code
 	}{
 		{"all denied on existing targets, drvfs mount, named distro", ExistsYes, wslOut(goodHeader, n, allDenied), Isolated, ""},
-		{"virtiofs mount accepted", ExistsYes, wslOut(strings.Replace(goodHeader, "9p", "virtiofs", 1), n, allDenied), Isolated, ""},
+		{"WSL 1 drvfs automount accepted", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - drvfs C:\\134 rw,case=off\n", n, allDenied), Isolated, ""},
 		// F2: absence and silence are never denial.
 		{"no output at all (old behaviour: ISOLATED)", ExistsYes, "", Unverified, CWSLUnverified},
 		{"no attempt lines (old behaviour: ISOLATED)", ExistsYes, wslOut(goodHeader, n, func(int, string) string { return "" }), Unverified, CWSLUnobserved},
@@ -135,12 +148,37 @@ func TestEvaluateWSL(t *testing.T) {
 		{"unrequested attempt", ExistsYes, strings.Replace(wslOut(goodHeader, n, allDenied), "DONE", "R 1 list DENIED\nDONE", 1), Unverified, CWSLUnobserved},
 		{"no DONE (killed midway)", ExistsYes, strings.Replace(wslOut(goodHeader, n, allDenied), "DONE\n", "", 1), Unverified, CWSLUnverified},
 		{"stray output line", ExistsYes, strings.Replace(wslOut(goodHeader, n, allDenied), "BEGIN\n", "BEGIN\nhello\n", 1), Unverified, CWSLUnobserved},
-		// F3: the translation that was tested must be named and must reach NTFS.
+		// F3: the translation that was tested must be named and must be the Windows object.
 		{"distro not named", ExistsYes, wslOut(strings.Replace(goodHeader, "DISTRO Ubuntu-24.04", "DISTRO", 1), n, allDenied), Unverified, CWSLScope},
-		{"root on the distro's own ext4", ExistsYes, wslOut("DISTRO Ubuntu\nWSLPATH /home/u/x\nMOUNT ext4 /dev/sdc /\n", n, allDenied), Unverified, CWSLScope},
-		{"9p, but mounted at / (not a drive mount)", ExistsYes, wslOut("DISTRO Ubuntu\nWSLPATH /x\nMOUNT 9p rootfs /\n", n, allDenied), Unverified, CWSLScope},
-		{"tmpfs mount", ExistsYes, wslOut(strings.Replace(goodHeader, "9p", "tmpfs", 1), n, allDenied), Unverified, CWSLScope},
-		{"no mount reported", ExistsYes, wslOut("DISTRO Ubuntu\nWSLPATH /mnt/c/x\n", n, allDenied), Unverified, CWSLScope},
+		// Codex audit 7060488246, blocking 1 (exact regression): the root's WSL path is
+		// under a nested 9p/drvfs mount (here another subtree of C: bound over the
+		// root's parent; a bind shares the drive's device, so st_dev matches) and every attempt
+		// says DENIED. That is evidence about the overlaid object: never ISOLATED.
+		{"nested 9p bind of another C: subtree over the root's parent", ExistsYes, wslOut(goodHeader+
+			"MI 91 70 0:70 /Users/u/decoy /mnt/c/ProgramData/Arameair rw - 9p C:\\134 rw,aname=drvfs;path=C:\\\n", n, allDenied), Unverified, CWSLScope},
+		{"nested drvfs of another drive at the root itself", ExistsYes, wslOut(withMI("MI 92 70 0:92 / "+goodRoot+" rw - drvfs D:\\134 rw\n"), n, allDenied), Unverified, CWSLScope},
+		{"nested 9p mount, st_dev still claims the drive", ExistsYes, wslOut(withMI("MI 93 70 0:93 / /mnt/c/ProgramData rw - 9p C:\\134 rw,aname=drvfs;path=C:\\\n"), n, allDenied), Unverified, CWSLScope},
+		{"bind mount over one authority file", ExistsYes, wslOut(withMI("MI 94 70 0:70 /Users/u/x.json "+goodRoot+"/entity.json rw - 9p C:\\134 rw\n"), n, allDenied), Unverified, CWSLScope},
+		{"overlay on the root", ExistsYes, wslOut(withMI("MI 95 70 0:95 / "+goodRoot+" rw - overlay overlay rw,lowerdir=/a,upperdir=/b\n"), n, allDenied), Unverified, CWSLScope},
+		{"second mount stacked on /mnt/c", ExistsYes, wslOut(withMI("MI 96 1 0:96 / /mnt/c rw - 9p C:\\134 rw,aname=drvfs;path=C:\\\n"), n, allDenied), Unverified, CWSLScope},
+		{"/mnt/c is a bind of a C: subtree", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 /Users/u /mnt/c rw - 9p C:\\134 rw,aname=drvfs;path=C:\\\n", n, allDenied), Unverified, CWSLScope},
+		{"/mnt/c is drive D:", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - 9p D:\\134 rw,aname=drvfs;path=D:\\\n", n, allDenied), Unverified, CWSLScope},
+		{"/mnt/c is a drvfs mount of C:\\Other", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - drvfs C:\\134Other rw\n", n, allDenied), Unverified, CWSLScope},
+		{"9p path= option names a subdirectory", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - 9p C:\\134 rw,aname=drvfs;path=C:\\Other;uid=1000\n", n, allDenied), Unverified, CWSLScope},
+		{"something mounted over /mnt hides /mnt/c (st_dev differs)", ExistsYes, wslOut(goodHead0+"DEVDRIVE 99\nDEVPARENT 99\n"+rootMI+driveMI+"MI 99 1 0:99 / /mnt rw - tmpfs tmpfs rw\n", n, allDenied), Unverified, CWSLScope},
+		{"root's parent on another device", ExistsYes, wslOut(goodHead0+"DEVDRIVE 70\nDEVPARENT 71\n"+rootMI+driveMI, n, allDenied), Unverified, CWSLScope},
+		{"st_dev not reported", ExistsYes, wslOut(goodHead0+"DEVDRIVE\nDEVPARENT\n"+rootMI+driveMI, n, allDenied), Unverified, CWSLScope},
+		{"drive mount point is a symlink", ExistsYes, wslOut(strings.Replace(goodHeader, "REALDRIVE /mnt/c", "REALDRIVE /srv/fake-c", 1), n, allDenied), Unverified, CWSLScope},
+		{"a parent component is a symlink", ExistsYes, wslOut(strings.Replace(goodHeader, "REALPARENT /mnt/c/ProgramData/Arameair", "REALPARENT /mnt/c/Users/u/decoy", 1), n, allDenied), Unverified, CWSLScope},
+		{"root is a symlink", ExistsYes, wslOut(goodHeader+"ROOTLINK\n", n, allDenied), Unverified, CWSLScope},
+		{"no mountinfo", ExistsYes, wslOut(goodHead0+goodDev, n, allDenied), Unverified, CWSLScope},
+		{"unparseable mountinfo", ExistsYes, wslOut(withMI("MI garbage\n"), n, allDenied), Unverified, CWSLScope},
+		{"duplicate evidence line", ExistsYes, wslOut(goodHeader+"DRIVE /mnt/d\n", n, allDenied), Unverified, CWSLUnobserved},
+		{"virtiofs (source is a tag, not a drive)", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - virtiofs drvfsC rw\n", n, allDenied), Unverified, CWSLScope},
+		{"tmpfs at /mnt/c", ExistsYes, wslOut(goodHead0+goodDev+rootMI+"MI 70 1 0:70 / /mnt/c rw - tmpfs C:\\134 rw\n", n, allDenied), Unverified, CWSLScope},
+		{"root on the distro's own ext4", ExistsYes, wslOut("DISTRO Ubuntu\nWSLPATH /home/u/x\nDRIVE /mnt/c\nREALDRIVE /mnt/c\nREALPARENT /home/u\n"+goodDev+rootMI+driveMI, n, allDenied), Unverified, CWSLScope},
+		{"drive translates to /", ExistsYes, wslOut(strings.Replace(goodHeader, "DRIVE /mnt/c/", "DRIVE /", 1), n, allDenied), Unverified, CWSLScope},
+		{"unrelated mounts elsewhere are fine", ExistsYes, wslOut(withMI("MI 97 1 0:97 / /mnt/d rw - 9p D:\\134 rw\n", "MI 98 70 0:98 / /mnt/c/Users rw - 9p C:\\134 rw\n"), n, allDenied), Isolated, ""},
 		// Allowed stays a violation, whatever else is uncertain.
 		{"write allowed", ExistsYes, wslOut(goodHeader, n, func(i int, r string) string {
 			if i == 1 && r == "write" {
@@ -185,5 +223,95 @@ func TestWSLTargetsRejectsUnsafeRelativePaths(t *testing.T) {
 	tg, err := wslTargets(adminRoot, AdminProfile(adminRoot, svc, normal), AdminAuthorityFiles)
 	if err != nil || len(tg) != 1+len(AdminAuthorityFiles) || tg[0].Rel != "" {
 		t.Fatalf("%v %d", err, len(tg))
+	}
+}
+
+// ---- F1 (Codex audit 7060488246, blocking 2): no WSL launch for a rejected caller ------
+
+type fakeWSL struct {
+	tok      CallerToken
+	launches int
+	exists   int
+	out      string
+}
+
+func (f *fakeWSL) runner() wslRunner {
+	return wslRunner{
+		token:    func() CallerToken { return f.tok },
+		exists:   func(string) (Existence, string) { f.exists++; return ExistsYes, "" },
+		lookPath: func() error { return nil },
+		run:      func([]string) ([]byte, error) { f.launches++; return []byte(f.out), nil },
+	}
+}
+
+func TestProbeWSLNeverLaunchesForRejectedCaller(t *testing.T) {
+	p := EntityProfile(entityRoot, svc, normal)
+	n := len(testTargets(ExistsYes))
+	cases := []struct {
+		name string
+		tok  CallerToken
+		want Verdict
+		code Code
+	}{
+		{"token user unknown", CallerToken{}, Unverified, CProcessQuery},
+		{"service account", CallerToken{UserSID: svc}, Unverified, CProbeIsService},
+		{"another user", CallerToken{UserSID: other}, Unverified, CProcessWrong},
+		{"token field unreadable", CallerToken{UserSID: normal, QueryErrors: []string{"token groups: x"}}, Unverified, CProcessQuery},
+		{"elevated", CallerToken{UserSID: normal, Elevated: true}, NotIsolated, CNormalIsAdmin},
+		{"linked admin token", CallerToken{UserSID: normal, LinkedAdmin: true}, NotIsolated, CNormalIsAdmin},
+		{"Administrators enabled", CallerToken{UserSID: normal, AdminGroup: "enabled"}, NotIsolated, CNormalIsAdmin},
+		{"Administrators deny-only", CallerToken{UserSID: normal, AdminGroup: "deny-only (UAC-filtered)"}, NotIsolated, CNormalIsAdmin},
+		{"ACL-bypass privilege", CallerToken{UserSID: normal, Privileges: []string{"SeRestorePrivilege"}}, NotIsolated, CPrivileged},
+		{"linked admin + deny-only (the hosted-runner shape)", CallerToken{UserSID: normal, LinkedAdmin: true, AdminGroup: "deny-only (UAC-filtered)"}, NotIsolated, CNormalIsAdmin},
+	}
+	for _, c := range cases {
+		f := &fakeWSL{tok: c.tok, out: wslOut(goodHeader, n, allDenied)}
+		r := probeWSL(p, EntityAuthorityFiles, f.runner())
+		if f.launches != 0 || f.exists != 0 || len(r.Attempts) != 0 || r.WSL != nil {
+			t.Errorf("%s: WSL launched %d times, %d existence probes, %d attempts", c.name, f.launches, f.exists, len(r.Attempts))
+		}
+		if r.Verdict != c.want || !hasP(r, c.code) {
+			t.Errorf("%s: verdict %s, want %s with %s:%s", c.name, r.Verdict, c.want, c.code, dumpF(r.Findings))
+		}
+	}
+	// Control: the same fake with a clean designated token does launch, exactly once.
+	f := &fakeWSL{tok: CallerToken{UserSID: normal}, out: wslOut(goodHeader, n, allDenied)}
+	r := probeWSL(p, EntityAuthorityFiles, f.runner())
+	if f.launches != 1 || r.Verdict != Isolated || r.WSL == nil || r.WSL.MountRoot != "/" {
+		t.Fatalf("clean caller: launches %d verdict %s:%s", f.launches, r.Verdict, dumpF(r.Findings))
+	}
+	// Invalid policy or file list: no launch either.
+	for name, files := range map[string][]string{"bad file": {"../x"}} {
+		f := &fakeWSL{tok: CallerToken{UserSID: normal}}
+		if r := probeWSL(p, files, f.runner()); f.launches != 0 || r.Verdict == Isolated {
+			t.Errorf("%s: launches %d verdict %s", name, f.launches, r.Verdict)
+		}
+	}
+	f = &fakeWSL{tok: CallerToken{UserSID: normal}}
+	if r := probeWSL(EntityProfile(entityRoot, svc, svc), nil, f.runner()); f.launches != 0 || r.Verdict == Isolated {
+		t.Errorf("invalid policy: launches %d verdict %s", f.launches, r.Verdict)
+	}
+}
+
+func hasP(r ProbeReport, c Code) bool {
+	for _, f := range r.Findings {
+		if f.Code == c {
+			return true
+		}
+	}
+	return false
+}
+
+// st_dev encoding (glibc makedev), checked against values observed with stat -c %d on Linux.
+func TestUserDevMatchesKernelStDev(t *testing.T) {
+	for mm, want := range map[string]uint64{"0:41": 41, "0:70": 70, "254:0": 65024, "8:32": 2080} {
+		if got, ok := userDev(mm); !ok || got != want {
+			t.Errorf("%s: %d %v, want %d", mm, got, ok, want)
+		}
+	}
+	for _, bad := range []string{"", "8", "a:b", "8:"} {
+		if _, ok := userDev(bad); ok {
+			t.Errorf("%q accepted", bad)
+		}
 	}
 }

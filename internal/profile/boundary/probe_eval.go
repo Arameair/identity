@@ -123,7 +123,10 @@ type WSLTarget struct {
 type WSLTested struct {
 	Distro     string   `json:"distro"`      // $WSL_DISTRO_NAME of the default distro
 	Path       string   `json:"path"`        // wslpath -u translation of the root
-	MountPoint string   `json:"mount_point"` // longest /proc/mounts mount point containing Path
+	Drive      string   `json:"drive"`       // wslpath -u translation of the root's drive (X:\)
+	MountPoint string   `json:"mount_point"` // the drive's mount point (= Drive) in /proc/self/mountinfo
+	MountRoot  string   `json:"mount_root"`  // the mounted subtree of the source; must be "/"
+	MountDev   string   `json:"mount_dev"`   // major:minor of that mount
 	FSType     string   `json:"fs_type"`
 	Source     string   `json:"source"`
 	NotCovered []string `json:"not_covered"`
@@ -132,7 +135,7 @@ type WSLTested struct {
 // WSLNotCovered is reported with every ProbeWSL result.
 var WSLNotCovered = []string{
 	"every WSL distribution other than the one named in wsl.distro (only the default distro is run)",
-	"every path other than the single wslpath translation in wsl.path (other drvfs mounts, custom automount roots, bind mounts, wsl --mount disks)",
+	"every path other than the single wslpath translation in wsl.path (other drvfs mounts of the drive, custom automount roots, wsl --mount disks); bind, overlay and nested mounts on that path are detected and make the result UNVERIFIED",
 	`\\wsl$ and \\wsl.localhost access from Windows into a distro`,
 	"delete, re-ACL and take-ownership from WSL (the native Probe attempts these)",
 	"which Windows token drvfs used: assumed to be the launching (validated) user's token, not independently observed",
@@ -140,7 +143,9 @@ var WSLNotCovered = []string{
 }
 
 // wslFSTypes are the mount types through which /mnt/<drive> reaches NTFS.
-var wslFSTypes = map[string]bool{"9p": true, "drvfs": true, "virtiofs": true}
+// virtiofs is deliberately absent: its source names a tag, not a drive, so the
+// drive identity below cannot be checked and the result would be UNVERIFIED anyway.
+var wslFSTypes = map[string]bool{"9p": true, "drvfs": true}
 
 // wslRights are the attempts the script makes, per target kind.
 var (
@@ -148,8 +153,12 @@ var (
 	wslFileRights = []string{"read", "write"}
 )
 
-// wslScript runs inside WSL (sh) with $1 = Windows root, then the relative
-// files. It prints exactly one "R <index> <right> <STATUS> [detail]" line per
+// wslScript runs inside WSL (sh) with $1 = Windows root, $2 = its drive
+// root (X:\), then the relative files. Before the attempts it reports the
+// evidence verifyWSLMount needs to tie the path to the Windows drive: both
+// translations, their canonical (symlink-free) forms, st_dev of the drive
+// mount point and of the root's parent, whether the root is a symlink, and
+// every /proc/self/mountinfo line. It prints exactly one "R <index> <right> <STATUS> [detail]" line per
 // attempt; index 0 is the root, i is the i-th file. Silence never means
 // denied: an attempt without its line is UNOBSERVED. It never creates a file:
 // writes open with O_WRONLY and no O_CREAT/O_TRUNC (dd conv=notrunc,nocreat,
@@ -158,10 +167,18 @@ const wslScript = `export LC_ALL=C
 echo BEGIN
 r=$(wslpath -u "$1" 2>&1) || { echo "NOPATH $(printf %s "$r" | tr '\n\r' '  ' | cut -c1-160)"; echo DONE; exit 0; }
 case "$r" in /*) ;; *) echo "NOPATH not an absolute path: $(printf %s "$r" | tr '\n\r' '  ' | cut -c1-160)"; echo DONE; exit 0;; esac
-shift
+dr=$(wslpath -u "$2" 2>&1) || { echo "NOPATH drive: $(printf %s "$dr" | tr '\n\r' '  ' | cut -c1-160)"; echo DONE; exit 0; }
+shift 2
 echo "DISTRO ${WSL_DISTRO_NAME:-}"
 echo "WSLPATH $r"
-awk -v p="$r" '{ m=$2; gsub(/\\040/, " ", m); if ((m == "/" || p == m || index(p, m "/") == 1) && length(m) > length(b)) { b = m; t = $3; s = $1 } } END { if (b != "") print "MOUNT " t " " s " " b }' /proc/mounts 2>/dev/null
+echo "DRIVE $dr"
+pd=$(dirname -- "$r")
+echo "REALDRIVE $(cd -P -- "$dr" 2>/dev/null && pwd -P)"
+echo "REALPARENT $(cd -P -- "$pd" 2>/dev/null && pwd -P)"
+echo "DEVDRIVE $(stat -c %d -- "$dr" 2>/dev/null)"
+echo "DEVPARENT $(stat -c %d -- "$pd" 2>/dev/null)"
+if [ -L "$r" ]; then echo ROOTLINK; fi
+if [ -r /proc/self/mountinfo ]; then while IFS= read -r l; do echo "MI $l"; done < /proc/self/mountinfo; fi
 cls() { case "$1" in *"Permission denied"*|*"Operation not permitted"*) echo DENIED;; *"No such file or directory"*|*"Not a directory"*) echo ABSENT;; *) echo ERROR;; esac; }
 res() { if [ "$3" = 0 ]; then echo "R $1 $2 ALLOWED"; else echo "R $1 $2 $(cls "$4") $(printf %s "$4" | tr '\n\r' '  ' | cut -c1-160)"; fi; }
 e=$(ls -a -- "$r" 2>&1 >/dev/null); res 0 list $? "$e"
@@ -217,6 +234,7 @@ func evaluateWSL(out string, targets []WSLTarget) (att []Attempt, fs []Finding, 
 	}
 	seen := map[key]string{}
 	dup := map[key]bool{}
+	ev := wslMountEvidence{fields: map[string]string{}}
 	for _, l := range lines[1 : len(lines)-1] {
 		head, rest, _ := strings.Cut(l, " ")
 		switch head {
@@ -227,11 +245,18 @@ func evaluateWSL(out string, targets []WSLTarget) (att []Attempt, fs []Finding, 
 			tested.Distro = rest
 		case "WSLPATH":
 			tested.Path = rest
-		case "MOUNT":
-			f := strings.SplitN(rest, " ", 3)
-			if len(f) == 3 {
-				tested.FSType, tested.Source, tested.MountPoint = f[0], f[1], f[2]
+		case "DRIVE", "REALDRIVE", "REALPARENT", "DEVDRIVE", "DEVPARENT", "ROOTLINK":
+			if _, ok := ev.fields[head]; ok {
+				add(false, CWSLUnobserved, root, "duplicate %s line", head)
 			}
+			ev.fields[head] = rest
+		case "MI":
+			m, err := parseMountInfo(rest)
+			if err != nil {
+				add(false, CWSLScope, root, "unparseable mountinfo line %q: %v", rest, err)
+				continue
+			}
+			ev.mounts = append(ev.mounts, m)
 		case "R":
 			f := strings.SplitN(rest, " ", 4)
 			if len(f) < 3 {
@@ -259,13 +284,13 @@ func evaluateWSL(out string, targets []WSLTarget) (att []Attempt, fs []Finding, 
 	if tested.Distro == "" {
 		add(false, CWSLScope, root, "the WSL distribution that ran the probe is not named ($WSL_DISTRO_NAME empty)")
 	}
-	switch {
-	case tested.Path == "":
+	if tested.Path == "" {
 		add(false, CWSLScope, root, "no wslpath translation reported")
-	case tested.MountPoint == "" || tested.MountPoint == "/":
-		add(false, CWSLScope, root, "%s is not under a Windows drive mount (mount point %q)", tested.Path, tested.MountPoint)
-	case !wslFSTypes[tested.FSType]:
-		add(false, CWSLScope, root, "%s is on a %q mount, not drvfs/9p: it may not reach the Windows object", tested.Path, tested.FSType)
+	} else {
+		ev.path = tested.Path
+		for _, problem := range verifyWSLMount(&tested, ev, root[0], wslFSTypes) {
+			add(false, CWSLScope, root, "WSL path not proven to be the Windows object: %s", problem)
+		}
 	}
 
 	expected := map[key]bool{}
@@ -311,6 +336,226 @@ func evaluateWSL(out string, targets []WSLTarget) (att []Attempt, fs []Finding, 
 		}
 	}
 	return
+}
+
+// ---- WSL mount identity (F3) -----------------------------------------------------------
+
+type mountInfo struct {
+	dev, root, point, fstype, source, superOpts string
+}
+
+type wslMountEvidence struct {
+	path   string
+	fields map[string]string // DRIVE, REALDRIVE, REALPARENT, DEVDRIVE, DEVPARENT, ROOTLINK
+	mounts []mountInfo
+}
+
+// unescapeMount decodes the \NNN octal escapes of /proc/self/mountinfo.
+func unescapeMount(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+3 < len(s) {
+			if v, err := strconv.ParseUint(s[i+1:i+4], 8, 8); err == nil {
+				b.WriteByte(byte(v))
+				i += 3
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// parseMountInfo parses one proc(5) mountinfo line:
+// id parent major:minor root mountpoint options [optional...] - fstype source superoptions
+func parseMountInfo(l string) (mountInfo, error) {
+	f := strings.Fields(l)
+	sep := -1
+	for i := 6; i < len(f); i++ {
+		if f[i] == "-" {
+			sep = i
+			break
+		}
+	}
+	if sep < 0 || sep+2 >= len(f) {
+		return mountInfo{}, fmt.Errorf("too few fields")
+	}
+	m := mountInfo{dev: f[2], root: unescapeMount(f[3]), point: unescapeMount(f[4]),
+		fstype: f[sep+1], source: unescapeMount(f[sep+2])}
+	if sep+3 < len(f) {
+		m.superOpts = unescapeMount(f[sep+3])
+	}
+	if !strings.Contains(m.dev, ":") || !strings.HasPrefix(m.point, "/") {
+		return mountInfo{}, fmt.Errorf("bad device or mount point")
+	}
+	return m, nil
+}
+
+// userDev converts "major:minor" to the st_dev value stat -c %d prints (glibc makedev).
+func userDev(mm string) (uint64, bool) {
+	a, b, ok := strings.Cut(mm, ":")
+	ma, e1 := strconv.ParseUint(a, 10, 32)
+	mi, e2 := strconv.ParseUint(b, 10, 32)
+	if !ok || e1 != nil || e2 != nil {
+		return 0, false
+	}
+	return (ma&0xfffff000)<<32 | (ma&0xfff)<<8 | (mi&0xffffff00)<<12 | (mi & 0xff), true
+}
+
+func trimSlash(p string) string {
+	if len(p) > 1 {
+		return strings.TrimRight(p, "/")
+	}
+	return p
+}
+
+// isDriveRoot reports whether s names the root of the given drive ("C:", "C:\", "C:/").
+func isDriveRoot(s string, drive byte) bool {
+	s = strings.TrimRight(s, `\/`)
+	return len(s) == 2 && s[1] == ':' && strings.EqualFold(s[:1], string(drive))
+}
+
+// verifyWSLMount returns every reason the WSL path cannot be shown to be the
+// intended Windows object. An empty result requires ALL of:
+//   - the drive translates to a canonical (symlink-free) mount point D, not "/";
+//   - the root's WSL path is strictly under D, its parent resolves to itself
+//     (no symlinked component) and the root itself is not a symlink;
+//   - exactly one mountinfo entry at D: an accepted type, mounting the WHOLE
+//     source (mount root "/"), whose source (and any path= option) is this
+//     drive's root;
+//   - st_dev of D and of the root's parent both equal that entry's device, so
+//     the path really resolves through it (not a mount hiding D, not a
+//     same-named directory elsewhere);
+//   - no other mount anywhere between D and the root, at the root, or below it
+//     (bind, overlay or nested drvfs/9p mounts of any source).
+func verifyWSLMount(t *WSLTested, ev wslMountEvidence, drive byte, fsOK map[string]bool) (problems []string) {
+	bad := func(f string, a ...any) { problems = append(problems, fmt.Sprintf(f, a...)) }
+	r := ev.path
+	d := trimSlash(ev.fields["DRIVE"])
+	t.Drive = d
+	if d == "" || d == "/" || !strings.HasPrefix(d, "/") {
+		bad("drive %c: translates to %q, not a drive mount point", drive, d)
+		return
+	}
+	if !strings.HasPrefix(r, d+"/") {
+		bad("%s is not under the drive mount point %s", r, d)
+	}
+	if got := ev.fields["REALDRIVE"]; got != d {
+		bad("drive mount point %s resolves to %q (missing or symlinked)", d, got)
+	}
+	if got := ev.fields["REALPARENT"]; got != path.Dir(r) {
+		bad("the root's parent %s resolves to %q (missing, untraversable or symlinked)", path.Dir(r), got)
+	}
+	if _, ok := ev.fields["ROOTLINK"]; ok {
+		bad("%s is a symbolic link in the WSL view", r)
+	}
+	if len(ev.mounts) == 0 {
+		bad("no mountinfo reported")
+		return
+	}
+	var at []mountInfo
+	for _, m := range ev.mounts {
+		p := trimSlash(m.point)
+		switch {
+		case p == d:
+			at = append(at, m)
+		case strings.HasPrefix(p, d+"/") && (p == r || strings.HasPrefix(r, p+"/") || strings.HasPrefix(p, r+"/")):
+			bad("another mount at %s (%s %s, mounted subtree %s) lies on the path: bind/overlay/nested mount", p, m.fstype, m.source, m.root)
+		}
+	}
+	if len(at) != 1 {
+		bad("expected exactly one mount at %s, found %d (none, or stacked mounts)", d, len(at))
+		return
+	}
+	m := at[0]
+	t.MountPoint, t.MountRoot, t.MountDev, t.FSType, t.Source = trimSlash(m.point), m.root, m.dev, m.fstype, m.source
+	if !fsOK[m.fstype] {
+		bad("%s is a %q mount, not drvfs/9p", d, m.fstype)
+	}
+	if m.root != "/" {
+		bad("%s mounts the subtree %q of its source, not the whole drive (bind mount)", d, m.root)
+	}
+	if !isDriveRoot(m.source, drive) {
+		bad("%s is mounted from %q, not drive %c:", d, m.source, drive)
+	}
+	for _, o := range strings.FieldsFunc(m.superOpts, func(c rune) bool { return c == ',' || c == ';' }) {
+		if v, ok := strings.CutPrefix(o, "path="); ok && !isDriveRoot(v, drive) {
+			bad("%s is mounted from path=%q, not drive %c:", d, v, drive)
+		}
+	}
+	want, ok := userDev(m.dev)
+	if !ok {
+		bad("unparseable device %q", m.dev)
+		return
+	}
+	for _, k := range []string{"DEVDRIVE", "DEVPARENT"} {
+		if got, err := strconv.ParseUint(ev.fields[k], 10, 64); err != nil || got != want {
+			bad("%s st_dev %q is not the drive mount's device %s", k, ev.fields[k], m.dev)
+		}
+	}
+	return
+}
+
+// ---- ProbeWSL core (OS access injected) -------------------------------------------------
+
+// wslRunner is ProbeWSL's only OS access, injected so the gating order is testable.
+type wslRunner struct {
+	token    func() CallerToken
+	exists   func(path string) (Existence, string)
+	lookPath func() error
+	run      func(args []string) ([]byte, error)
+}
+
+// probeWSL is ProbeWSL with the OS injected. WSL is launched only when the
+// policy and file list are valid, the caller is the designated normal user,
+// and the token is fully known and clean (no query error, not elevated, no
+// linked admin token, not in Administrators, no ACL-bypass privilege).
+func probeWSL(p Policy, files []string, env wslRunner) (r ProbeReport) {
+	r = ProbeReport{Scope: "WSL ACCESS ATTEMPTS through ONE wslpath translation of the protected root, in the DEFAULT WSL distro only (exactly what is in wsl). " + scope}
+	defer func() { r.Verdict = verdictOf(r.Findings) }()
+	root, _, err := SplitWindowsPath(p.Root)
+	if err != nil {
+		r.add(true, CPath, p.Root, "%v", err)
+		return r
+	}
+	if err := p.validate(); err != nil {
+		r.add(false, CPolicy, "", "%v", err)
+		return r
+	}
+	targets, err := wslTargets(root, p, files)
+	if err != nil {
+		r.add(false, CPolicy, "", "%v", err)
+		return r
+	}
+	tok := env.token()
+	r.UserSID = tok.UserSID
+	fs, ok := evaluateCaller(p, tok)
+	r.Findings = append(r.Findings, fs...)
+	if !ok || len(fs) > 0 {
+		r.add(false, CWSLUnverified, root, "WSL not launched: the caller token is not a fully known, clean standard-user token")
+		return r
+	}
+	for i := range targets {
+		targets[i].Exists, targets[i].ExistsErr = env.exists(targets[i].Path)
+	}
+	if err := env.lookPath(); err != nil {
+		r.add(false, CWSLUnverified, root, "wsl.exe not available: WSL access UNVERIFIED")
+		return r
+	}
+	args := []string{"-e", "sh", "-c", wslScript, "probe", root, root[:3]}
+	for _, t := range targets[1:] {
+		args = append(args, t.Rel)
+	}
+	out, err := env.run(args)
+	text := strings.ReplaceAll(string(out), "\x00", "") // wsl.exe may emit UTF-16 diagnostics
+	if err != nil {
+		r.add(false, CWSLUnverified, root, "wsl.exe failed (%v): %.200q", err, text)
+		return r
+	}
+	att, wfs, tested := evaluateWSL(text, targets)
+	r.Attempts, r.WSL = att, &tested
+	r.Findings = append(r.Findings, wfs...)
+	return r
 }
 
 // wslTargets lists the root and every file (listed files plus Required,

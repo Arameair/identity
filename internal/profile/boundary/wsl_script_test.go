@@ -32,7 +32,7 @@ func runScript(t *testing.T, posixRoot string, files []string) scriptRun {
 	bin := t.TempDir()
 	stub := "#!/bin/sh\necho \"wslpath: $1: No such file or directory\" >&2\nexit 1\n"
 	if posixRoot != "" {
-		stub = "#!/bin/sh\n[ \"$1\" = -u ] || exit 2\nprintf '%s\\n' \"$WSLPATH_TARGET\"\n"
+		stub = "#!/bin/sh\n[ \"$1\" = -u ] || exit 2\ncase \"$2\" in ?:\\\\) printf '%s\\n' \"$WSLDRIVE_TARGET\";; *) printf '%s\\n' \"$WSLPATH_TARGET\";; esac\n"
 	}
 	if err := os.WriteFile(filepath.Join(bin, "wslpath"), []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func runScript(t *testing.T, posixRoot string, files []string) scriptRun {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args := []string{"-c", wslScript, "probe", entityRoot}
+	args := []string{"-c", wslScript, "probe", entityRoot, entityRoot[:3]}
 	for i := range targets {
 		targets[i].Exists = ExistsYes
 		if i > 0 {
@@ -51,7 +51,7 @@ func runScript(t *testing.T, posixRoot string, files []string) scriptRun {
 	}
 	cmd := exec.Command(sh, args...)
 	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"WSLPATH_TARGET="+posixRoot, "WSL_DISTRO_NAME=TestDistro")
+		"WSLPATH_TARGET="+posixRoot, "WSLDRIVE_TARGET="+filepath.Dir(posixRoot), "WSL_DISTRO_NAME=TestDistro")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("script failed: %v\n%s", err, out)
@@ -185,5 +185,72 @@ func TestWSLScriptDeniedTraversalIsExplicitlyDenied(t *testing.T) {
 	}
 	if verdictOf(r.fs) != Unverified {
 		t.Errorf("a non-drvfs mount must keep the result UNVERIFIED: %s", verdictOf(r.fs))
+	}
+}
+
+// F3 against the real kernel (Codex audit 7060488246, blocking 1): inside a
+// private mount namespace, a tmpfs stands in for the drive mount and, in the
+// adversarial run, a bind of a decoy directory is mounted over the root's
+// parent. The real /proc/self/mountinfo and st_dev must expose the nested
+// mount. The control run (no bind) shows the device encoding and path checks
+// agree with the kernel: only the two tmpfs-is-not-a-drive problems remain.
+// Needs CAP_SYS_ADMIN for unshare -m (root locally); skipped otherwise.
+func TestWSLScriptRealKernelNestedBindDetected(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("needs root for unshare -m / mount (not available as a normal user)")
+	}
+	if err := exec.Command("unshare", "-m", "true").Run(); err != nil {
+		t.Skipf("unshare -m unavailable: %v", err)
+	}
+	bin := t.TempDir()
+	stub := "#!/bin/sh\ncase \"$2\" in ?:\\\\) printf '%s\\n' \"$WSLDRIVE_TARGET\";; *) printf '%s\\n' \"$WSLPATH_TARGET\";; esac\n"
+	if err := os.WriteFile(filepath.Join(bin, "wslpath"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	run := func(bind bool) (string, []Finding) {
+		drive, decoy := t.TempDir(), t.TempDir()
+		setup := `set -e
+mount --make-rprivate /
+mount -t tmpfs none "$D"
+mkdir -p "$D/ProgramData/Arameair/TassIdentity" "$X/TassIdentity"
+for f in entity.json credential decisions.jsonl; do : > "$D/ProgramData/Arameair/TassIdentity/$f"; : > "$X/TassIdentity/$f"; done
+if [ "$BIND" = 1 ]; then mount --bind "$X" "$D/ProgramData/Arameair"; fi
+exec sh -c "$S" probe "$WINROOT" 'C:\' entity.json credential decisions.jsonl`
+		cmd := exec.Command("unshare", "-m", "sh", "-c", setup)
+		b := "0"
+		if bind {
+			b = "1"
+		}
+		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+			"D="+drive, "X="+decoy, "BIND="+b, "S="+wslScript, "WINROOT="+entityRoot,
+			"WSLPATH_TARGET="+drive+"/ProgramData/Arameair/TassIdentity", "WSLDRIVE_TARGET="+drive, "WSL_DISTRO_NAME=TestDistro")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("namespace run failed: %v\n%s", err, out)
+		}
+		targets, _ := wslTargets(entityRoot, EntityProfile(entityRoot, svc, normal), EntityAuthorityFiles)
+		for i := range targets {
+			targets[i].Exists = ExistsYes
+		}
+		_, fs, _ := evaluateWSL(string(out), targets)
+		return string(out), fs
+	}
+	scope := func(fs []Finding) (ds []string) {
+		for _, f := range fs {
+			if f.Code == CWSLScope {
+				ds = append(ds, f.Detail)
+			}
+		}
+		return ds
+	}
+	out, fs := run(false)
+	ctl := scope(fs)
+	if len(ctl) != 2 || !strings.Contains(strings.Join(ctl, "|"), `"tmpfs" mount`) || !strings.Contains(strings.Join(ctl, "|"), `mounted from "none"`) {
+		t.Fatalf("control: want only the tmpfs type/source problems, got %q\n%s", ctl, out)
+	}
+	out, fs = run(true)
+	adv := strings.Join(scope(fs), "|")
+	if verdictOf(fs) == Isolated || !strings.Contains(adv, "another mount at") || !strings.Contains(adv, "/ProgramData/Arameair") {
+		t.Fatalf("nested bind not detected: %s\n%s", adv, out)
 	}
 }

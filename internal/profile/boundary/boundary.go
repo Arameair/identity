@@ -26,6 +26,9 @@
 //     the default WSL distro. Only an explicit per-attempt denial on a target
 //     the Windows API confirms exists counts; absence, errors and silence are
 //     UNVERIFIED, and the tested distro and mount are reported (probe_eval.go).
+//     WSL is never launched unless the caller token is fully known and clean,
+//     and the WSL path counts only if mount evidence ties it to the whole
+//     Windows drive with no bind, overlay or nested mount on it.
 //
 // Administrators are trusted writers because the owner put administrative
 // host compromise outside this guarantee. That is only meaningful when the

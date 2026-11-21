@@ -234,60 +234,28 @@ func windowsExistence(p string) (Existence, string) {
 // ProbeWSL repeats read/write/list/create attempts from inside WSL, where
 // /mnt/<drive> access is served with the launching Windows user's token.
 //
-// It is bound to the same caller gate as Probe (designated normal user, not
-// elevated, no linked admin token, not in Administrators, no ACL-bypass
-// privileges) and refuses to run as anyone else. Each target's existence is
+// WSL is launched only for the designated normal user with a fully known,
+// clean token (no query error, not elevated, no linked admin token, not in
+// Administrators, no ACL-bypass privilege); any other caller gets findings and
+// no WSL process at all (probeWSL, probe_eval.go). Each target's existence is
 // first confirmed through the Windows API; a WSL denial counts only for a
 // target that exists, and only an explicit per-attempt "Permission denied" /
 // "Operation not permitted" is a denial (absent, errors, silence: UNVERIFIED).
 //
-// Coverage is ONE translation in the DEFAULT distro, reported in r.WSL; every
-// other distro and mount path stays UNVERIFIED (see WSLNotCovered).
+// Coverage is ONE translation in the DEFAULT distro, reported in r.WSL, and
+// only when the mount evidence ties that path to the whole Windows drive with
+// no bind/overlay/nested mount on it (verifyWSLMount); every other distro and
+// mount path stays UNVERIFIED (see WSLNotCovered).
 // Non-destructive: no file is created, truncated or written; one probe
 // directory is created and removed only if creation is (wrongly) allowed.
-func ProbeWSL(p Policy, files []string) (r ProbeReport) {
-	r = ProbeReport{Scope: "WSL ACCESS ATTEMPTS through ONE wslpath translation of the protected root, in the DEFAULT WSL distro only (exactly what is in wsl). " + scope}
-	defer func() { r.Verdict = verdictOf(r.Findings) }()
-	root, _, err := SplitWindowsPath(p.Root)
-	if err != nil {
-		r.add(true, CPath, p.Root, "%v", err)
-		return r
-	}
-	if err := p.validate(); err != nil {
-		r.add(false, CPolicy, "", "%v", err)
-		return r
-	}
-	targets, err := wslTargets(root, p, files)
-	if err != nil {
-		r.add(false, CPolicy, "", "%v", err)
-		return r
-	}
-	tok := readCallerToken()
-	r.UserSID = tok.UserSID
-	fs, ok := evaluateCaller(p, tok)
-	r.Findings = append(r.Findings, fs...)
-	if !ok {
-		return r
-	}
-	for i := range targets {
-		targets[i].Exists, targets[i].ExistsErr = windowsExistence(targets[i].Path)
-	}
-	if _, err := exec.LookPath("wsl.exe"); err != nil {
-		r.add(false, CWSLUnverified, root, "wsl.exe not available: WSL access UNVERIFIED")
-		return r
-	}
-	args := []string{"-e", "sh", "-c", wslScript, "probe", root}
-	for _, t := range targets[1:] {
-		args = append(args, t.Rel)
-	}
-	out, err := exec.Command("wsl.exe", args...).CombinedOutput()
-	text := strings.ReplaceAll(string(out), "\x00", "") // wsl.exe may emit UTF-16 diagnostics
-	if err != nil {
-		r.add(false, CWSLUnverified, root, "wsl.exe failed (%v): %.200q", err, text)
-		return r
-	}
-	att, wfs, tested := evaluateWSL(text, targets)
-	r.Attempts, r.WSL = att, &tested
-	r.Findings = append(r.Findings, wfs...)
-	return r
+func ProbeWSL(p Policy, files []string) ProbeReport {
+	return probeWSL(p, files, wslRunner{
+		token:  readCallerToken,
+		exists: windowsExistence,
+		lookPath: func() error {
+			_, err := exec.LookPath("wsl.exe")
+			return err
+		},
+		run: func(args []string) ([]byte, error) { return exec.Command("wsl.exe", args...).CombinedOutput() },
+	})
 }

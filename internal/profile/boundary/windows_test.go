@@ -209,15 +209,6 @@ func TestWindowsExistenceEvidence(t *testing.T) {
 	}
 }
 
-func hasP(r ProbeReport, c Code) bool {
-	for _, f := range r.Findings {
-		if f.Code == c {
-			return true
-		}
-	}
-	return false
-}
-
 // ---- opt-in acceptance harness ---------------------------------------------------------
 
 func TestAcceptanceDisposableProtectedProfile(t *testing.T) {
