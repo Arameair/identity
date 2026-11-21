@@ -21,6 +21,11 @@
 //   - Probe (run AS the normal user, Windows only, see probe_windows.go): its
 //     token is a standard user with no linked administrator token, and real
 //     open/create attempts against the protected paths are denied.
+//   - ProbeWSL (same account, Windows only): the same caller gate as Probe,
+//     then read/write/list/create attempts through ONE wslpath translation in
+//     the default WSL distro. Only an explicit per-attempt denial on a target
+//     the Windows API confirms exists counts; absence, errors and silence are
+//     UNVERIFIED, and the tested distro and mount are reported (probe_eval.go).
 //
 // Administrators are trusted writers because the owner put administrative
 // host compromise outside this guarantee. That is only meaningful when the
@@ -98,7 +103,7 @@ var NotCovered = []string{
 	"D2 Trust writer, attestations and Option B batches (not implemented by P0)",
 	"the owner's installed Identity revision and real account/ACL configuration",
 	"time-of-check/time-of-use: results hold only at the instant of the check",
-	"normal account is a standard user (UAC is not a boundary): only the normal-user Probe checks this",
+	"normal account is a standard user (UAC is not a boundary): only the normal-user Probe / ProbeWSL check this",
 	"the instance locator under the normal user's LOCALAPPDATA (a locator, not a trust signal)",
 }
 

@@ -22,6 +22,9 @@ package boundary
 //     service: run AS the protected account  → Check must be ISOLATED
 //     normal:  run AS the unelevated normal user → Probe must be ISOLATED
 //     wsl:     run AS the unelevated normal user → ProbeWSL must be ISOLATED
+//              (default distro only; every listed file must exist in the disposable
+//              profile, because a WSL denial counts only for a target Windows confirms
+//              exists; the report's "wsl" block names the exact distro and mount tested)
 
 import (
 	"encoding/json"
@@ -158,6 +161,61 @@ func TestWindowsProbeFindsAccessOnUnprotectedFolder(t *testing.T) {
 			}
 		}
 	}
+}
+
+// F1: ProbeWSL refuses to run as anyone but the designated normal user.
+func TestWindowsProbeWSLRefusesWrongUser(t *testing.T) {
+	me := currentSID(t)
+	if !strings.HasPrefix(me, "S-1-5-21-") {
+		t.Skipf("runs as %s", me)
+	}
+	r := ProbeWSL(AdminProfile(tempProfile(t), svc, fakeOther), []string{"profile.json"})
+	logReport(t, r)
+	if r.Verdict != Unverified || len(r.Attempts) != 0 || r.WSL != nil || !hasP(r, CProcessWrong) {
+		t.Fatalf("verdict %s attempts %d", r.Verdict, len(r.Attempts))
+	}
+}
+
+// F1: ProbeWSL applies the standard-user token checks. The hosted runner's user
+// is an administrator, so the WSL half must be NOT_ISOLATED whether or not
+// wsl.exe exists (before the repair it never looked at the token).
+func TestWindowsProbeWSLRejectsAdminToken(t *testing.T) {
+	me := currentSID(t)
+	if !strings.HasPrefix(me, "S-1-5-21-") {
+		t.Skipf("runs as %s", me)
+	}
+	if tok := readCallerToken(); !tok.Elevated && !tok.LinkedAdmin && tok.AdminGroup == "" && len(tok.Privileges) == 0 {
+		t.Skip("this token is a genuine standard user; the admin-token negative does not apply")
+	}
+	r := ProbeWSL(AdminProfile(tempProfile(t), svc, me), []string{"profile.json"})
+	logReport(t, r)
+	if r.Verdict != NotIsolated || !hasP(r, CNormalIsAdmin) {
+		t.Fatalf("verdict %s", r.Verdict)
+	}
+}
+
+// F2: existence evidence comes from the Windows API, opened with no access rights.
+func TestWindowsExistenceEvidence(t *testing.T) {
+	d := tempProfile(t)
+	for p, want := range map[string]Existence{
+		d:                                   ExistsYes,
+		filepath.Join(d, "profile.json"):    ExistsYes,
+		filepath.Join(d, "missing.json"):    ExistsNo,
+		filepath.Join(d, "nodir", "x.json"): ExistsNo,
+	} {
+		if got, detail := windowsExistence(p); got != want {
+			t.Errorf("%s: %v (%s), want %v", p, got, detail, want)
+		}
+	}
+}
+
+func hasP(r ProbeReport, c Code) bool {
+	for _, f := range r.Findings {
+		if f.Code == c {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- opt-in acceptance harness ---------------------------------------------------------

@@ -22,22 +22,6 @@ import (
 	"unsafe"
 )
 
-// ProbeReport is the normal-user result.
-type ProbeReport struct {
-	Verdict  Verdict   `json:"verdict"`
-	UserSID  string    `json:"user_sid"`
-	Attempts []Attempt `json:"attempts"`
-	Findings []Finding `json:"findings"`
-	Scope    string    `json:"scope"`
-}
-
-// Attempt is one access attempt.
-type Attempt struct {
-	Path   string `json:"path"`
-	Right  string `json:"right"`
-	Result string `json:"result"` // DENIED | ALLOWED | ABSENT | ERROR <errno>
-}
-
 const (
 	tokenGroups           = 2
 	tokenPrivileges       = 3
@@ -55,21 +39,6 @@ var procLookupPrivilegeValueW = advapi32.NewProc("LookupPrivilegeValueW")
 var dangerousPrivileges = []string{"SeBackupPrivilege", "SeRestorePrivilege", "SeTakeOwnershipPrivilege",
 	"SeDebugPrivilege", "SeSecurityPrivilege", "SeManageVolumePrivilege", "SeTcbPrivilege", "SeLoadDriverPrivilege"}
 
-func (r *ProbeReport) add(violation bool, c Code, p, f string, a ...any) {
-	r.Findings = append(r.Findings, Finding{Code: c, Path: p, Detail: fmt.Sprintf(f, a...), Violation: violation})
-}
-
-// Probe codes.
-const (
-	CNormalIsAdmin  Code = "NORMAL_USER_IS_ADMIN"
-	CPrivileged     Code = "NORMAL_USER_PRIVILEGED"
-	CProbeAllowed   Code = "NORMAL_USER_ALLOWED"
-	CProbeError     Code = "PROBE_ERROR"
-	CProbeIsService Code = "PROBE_RUNNING_AS_SERVICE"
-	CWSLAllowed     Code = "WSL_ACCESS_ALLOWED"
-	CWSLUnverified  Code = "WSL_UNVERIFIED"
-)
-
 // Probe tries, as the current (normal) user, every right that would let it
 // read, change, delete, re-ACL, take over or replace the protected profile.
 // files are relative paths (AdminAuthorityFiles / EntityAuthorityFiles); required must exist.
@@ -85,27 +54,13 @@ func Probe(p Policy, files []string) (r ProbeReport) {
 		r.add(false, CPolicy, "", "%v", err)
 		return r
 	}
-	t, err := syscall.OpenCurrentProcessToken()
-	if err != nil {
-		r.add(false, CProcessQuery, "", "%v", err)
+	tok := readCallerToken()
+	r.UserSID = tok.UserSID
+	fs, ok := evaluateCaller(p, tok)
+	r.Findings = append(r.Findings, fs...)
+	if !ok {
 		return r
 	}
-	defer t.Close()
-	if u, err := t.GetTokenUser(); err == nil {
-		r.UserSID, _ = u.User.Sid.String()
-	}
-	switch {
-	case r.UserSID == "":
-		r.add(false, CProcessQuery, "", "token user unknown")
-		return r
-	case strings.EqualFold(r.UserSID, p.ServiceSID):
-		r.add(false, CProbeIsService, "", "the probe is running as the protected service account; run it as the normal user")
-		return r
-	case !strings.EqualFold(r.UserSID, p.NormalUserSID):
-		r.add(false, CProcessWrong, "", "the probe is running as %s, not the designated normal user %s", r.UserSID, p.NormalUserSID)
-		return r
-	}
-	checkToken(&r, t)
 
 	try := func(path string, names []string, rights []uint32, required bool) {
 		for i, right := range rights {
@@ -175,24 +130,31 @@ func Probe(p Policy, files []string) (r ProbeReport) {
 	return r
 }
 
-func checkToken(r *ProbeReport, t syscall.Token) {
+// readCallerToken gathers the current process token's facts. It decides
+// nothing: evaluateCaller (probe_eval.go) does, for Probe and ProbeWSL alike.
+func readCallerToken() (c CallerToken) {
+	t, err := syscall.OpenCurrentProcessToken()
+	if err != nil {
+		c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("open process token: %v", err))
+		return c // UserSID "" → evaluateCaller refuses
+	}
+	defer t.Close()
+	if u, err := t.GetTokenUser(); err == nil {
+		c.UserSID, _ = u.User.Sid.String()
+	}
 	var et, el uint32
 	var n uint32
 	if err := syscall.GetTokenInformation(t, tokenElevationType, (*byte)(unsafe.Pointer(&et)), 4, &n); err != nil {
-		r.add(false, CProcessQuery, "", "elevation type: %v", err)
+		c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("elevation type: %v", err))
 	}
 	if err := syscall.GetTokenInformation(t, tokenElevation, (*byte)(unsafe.Pointer(&el)), 4, &n); err != nil {
-		r.add(false, CProcessQuery, "", "elevation: %v", err)
+		c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("elevation: %v", err))
 	}
-	if el != 0 {
-		r.add(true, CNormalIsAdmin, "", "the normal user's token is elevated")
-	}
-	if et == elevationTypeLimited {
-		r.add(true, CNormalIsAdmin, "", "the normal user has a linked administrator token (UAC split token); UAC is not a security boundary")
-	}
+	c.Elevated = el != 0
+	c.LinkedAdmin = et == elevationTypeLimited
 	// Administrators in the group list, enabled or deny-only, means an admin account.
 	if buf, err := tokenInfo(t, tokenGroups); err != nil {
-		r.add(false, CProcessQuery, "", "token groups: %v", err)
+		c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("token groups: %v", err))
 	} else {
 		count := *(*uint32)(unsafe.Pointer(&buf[0]))
 		// TOKEN_GROUPS: DWORD count, then SID_AND_ATTRIBUTES {PSID; DWORD} aligned to pointer size.
@@ -203,17 +165,16 @@ func checkToken(r *ProbeReport, t syscall.Token) {
 		for i := uintptr(0); i < uintptr(count) && groupsOff+(i+1)*step <= uintptr(len(buf)); i++ {
 			g := (*syscall.SIDAndAttributes)(unsafe.Add(base, i*step))
 			if s, err := g.Sid.String(); err == nil && s == SIDAdministrators {
-				how := "enabled"
+				c.AdminGroup = "enabled"
 				if g.Attributes&seGroupUseForDenyOnly != 0 {
-					how = "deny-only (UAC-filtered)"
+					c.AdminGroup = "deny-only (UAC-filtered)"
 				}
-				r.add(true, CNormalIsAdmin, "", "the normal user is a member of Administrators (%s)", how)
 			}
 		}
 	}
 	// Dangerous privileges, present at all (enabled or not), bypass ACLs.
 	if buf, err := tokenInfo(t, tokenPrivileges); err != nil {
-		r.add(false, CProcessQuery, "", "token privileges: %v", err)
+		c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("token privileges: %v", err))
 	} else {
 		count := *(*uint32)(unsafe.Pointer(&buf[0]))
 		held := map[[2]uint32]bool{}
@@ -228,14 +189,15 @@ func checkToken(r *ProbeReport, t syscall.Token) {
 			var luid [2]uint32
 			u, _ := syscall.UTF16PtrFromString(name)
 			if ok, _, _ := procLookupPrivilegeValueW.Call(0, uintptr(unsafe.Pointer(u)), uintptr(unsafe.Pointer(&luid))); ok == 0 {
-				r.add(false, CProcessQuery, "", "cannot look up %s", name)
+				c.QueryErrors = append(c.QueryErrors, fmt.Sprintf("cannot look up %s", name))
 				continue
 			}
 			if held[luid] {
-				r.add(true, CPrivileged, "", "the normal user's token holds %s", name)
+				c.Privileges = append(c.Privileges, name)
 			}
 		}
 	}
+	return c
 }
 
 func tokenInfo(t syscall.Token, class uint32) ([]byte, error) {
@@ -251,50 +213,81 @@ func tokenInfo(t syscall.Token, class uint32) ([]byte, error) {
 	return buf, nil
 }
 
-// ProbeWSL repeats the essential attempts from inside WSL (the default distro,
-// via wsl.exe), where /mnt/<drive> access runs with the launching Windows
-// user's token. Non-destructive: it only appends nothing (": >>") to files
-// that already exist, reads them, and creates+removes one probe directory.
+// windowsExistence opens the path with NO access rights (CreateFile documents
+// that this succeeds for metadata queries even where read access would be
+// denied), without following reparse points. It is the positive existence
+// evidence a WSL denial needs: success = exists; not-found = absent; any other
+// result = unknown.
+func windowsExistence(p string) (Existence, string) {
+	h, err := openNoFollow(p, 0)
+	switch {
+	case err == nil:
+		syscall.CloseHandle(h)
+		return ExistsYes, ""
+	case errors.Is(err, syscall.ERROR_FILE_NOT_FOUND) || errors.Is(err, syscall.ERROR_PATH_NOT_FOUND):
+		return ExistsNo, err.Error()
+	default:
+		return ExistsUnknown, err.Error()
+	}
+}
+
+// ProbeWSL repeats read/write/list/create attempts from inside WSL, where
+// /mnt/<drive> access is served with the launching Windows user's token.
+//
+// It is bound to the same caller gate as Probe (designated normal user, not
+// elevated, no linked admin token, not in Administrators, no ACL-bypass
+// privileges) and refuses to run as anyone else. Each target's existence is
+// first confirmed through the Windows API; a WSL denial counts only for a
+// target that exists, and only an explicit per-attempt "Permission denied" /
+// "Operation not permitted" is a denial (absent, errors, silence: UNVERIFIED).
+//
+// Coverage is ONE translation in the DEFAULT distro, reported in r.WSL; every
+// other distro and mount path stays UNVERIFIED (see WSLNotCovered).
+// Non-destructive: no file is created, truncated or written; one probe
+// directory is created and removed only if creation is (wrongly) allowed.
 func ProbeWSL(p Policy, files []string) (r ProbeReport) {
-	r = ProbeReport{Scope: "WSL ACCESS ATTEMPTS through the drvfs mount of the protected root. " + scope}
+	r = ProbeReport{Scope: "WSL ACCESS ATTEMPTS through ONE wslpath translation of the protected root, in the DEFAULT WSL distro only (exactly what is in wsl). " + scope}
 	defer func() { r.Verdict = verdictOf(r.Findings) }()
 	root, _, err := SplitWindowsPath(p.Root)
 	if err != nil {
 		r.add(true, CPath, p.Root, "%v", err)
 		return r
 	}
+	if err := p.validate(); err != nil {
+		r.add(false, CPolicy, "", "%v", err)
+		return r
+	}
+	targets, err := wslTargets(root, p, files)
+	if err != nil {
+		r.add(false, CPolicy, "", "%v", err)
+		return r
+	}
+	tok := readCallerToken()
+	r.UserSID = tok.UserSID
+	fs, ok := evaluateCaller(p, tok)
+	r.Findings = append(r.Findings, fs...)
+	if !ok {
+		return r
+	}
+	for i := range targets {
+		targets[i].Exists, targets[i].ExistsErr = windowsExistence(targets[i].Path)
+	}
 	if _, err := exec.LookPath("wsl.exe"); err != nil {
 		r.add(false, CWSLUnverified, root, "wsl.exe not available: WSL access UNVERIFIED")
 		return r
 	}
-	script := `r=$(wslpath -u "$1") || { echo NOPATH; exit 0; }; shift
-for f in "$@"; do p="$r/$f"
-  if [ -e "$p" ]; then
-    if ( : >> "$p" ) 2>/dev/null; then echo "WRITABLE $f"; fi
-    if cat "$p" >/dev/null 2>&1; then echo "READABLE $f"; fi
-  fi
-done
-d="$r/.wsl-probe-$$"; if mkdir "$d" 2>/dev/null; then rmdir "$d"; echo "CREATABLE ."; fi
-if ls "$r" >/dev/null 2>&1; then echo "LISTABLE ."; fi
-echo DONE`
-	args := append([]string{"-e", "sh", "-c", script, "probe", root}, files...)
+	args := []string{"-e", "sh", "-c", wslScript, "probe", root}
+	for _, t := range targets[1:] {
+		args = append(args, t.Rel)
+	}
 	out, err := exec.Command("wsl.exe", args...).CombinedOutput()
 	text := strings.ReplaceAll(string(out), "\x00", "") // wsl.exe may emit UTF-16 diagnostics
-	if err != nil || !strings.Contains(text, "DONE") || strings.Contains(text, "NOPATH") {
-		r.add(false, CWSLUnverified, root, "WSL probe did not complete (%v): %.200q", err, text)
+	if err != nil {
+		r.add(false, CWSLUnverified, root, "wsl.exe failed (%v): %.200q", err, text)
 		return r
 	}
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		for _, k := range []string{"WRITABLE ", "READABLE ", "CREATABLE ", "LISTABLE "} {
-			if strings.HasPrefix(line, k) {
-				r.add(true, CWSLAllowed, root, "from WSL: %s", line)
-				r.Attempts = append(r.Attempts, Attempt{Path: root, Right: "wsl " + strings.ToLower(strings.TrimSpace(k)), Result: "ALLOWED"})
-			}
-		}
-	}
-	if len(r.Attempts) == 0 {
-		r.Attempts = append(r.Attempts, Attempt{Path: root, Right: "wsl write/read/create/list", Result: "DENIED"})
-	}
+	att, wfs, tested := evaluateWSL(text, targets)
+	r.Attempts, r.WSL = att, &tested
+	r.Findings = append(r.Findings, wfs...)
 	return r
 }
