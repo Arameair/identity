@@ -32,6 +32,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -104,7 +106,7 @@ var (
 // RequestShare records a share Core asks the owner to approve. Requires UNLOCKED and the same entity.
 func (s *Store) RequestShare(service, shareID, repo string, issue int, text, entityID string) (ShareRequest, error) {
 	if service != MintService || !shareIDRe.MatchString(shareID) || !repoRe.MatchString(repo) || issue <= 0 ||
-		strings.TrimSpace(text) == "" || len(text) > MaxShareText || strings.Contains(text, "<!--") {
+		strings.TrimSpace(text) == "" || len(text) > MaxShareText || strings.Contains(text, "<!--") || !displayable(text) {
 		return ShareRequest{}, ErrShareInvalid
 	}
 	if ok, why, ent := s.allowNow(GitHubMailboxShare, entityID); !ok || ent == "" {
@@ -133,6 +135,23 @@ func (s *Store) RequestShare(service, shareID, repo string, issue int, text, ent
 		Action: "github.mailbox.share.request", Detail: shareID, EntityID: entityID, Allow: true,
 		Reason: "waiting for the owner's approval of the exact text"}})
 	return *r, nil
+}
+
+// displayable: the owner must be able to see every byte they approve. Valid UTF-8 only; no control
+// characters except newline and tab; no format characters (zero-width, bidi overrides, soft hyphen).
+func displayable(text string) bool {
+	if !utf8.ValidString(text) {
+		return false
+	}
+	for _, r := range text {
+		if r == '\n' || r == '\t' {
+			continue
+		}
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || r == ' ' || r == ' ' {
+			return false
+		}
+	}
+	return true
 }
 
 // ShareRequests lists the requests for the owner page (newest last).

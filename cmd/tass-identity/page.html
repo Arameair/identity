@@ -66,6 +66,12 @@
     <label for="skillPass">Your Identity passphrase (needed to enable; revoking doesn't need it)</label><input id="skillPass" type="password" autocomplete="current-password">
     <div id="skillMsg" class="err" role="status" aria-live="polite"></div>
   </div>
+  <div class="card" id="shareApprovals" hidden>
+    <b>Messages waiting for your approval</b>
+    <div class="dim">TASS asked to publish these exact words as yours. Nothing is posted unless you approve it here with your passphrase. Your approval covers only the text, destination and share ID shown; any other bytes are refused. The Communication Bridge posts it once, as an Arameair GitHub App comment.</div>
+    <div id="shareList"></div>
+    <div id="shareMsg" class="err" role="status" aria-live="polite"></div>
+  </div>
   <div class="card" id="githubPanel">
     <b>GitHub connection (optional)</b>
     <div class="dim">Local conversation works without GitHub. The connection token stays only in Identity memory; no sync or execution is enabled.</div>
@@ -110,7 +116,57 @@ async function refresh() {
   $("until").textContent = s.unlocked_until ? "Unlocked until " + new Date(s.unlocked_until).toLocaleString() + " (or until Identity restarts)." : "";
   if (!SKILLS.length) await loadSkills();
   renderSkills(s);
+  await refreshShares(s.state === "UNLOCKED");
   await refreshGitHub(s.state === "UNLOCKED");
+}
+// Pending shares (github.mailbox.share). Every value from a request is shown with textContent, never
+// as HTML. The approval hash is computed HERE from the exact text displayed, so the owner approves the
+// bytes on screen; Identity refuses the approval if its stored text differs.
+let SHARE_KEY = "";
+async function sha256Hex(text) {
+  if (!(window.crypto && crypto.subtle)) throw new Error("this browser cannot compute SHA-256 here; nothing was sent");
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function el(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+async function refreshShares(unlocked) {
+  if (!unlocked) { $("shareApprovals").hidden = true; SHARE_KEY = ""; return; }
+  const r = await fetch("/v1/github/mailbox/share-requests", {headers: {"X-Identity-Page": TOKEN}});
+  if (!r.ok) return;
+  const pending = ((await r.json()).requests || []).filter(q => q.state === "PENDING");
+  $("shareApprovals").hidden = pending.length === 0;
+  const key = pending.map(q => q.share_id + ":" + q.text_sha256).join(",");
+  if (key === SHARE_KEY) return; // unchanged: keep anything the owner is typing
+  SHARE_KEY = key;
+  const list = $("shareList");
+  list.replaceChildren();
+  for (const q of pending) {
+    const card = el("div", undefined, "share"); card.style.margin = "10px 0";
+    card.append(el("div", "Destination: " + q.repo + " issue #" + q.issue));
+    card.append(el("div", "Share " + q.share_id + " · " + q.text.length + " characters · requested " + new Date(q.at).toLocaleString(), "dim"));
+    const pre = el("pre", q.text); pre.style.whiteSpace = "pre-wrap"; pre.style.border = "1px solid #444"; pre.style.padding = "8px";
+    pre.dataset.share = q.share_id;
+    card.append(pre);
+    const pass = el("input"); pass.type = "password"; pass.autocomplete = "current-password"; pass.setAttribute("aria-label", "Your Identity passphrase to approve share " + q.share_id);
+    const ok = el("button", "Approve and publish this exact text"), no = el("button", "Reject");
+    ok.onclick = () => decideShare(q, pre, pass, true);
+    no.onclick = () => decideShare(q, pre, pass, false);
+    card.append(el("label", "Your Identity passphrase (needed to approve; rejecting doesn't need it)"), pass, ok, no);
+    list.append(card);
+  }
+}
+async function decideShare(q, pre, pass, approve) {
+  const msg = $("shareMsg");
+  msg.className = "err"; msg.textContent = "";
+  if (approve && !pass.value) { msg.textContent = "Type your passphrase first. Nothing was sent to Identity."; pass.focus(); return; }
+  try {
+    const hash = await sha256Hex(pre.textContent); // the bytes displayed, not a value from the server
+    await post("/v1/github/mailbox/share-approve", {share_id: q.share_id, text_sha256: hash, passphrase: approve ? pass.value : "", approve});
+    msg.className = "ok";
+    msg.textContent = (approve ? "Approved " : "Rejected ") + q.share_id + " at " + new Date().toLocaleTimeString() + "." +
+      (approve ? " The Bridge posts it once, to " + q.repo + " #" + q.issue + "." : " Nothing will be posted.");
+  } catch (e) { msg.textContent = "Identity refused it: " + e.message + ". Nothing was approved."; }
+  pass.value = ""; SHARE_KEY = ""; refresh();
 }
 async function refreshGitHub(unlocked) {
   const r = await fetch("/v1/github/status");
