@@ -103,6 +103,8 @@ type Decision struct {
 type Store struct {
 	bound     *boundTable // bound single-use decisions (bound.go), memory only
 	boundOnce sync.Once
+	shareTab  *shareTable // owner share requests (github_mailbox.go), memory only
+	shareOnce sync.Once
 	dir       string
 	unlockFor time.Duration
 	Now       func() time.Time

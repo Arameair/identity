@@ -467,6 +467,59 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 		}
 		writeJSON(w, 200, resp)
 	}))
+	// Protected GitHub mailbox (github_mailbox.go): Core asks the owner to approve one share; only the
+	// owner's page, with the passphrase, approves the exact text and makes Identity mint the decision.
+	mux.HandleFunc("POST /v1/github/mailbox/share-requests", service(func(w http.ResponseWriter, r *http.Request, svc string) {
+		var in struct {
+			ShareID  string `json:"share_id"`
+			Repo     string `json:"repo"`
+			Issue    int    `json:"issue"`
+			Text     string `json:"text"`
+			EntityID string `json:"entity_id"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		req, err := st.RequestShare(svc, in.ShareID, in.Repo, in.Issue, in.Text, in.EntityID)
+		if err != nil {
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+			return
+		}
+		req.Text = "" // Core already has it; the response carries state only
+		writeJSON(w, 200, req)
+	}))
+	mux.HandleFunc("GET /v1/github/mailbox/share-requests/{id}", service(func(w http.ResponseWriter, r *http.Request, svc string) {
+		req, err := st.ShareRequestFor(svc, r.PathValue("id"), r.URL.Query().Get("entity_id"))
+		if err != nil {
+			writeJSON(w, 404, map[string]string{"error": err.Error()})
+			return
+		}
+		req.Text = ""
+		writeJSON(w, 200, req)
+	}))
+	mux.HandleFunc("GET /v1/github/mailbox/share-requests", owner(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"requests": st.ShareRequests()})
+	}))
+	mux.HandleFunc("POST /v1/github/mailbox/share-approve", owner(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			ShareID    string `json:"share_id"`
+			TextSHA256 string `json:"text_sha256"`
+			Passphrase string `json:"passphrase"`
+			Approve    bool   `json:"approve"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		req, err := st.ApproveShare(in.Passphrase, in.ShareID, in.TextSHA256, in.Approve)
+		switch {
+		case errors.Is(err, entity.ErrThrottled):
+			writeJSON(w, 429, map[string]string{"error": err.Error()})
+		case err != nil:
+			writeJSON(w, 403, map[string]string{"error": err.Error()})
+		default:
+			writeJSON(w, 200, req)
+		}
+	}))
 	// Stage 2: the Engine redeems (consumes) or checks a bound decision Core obtained.
 	mux.HandleFunc("POST /v1/decisions/redeem", service(func(w http.ResponseWriter, r *http.Request, svc string) {
 		var in struct {

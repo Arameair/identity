@@ -143,6 +143,8 @@ func (s *Store) MintBound(service, action, binding, detail, entityID string) Bou
 	switch {
 	case !isBound:
 		d.Reason = action + " is not a bound action"
+	case OwnerMintOnly[action]:
+		d.Reason = action + " is minted only by the owner's approval on Identity's page"
 	case service != MintService:
 		d.Reason = "only " + MintService + " may obtain " + action
 	case !validBinding(binding):
