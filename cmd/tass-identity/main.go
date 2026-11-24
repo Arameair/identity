@@ -497,7 +497,13 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 		req.Text = ""
 		writeJSON(w, 200, req)
 	}))
+	// The pending texts are the owner's unpublished words: a read needs this page's token too, not
+	// only a localhost address (Codex audit of 9c23c28). Approval (POST) already requires it.
 	mux.HandleFunc("GET /v1/github/mailbox/share-requests", owner(func(w http.ResponseWriter, r *http.Request) {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Identity-Page")), []byte(pageToken)) != 1 {
+			writeJSON(w, 403, map[string]string{"error": "reload Identity's page"})
+			return
+		}
 		writeJSON(w, 200, map[string]any{"requests": st.ShareRequests()})
 	}))
 	mux.HandleFunc("POST /v1/github/mailbox/share-approve", owner(func(w http.ResponseWriter, r *http.Request) {

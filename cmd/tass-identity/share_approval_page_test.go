@@ -39,6 +39,16 @@ func TestShareApprovalRoutesAreOwnerPageOnly(t *testing.T) {
 	if c, _ := req(t, h, "GET", "identity:8796", "/v1/github/mailbox/share-requests", nil, nil); c != 403 {
 		t.Fatalf("list from a non-local host: %d", c)
 	}
+	// Localhost without the page token (another local program): no list of pending texts.
+	if c, out := req(t, h, "GET", "127.0.0.1:8796", "/v1/github/mailbox/share-requests", nil, nil); c != 403 || out["requests"] != nil {
+		t.Fatalf("pending texts readable without the page token: %d %v", c, out)
+	}
+	if c, out := req(t, h, "GET", "127.0.0.1:8796", "/v1/github/mailbox/share-requests", map[string]string{"X-Identity-Page": "wrong"}, nil); c != 403 || out["requests"] != nil {
+		t.Fatalf("pending texts readable with a wrong token: %d", c)
+	}
+	if c, out := req(t, h, "GET", "127.0.0.1:8796", "/v1/github/mailbox/share-requests", map[string]string{"X-Identity-Page": "page-secret"}, nil); c != 200 || len(out["requests"].([]any)) != 1 {
+		t.Fatalf("owner page must read it: %d", c)
+	}
 	// Localhost without the page token (another local program): no approval.
 	if c, _ := req(t, h, "POST", "127.0.0.1:8796", "/v1/github/mailbox/share-approve", nil,
 		map[string]any{"share_id": sid, "text_sha256": hexOf("owner only"), "passphrase": pass, "approve": true}); c != 403 {
