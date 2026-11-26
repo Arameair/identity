@@ -27,6 +27,22 @@ var BoundActions = map[string]bool{
 	// Stage 3B (Thought-Processor #120, owner decision D7): run ONE arm of one isolated experiment.
 	// Its own owner grant, cognition.experiment-run; never implied by, or shared with, the nudge grants.
 	"cognition.experiment.run": true,
+	// Controlled memory integration (TASS #24 7182931062; isolated candidate, not live).
+	// UNLOCKED only. The binding is the sha256 of the exact entity/channel/thread/audience (+record)
+	// for memory, and of the exact destination/cycle/bytes for github.publish.
+	"memory.read":    false,
+	"memory.write":   false,
+	"github.publish": false,
+}
+
+// BoundRedeemers names the service that may redeem a bound action when it is not the Engine.
+// Memory and outbound publishing are checked at Core's memory gate / outbound boundary, so Core
+// redeems them (it still cannot redeem the Engine's cognition actions). Separation of duties between
+// minting and redeeming for these actions is therefore NOT provided (documented live blocker).
+var BoundRedeemers = map[string]string{
+	"memory.read":    "core",
+	"memory.write":   "core",
+	"github.publish": "core",
 }
 
 // BoundTTL is how long a minted decision may wait to be redeemed.
@@ -136,8 +152,12 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 	}
 	d := BoundDecision{Decision: Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action},
 		Binding: binding, Mode: mode, For: decisionID}
-	if service != RedeemService {
-		d.Reason = "only " + RedeemService + " may " + mode + " " + action
+	redeemer := RedeemService
+	if r, ok := BoundRedeemers[action]; ok {
+		redeemer = r
+	}
+	if service != redeemer {
+		d.Reason = "only " + redeemer + " may " + mode + " " + action
 		s.auditBound(d)
 		return d
 	}
