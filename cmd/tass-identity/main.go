@@ -432,11 +432,28 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			EntityID string `json:"entity_id"`
 			Detail   string `json:"detail"`
 			Binding  string `json:"binding"`
+			Memory   *entity.MemoryScope `json:"memory_scope"`
 		}
 		if !decode(w, r, &in) || in.Action == "" {
 			if in.Action == "" {
 				writeJSON(w, 400, map[string]string{"error": "action is required"})
 			}
+			return
+		}
+		if in.Action == entity.MemoryRead || in.Action == entity.MemoryWrite {
+			// Identity computes the binding from the cleartext scope and the owner's audience table;
+			// a caller-supplied binding is never used for memory.
+			var sc entity.MemoryScope
+			if in.Memory != nil {
+				sc = *in.Memory
+			}
+			bd := st.MintMemory(svc, in.Action, sc, in.Detail, in.EntityID)
+			resp := map[string]any{"allow": bd.Allow, "decision_id": bd.ID, "reason": bd.Reason, "entity_id": bd.EntityID,
+				"service": svc, "binding": bd.Binding}
+			if bd.Allow {
+				resp["expires_at"] = bd.ExpiresAt
+			}
+			writeJSON(w, 200, resp)
 			return
 		}
 		if entity.RedeemOnly(svc) {
