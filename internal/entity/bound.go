@@ -76,6 +76,9 @@ func redeemerFor(action string) string {
 	if svc, ok := BoundRedeemers[action]; ok {
 		return svc
 	}
+	if coreRedeemed[action] {
+		return MintService
+	}
 	return RedeemService
 }
 
@@ -164,6 +167,8 @@ func (s *Store) mintBound(service, action, binding, detail, entityID string, enh
 		d.Reason = "only " + MintService + " may obtain " + action
 	case !validBinding(binding):
 		d.Reason = "a binding (sha256 hex) is required for " + action
+	case action == MailboxRead && !mailboxThreadOK(detail):
+		d.Reason = MailboxRead + " is pinned to " + PinnedMailboxThread
 	default:
 		ok, why, ent := s.allowNow(action, entityID)
 		d.EntityID, d.Reason = ent, why
