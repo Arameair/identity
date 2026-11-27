@@ -76,9 +76,6 @@ func redeemerFor(action string) string {
 	if svc, ok := BoundRedeemers[action]; ok {
 		return svc
 	}
-	if coreRedeemed[action] {
-		return MintService
-	}
 	return RedeemService
 }
 

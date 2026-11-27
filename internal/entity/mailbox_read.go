@@ -1,32 +1,25 @@
 package entity
 
-// mailbox.read (TASS #24, junction rev 5 accepted in 7224477017): Core may read the ONE pinned team
-// mailbox thread to answer an owner's explicit Talk request, and write the answer into the original
-// conversation. Each delivery needs its own bound, single-use decision. Core redeems it while
-// holding its Talk writer lock, immediately before the durable append.
-//
-// The redemption is the irreversible authorization boundary. RedeemBound re-checks UNLOCKED, the
-// entity and this grant under the bound-table lock, so a revocation that commits first is refused.
-// A revocation that commits after the redemption cannot recall that one authorized append.
-//
-// Not a default grant. It never implies github.mailbox.reply, memory.read or any skill, and posts nothing.
+// mailbox.read (TASS #24, junction rev 5 accepted in 7224477017; audit 7224748979): Core may obtain
+// a decision to read the ONE pinned team mailbox thread for an owner's explicit Talk request. Core
+// can neither redeem it nor read the mailbox: the protected mailbox reader (its own service key,
+// redeem-only like the memory gate) redeems it BEFORE it reads anything, then CHECKs it again
+// (same rules, not consumed) when Core is about to write the answer, so a revocation committed
+// first refuses delivery. Not a default grant; never implies github.mailbox.reply or memory.read.
 
 const (
 	MailboxRead = "mailbox.read"
-	// PinnedMailboxThread is the only thread a mailbox.read decision may name. A mint whose detail
-	// names any other thread is refused by Identity, whatever binding Core computed.
+	// MailboxReaderService is the protected reader's service name in the service-key file.
+	MailboxReaderService = "mailbox-reader"
+	// PinnedMailboxThread is the only thread a mailbox.read decision may name.
 	PinnedMailboxThread = "Arameair/TASS#24"
 )
 
-// coreRedeemed: bound actions whose effect Core itself performs (a local, durable append), so Core
-// is their redeemer. Core keeps its normal routes; it is not a redeem-only service.
-var coreRedeemed = map[string]bool{MailboxRead: true}
-
 func init() {
 	BoundActions[MailboxRead] = true
-	SinglePointOfUse[MailboxRead] = true
+	BoundRedeemers[MailboxRead] = MailboxReaderService
 	KnownSkills[MailboxRead] = "let the entity READ the one team mailbox thread (" + PinnedMailboxThread +
-		") to answer your explicit request in Talk; each answer uses its own single-use approval, redeemed just before it is written; revoking stops further answers at once; nothing is posted"
+		") to answer your explicit request in Talk; each answer uses its own single-use approval, checked again just before it is written; revoking stops further answers at once; nothing is posted"
 	ownerGrants[MailboxRead] = MailboxRead
 }
 
