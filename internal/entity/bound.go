@@ -56,6 +56,8 @@ const (
 // The service that performs the effect redeems; nobody else can.
 var BoundRedeemers = map[string]string{
 	DiscordReply: DoorService,
+	EnhanceFastAIWorker: "enhancement-sender",
+	EnhanceTeamMember: "enhancement-sender",
 }
 
 // SinglePointOfUse: bound actions whose effect happens once, at the moment of redemption, so a
@@ -93,7 +95,7 @@ type bound struct {
 	binding   string
 	expiresAt time.Time
 	used      bool
-	enhancementRecipient string
+	enhancementScope *EnhancementScope
 	enhancementEpoch uint64
 }
 
@@ -143,18 +145,18 @@ func (s *Store) allowNow(action, entityID string) (ok bool, reason string, ent s
 
 // MintBound: only Core, only for a bound action, only with a binding.
 func (s *Store) MintBound(service, action, binding, detail, entityID string) BoundDecision {
-	return s.mintBound(service, action, binding, detail, entityID, "")
+	return s.mintBound(service, action, binding, detail, entityID, nil)
 }
 
-// A nonempty enhancementRecipient is supplied only by MintEnhancement under enhancementMu.
-func (s *Store) mintBound(service, action, binding, detail, entityID, enhancementRecipient string) BoundDecision {
+// An enhancement scope is supplied only by MintEnhancement under enhancementMu.
+func (s *Store) mintBound(service, action, binding, detail, entityID string, enhancementScope *EnhancementScope) BoundDecision {
 	d := BoundDecision{Decision: Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action, Detail: trim(detail, 200)},
 		Binding: binding, Mode: "mint"}
 	_, isBound := BoundActions[action]
 	switch {
 	case !isBound:
 		d.Reason = action + " is not a bound action"
-	case IsEnhancementAction(action) && enhancementRecipient == "":
+	case IsEnhancementAction(action) && enhancementScope == nil:
 		d.Reason = action + " requires a validated enhancement scope"
 	case OwnerMintOnly[action]:
 		d.Reason = action + " is minted only by the owner's approval on Identity's page"
@@ -180,8 +182,9 @@ func (s *Store) mintBound(service, action, binding, detail, entityID, enhancemen
 				d.Allow, d.ExpiresAt = true, now.UTC().Add(BoundTTL)
 				t.m[d.ID] = &bound{d: d.Decision, binding: binding, expiresAt: d.ExpiresAt}
 				t.m[d.ID].d.Allow = true
-				if enhancementRecipient != "" {
-					t.m[d.ID].enhancementRecipient = enhancementRecipient
+				if enhancementScope != nil {
+					scope := *enhancementScope
+					t.m[d.ID].enhancementScope = &scope
 					t.m[d.ID].enhancementEpoch = s.enhancementEpoch[action]
 				}
 			}
@@ -236,7 +239,7 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		d.Reason = "the decision was already used"
 	case consume && s.Now().After(b.expiresAt):
 		d.Reason = "the decision expired"
-	case IsEnhancementAction(action) && (b.enhancementEpoch != s.enhancementEpoch[action] || !s.enhancementRecipientAllowed(action, b.enhancementRecipient)):
+	case IsEnhancementAction(action) && (b.enhancementScope == nil || b.enhancementEpoch != s.enhancementEpoch[action] || !s.enhancementRecipientAllowed(action, *b.enhancementScope)):
 		d.Reason = "enhancement grant was revoked or recipient is no longer pinned"
 	case !consume && !b.used:
 		d.Reason = "the decision has not been redeemed"

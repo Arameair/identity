@@ -20,6 +20,8 @@ type EnhancementScope struct {
 	RequestID     string `json:"request_id"`
 	PayloadSHA256 string `json:"payload_sha256"`
 	Recipient     string `json:"recipient"`
+	PolicyVersion string `json:"policy_version"`
+	FenceEpoch    uint64 `json:"fence_epoch"`
 }
 
 var (
@@ -34,7 +36,7 @@ func IsEnhancementAction(action string) bool {
 
 func enhancementBinding(action, entityID string, sc EnhancementScope) string {
 	h := sha256.New()
-	for _, part := range []string{"tass-enhancement-v1", action, entityID, sc.SparkID, sc.RequestID, sc.PayloadSHA256, sc.Recipient} {
+	for _, part := range []string{"tass-enhancement-v2", action, entityID, sc.SparkID, sc.RequestID, sc.PayloadSHA256, sc.Recipient, sc.PolicyVersion, fmt.Sprint(sc.FenceEpoch)} {
 		fmt.Fprintf(h, "%d:%s|", len(part), part)
 	}
 	return hex.EncodeToString(h.Sum(nil))
@@ -42,16 +44,24 @@ func enhancementBinding(action, entityID string, sc EnhancementScope) string {
 
 // The recipient table lives under Identity's private data directory. A missing, malformed, or
 // mismatched pin denies. The Core service request can never set or override a pin.
-func (s *Store) enhancementRecipientAllowed(action, recipient string) bool {
-	if !enhancementRecipientID.MatchString(recipient) {
+func (s *Store) enhancementRecipientAllowed(action string, scope EnhancementScope) bool {
+	if !enhancementRecipientID.MatchString(scope.Recipient) || !enhancementID.MatchString(scope.PolicyVersion) || scope.FenceEpoch == 0 {
 		return false
 	}
 	raw, err := os.ReadFile(s.path(enhancementRecipientsFile))
 	if err != nil {
 		return false
 	}
-	var pins map[string]string
-	return json.Unmarshal(raw, &pins) == nil && pins[action] == recipient
+	var pins map[string]struct {
+		Recipient string `json:"recipient"`
+		PolicyVersion string `json:"policy_version"`
+		FenceEpoch uint64 `json:"fence_epoch"`
+	}
+	if json.Unmarshal(raw, &pins) != nil {
+		return false
+	}
+	pin := pins[action]
+	return pin.Recipient == scope.Recipient && pin.PolicyVersion == scope.PolicyVersion && pin.FenceEpoch == scope.FenceEpoch
 }
 
 // MintEnhancement validates the cleartext scope and computes the binding inside Identity.
@@ -70,8 +80,8 @@ func (s *Store) MintEnhancement(service, action, entityID string, scope *Enhance
 	}
 	s.enhancementMu.Lock()
 	defer s.enhancementMu.Unlock()
-	if !s.enhancementRecipientAllowed(action, scope.Recipient) {
+	if !s.enhancementRecipientAllowed(action, *scope) {
 		return deny("enhancement recipient is not pinned by Identity")
 	}
-	return s.mintBound(service, action, enhancementBinding(action, entityID, *scope), "", entityID, scope.Recipient)
+	return s.mintBound(service, action, enhancementBinding(action, entityID, *scope), "", entityID, scope)
 }
