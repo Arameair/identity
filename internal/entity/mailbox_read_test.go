@@ -71,7 +71,23 @@ func TestMailboxReadBoundDecision(t *testing.T) {
 	if r := s.RedeemBound(rd, d.ID, MailboxRead, bind, false); !r.Allow {
 		t.Fatalf("check after redemption: %+v", r)
 	}
-	// Owner remaps the thread: decisions already minted keep their binding, new mints use the new thread.
+	// Owner remaps or removes the thread: outstanding decisions (redeemed or not) stop working.
+	r1, _ := s.MintMailbox("core", ent, "tj_r1")
+	os.WriteFile(s.path(mailboxScopeFile), []byte(`{"`+ent+`":"Arameair/TASS#99"}`), 0o600)
+	if r := s.RedeemBound(rd, d.ID, MailboxRead, bind, false); r.Allow || !strings.Contains(r.Reason, "mapping") {
+		t.Fatalf("check survived a remap: %+v", r)
+	}
+	if r := s.RedeemBound(rd, r1.ID, MailboxRead, r1.Binding, true); r.Allow {
+		t.Fatalf("redeem survived a remap: %+v", r)
+	}
+	os.Remove(s.path(mailboxScopeFile))
+	if r := s.RedeemBound(rd, d.ID, MailboxRead, bind, false); r.Allow {
+		t.Fatal("check survived removal of the mapping")
+	}
+	os.WriteFile(s.path(mailboxScopeFile), []byte(`{"`+ent+`":"`+thread+`"}`), 0o600)
+	if r := s.RedeemBound(rd, d.ID, MailboxRead, bind, false); !r.Allow {
+		t.Fatalf("check after restoring the same mapping: %+v", r)
+	}
 	d2, _ := s.MintMailbox("core", ent, "tj_b")
 	if _, err := s.SetSkillGrant("", MailboxRead, false); err != nil {
 		t.Fatal(err)

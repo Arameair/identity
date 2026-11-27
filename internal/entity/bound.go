@@ -245,6 +245,10 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		d.Reason = "enhancement grant was revoked or recipient is no longer pinned"
 	case !consume && !b.used:
 		d.Reason = "the decision has not been redeemed"
+	case action == MailboxRead && !s.mailboxMintOK(b.binding, b.d.Detail, b.d.EntityID):
+		// The owner's current mapping is authoritative at every redemption and check, not only at
+		// mint: remapping or removing an entity's thread voids outstanding decisions (7225531888).
+		d.Reason = "the owner changed this entity's mailbox mapping since the decision was issued"
 	default:
 		ok, why, ent := s.allowNow(action, b.d.EntityID)
 		d.EntityID, d.Reason = ent, why
