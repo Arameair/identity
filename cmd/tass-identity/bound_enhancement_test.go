@@ -108,6 +108,21 @@ func TestEnhancementBoundAuthorization(t *testing.T) {
 	want("Team uses its own pin and grant", mint(coreKey, team, id, changed), true)
 	pending = mint(coreKey, fast, id, scope)
 	want("new mint", pending, true)
+	audit := filepath.Join(dir, "decisions.jsonl")
+	if err := os.Remove(audit); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(audit, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	want("mint audit failure denied", mint(coreKey, fast, id, scope), false)
+	want("redeem audit failure denied", redeem(engineKey, fast, pending, pending["binding"], false), false)
+	if err := os.Remove(audit); err != nil {
+		t.Fatal(err)
+	}
+	want("audit failure consumes decision", redeem(engineKey, fast, pending, pending["binding"], false), false)
+	pending = mint(coreKey, fast, id, scope)
+	want("mint after audit recovery", pending, true)
 	pin("fixture://replacement")
 	want("recipient rotation invalidates pending decision", redeem(engineKey, fast, pending, pending["binding"], false), false)
 }

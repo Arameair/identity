@@ -188,7 +188,13 @@ func (s *Store) mintBound(service, action, binding, detail, entityID, enhancemen
 			t.mu.Unlock()
 		}
 	}
-	s.auditBound(d)
+	if err := s.auditBound(d); err != nil && d.Allow && IsEnhancementAction(action) {
+		t := s.bt()
+		t.mu.Lock()
+		delete(t.m, d.ID)
+		t.mu.Unlock()
+		d.Allow, d.Reason, d.ExpiresAt = false, "could not write enhancement mint audit", time.Time{}
+	}
 	return d
 }
 
@@ -246,19 +252,30 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		}
 	}
 	t.mu.Unlock()
-	s.auditBound(d)
+	if err := s.auditBound(d); err != nil && d.Allow && IsEnhancementAction(action) {
+		// Keep the decision consumed even if its audit fails.
+		d.Allow, d.Reason = false, "could not write enhancement redemption audit"
+	}
 	return d
 }
 
-func (s *Store) auditBound(d BoundDecision) {
+func (s *Store) auditBound(d BoundDecision) error {
 	b, err := json.Marshal(d)
 	if err != nil {
-		return
+		return err
 	}
-	if f, err := os.OpenFile(s.path("decisions.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
-		f.Write(append(b, '\n'))
-		f.Close()
+	f, err := os.OpenFile(s.path("decisions.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
 	}
+	_, err = f.Write(append(b, '\n'))
+	if err == nil && d.Allow && IsEnhancementAction(d.Action) {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }
 
 // Dir is the Store's data folder (tests reopen it to simulate a restart).
