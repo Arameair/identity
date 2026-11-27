@@ -24,6 +24,8 @@ import (
 
 // BoundActions: action → whether a grant of the same name is required (besides UNLOCKED).
 var BoundActions = map[string]bool{
+	EnhanceFastAIWorker: true,
+	EnhanceTeamMember: true,
 	"cognition.nudge.process": true,  // run one nudge: owner grant cognition.nudge-process
 	"cognition.nudge.stop":    false, // stop one submitted nudge: UNLOCKED only (owner decision D15)
 	// Stage 3B (Thought-Processor #120, owner decision D7): run ONE arm of one isolated experiment.
@@ -62,6 +64,8 @@ var BoundRedeemers = map[string]string{
 // allow=true again for as long as the decision stays in memory (the discord.reply check bypass,
 // identity #47 audit). Actions not listed keep the Engine's established redeem-then-check flow.
 var SinglePointOfUse = map[string]bool{
+	EnhanceFastAIWorker: true,
+	EnhanceTeamMember: true,
 	DiscordReply: true,
 }
 
@@ -89,6 +93,8 @@ type bound struct {
 	binding   string
 	expiresAt time.Time
 	used      bool
+	enhancementRecipient string
+	enhancementEpoch uint64
 }
 
 type boundTable struct {
@@ -137,12 +143,19 @@ func (s *Store) allowNow(action, entityID string) (ok bool, reason string, ent s
 
 // MintBound: only Core, only for a bound action, only with a binding.
 func (s *Store) MintBound(service, action, binding, detail, entityID string) BoundDecision {
+	return s.mintBound(service, action, binding, detail, entityID, "")
+}
+
+// A nonempty enhancementRecipient is supplied only by MintEnhancement under enhancementMu.
+func (s *Store) mintBound(service, action, binding, detail, entityID, enhancementRecipient string) BoundDecision {
 	d := BoundDecision{Decision: Decision{ID: "dec_" + randHex(8), At: s.Now().UTC(), Service: service, Action: action, Detail: trim(detail, 200)},
 		Binding: binding, Mode: "mint"}
 	_, isBound := BoundActions[action]
 	switch {
 	case !isBound:
 		d.Reason = action + " is not a bound action"
+	case IsEnhancementAction(action) && enhancementRecipient == "":
+		d.Reason = action + " requires a validated enhancement scope"
 	case OwnerMintOnly[action]:
 		d.Reason = action + " is minted only by the owner's approval on Identity's page"
 	case service != MintService:
@@ -167,6 +180,10 @@ func (s *Store) MintBound(service, action, binding, detail, entityID string) Bou
 				d.Allow, d.ExpiresAt = true, now.UTC().Add(BoundTTL)
 				t.m[d.ID] = &bound{d: d.Decision, binding: binding, expiresAt: d.ExpiresAt}
 				t.m[d.ID].d.Allow = true
+				if enhancementRecipient != "" {
+					t.m[d.ID].enhancementRecipient = enhancementRecipient
+					t.m[d.ID].enhancementEpoch = s.enhancementEpoch[action]
+				}
 			}
 			t.mu.Unlock()
 		}
@@ -195,6 +212,10 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		s.auditBound(d)
 		return d
 	}
+	if IsEnhancementAction(action) {
+		s.enhancementMu.Lock()
+		defer s.enhancementMu.Unlock()
+	}
 	t := s.bt()
 	t.mu.Lock()
 	b := t.m[decisionID]
@@ -209,6 +230,8 @@ func (s *Store) RedeemBound(service, decisionID, action, binding string, consume
 		d.Reason = "the decision was already used"
 	case consume && s.Now().After(b.expiresAt):
 		d.Reason = "the decision expired"
+	case IsEnhancementAction(action) && (b.enhancementEpoch != s.enhancementEpoch[action] || !s.enhancementRecipientAllowed(action, b.enhancementRecipient)):
+		d.Reason = "enhancement grant was revoked or recipient is no longer pinned"
 	case !consume && !b.used:
 		d.Reason = "the decision has not been redeemed"
 	default:

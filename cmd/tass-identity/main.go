@@ -433,6 +433,7 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			Detail   string `json:"detail"`
 			Binding  string `json:"binding"`
 			Memory   *entity.MemoryScope `json:"memory_scope"`
+			Enhancement *entity.EnhancementScope `json:"enhancement_scope"`
 		}
 		if !decode(w, r, &in) || in.Action == "" {
 			if in.Action == "" {
@@ -460,6 +461,11 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			// A redeem-only service (the Discord door) can neither obtain decisions nor ask
 			// for plain authorizations: its key works on /v1/decisions/redeem and nowhere else.
 			writeJSON(w, 403, map[string]string{"error": svc + " may only redeem bound decisions"})
+			return
+		}
+		if entity.IsEnhancementAction(in.Action) || in.Enhancement != nil {
+			bd := st.MintEnhancement(svc, in.Action, in.EntityID, in.Enhancement)
+			writeJSON(w, 200, bd)
 			return
 		}
 		if _, isBound := entity.BoundActions[in.Action]; isBound || in.Binding != "" {

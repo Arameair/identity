@@ -17,6 +17,8 @@ import (
 //	skill.discover                      Core may show the owner which registered skills exist
 //	skill.run:<skill id>                Core may run exactly that skill, after the owner approves the request
 var KnownSkills = map[string]string{
+	EnhanceFastAIWorker: "allow single-use Fast AI Worker requests to its Identity-pinned recipient",
+	EnhanceTeamMember: "allow single-use Team Member requests to its Identity-pinned recipient",
 	"lesson-workspace.list-lessons": "list the lesson files in TASS's local, read-only lesson workspace (no code runs)",
 	// Information junction (Thought-Processor #82 P2): a fixed, read-only Go handler the Core's
 	// 20-second loop may use without a per-run approval once the owner grants it here.
@@ -40,6 +42,8 @@ var KnownSkills = map[string]string{
 // ownerGrants: allowlisted entries that are neither skills nor junctions, with their own grant
 // names. Enabling one never adds skill.discover.
 var ownerGrants = map[string]string{
+	EnhanceFastAIWorker: EnhanceFastAIWorker,
+	EnhanceTeamMember: EnhanceTeamMember,
 	"cognition.nudge-draft":    "cognition.nudge.draft",
 	"cognition.nudge-process":  "cognition.nudge.process",
 	"cognition.experiment-run": "cognition.experiment.run",
@@ -82,6 +86,10 @@ func SkillList() []map[string]string {
 func (s *Store) SetSkillGrant(passphrase, skill string, enable bool) (State, error) {
 	if _, ok := KnownSkills[skill]; !ok {
 		return State{}, ErrUnknownSkill
+	}
+	if IsEnhancementAction(skill) {
+		s.enhancementMu.Lock()
+		defer s.enhancementMu.Unlock()
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -140,6 +148,12 @@ func (s *Store) SetSkillGrant(passphrase, skill string, enable bool) (State, err
 		if err := writeFile(s.path("entity.json"), b); err != nil {
 			return State{}, err
 		}
+	}
+	if !enable && IsEnhancementAction(run) {
+		if s.enhancementEpoch == nil {
+			s.enhancementEpoch = make(map[string]uint64)
+		}
+		s.enhancementEpoch[run]++
 	}
 	action, reason := "grants.skill.enable", "owner passphrase confirmed; skill run grant added"
 	if !enable {
