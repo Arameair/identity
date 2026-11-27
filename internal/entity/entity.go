@@ -103,6 +103,8 @@ type Decision struct {
 type Store struct {
 	bound     *boundTable // bound single-use decisions (bound.go), memory only
 	boundOnce sync.Once
+	enhancementMu sync.Mutex // orders scoped grants, minting and redemption
+	enhancementEpoch map[string]uint64 // grant generations, guarded by enhancementMu
 	shareTab  *shareTable // owner share requests (github_mailbox.go), memory only
 	shareOnce sync.Once
 	dir       string
