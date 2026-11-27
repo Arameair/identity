@@ -71,6 +71,9 @@ func TestEnhancementBoundAuthorization(t *testing.T) {
 	want("pin alone", mint(coreKey, fast, id, scope), false)
 	grant(fast, false)
 	want("engine cannot mint", mint(engineKey, fast, id, scope), false)
+	if got := mint("fixture-sender-key", fast, id, scope); got["allow"] == true {
+		t.Fatal("redeem-only sender minted a decision")
+	}
 	want("wrong entity", mint(coreKey, fast, "other", scope), false)
 	want("opaque binding rejected", call("/v1/authorize", coreKey, map[string]string{"action": fast, "binding": bindA}), false)
 	changed := scope
