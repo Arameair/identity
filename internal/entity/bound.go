@@ -164,8 +164,8 @@ func (s *Store) mintBound(service, action, binding, detail, entityID string, enh
 		d.Reason = "only " + MintService + " may obtain " + action
 	case !validBinding(binding):
 		d.Reason = "a binding (sha256 hex) is required for " + action
-	case action == MailboxRead && !mailboxThreadOK(detail):
-		d.Reason = MailboxRead + " is pinned to " + PinnedMailboxThread
+	case action == MailboxRead && !s.mailboxMintOK(binding, detail, entityID):
+		d.Reason = MailboxRead + " must name the owner-mapped thread of this entity with Identity's binding"
 	default:
 		ok, why, ent := s.allowNow(action, entityID)
 		d.EntityID, d.Reason = ent, why

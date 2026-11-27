@@ -441,6 +441,16 @@ func routesWithGitHub(st *entity.Store, keys map[string]string, pageToken string
 			}
 			return
 		}
+		if in.Action == entity.MailboxRead && !entity.RedeemOnly(svc) {
+			// Identity derives the thread (owner table) and the binding; the caller names the junction.
+			bd, thread := st.MintMailbox(svc, in.EntityID, in.Detail)
+			resp := map[string]any{"allow": bd.Allow, "decision_id": bd.ID, "reason": bd.Reason, "entity_id": bd.EntityID, "service": svc}
+			if bd.Allow {
+				resp["binding"], resp["mailbox_thread"], resp["expires_at"] = bd.Binding, thread, bd.ExpiresAt
+			}
+			writeJSON(w, 200, resp)
+			return
+		}
 		if in.Action == entity.MemoryRead || in.Action == entity.MemoryWrite {
 			// Identity computes the binding from the cleartext scope and the owner's audience table;
 			// a caller-supplied binding is never used for memory.
